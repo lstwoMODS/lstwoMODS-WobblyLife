@@ -1,4 +1,4 @@
-# NotAzzamods
+# lstwoMODS (formerly "NotAzzamods")
 
 A free recreation of Azzamods for Wobbly Life containing a lot of Azzamods mods but also more than double original ones.
 
@@ -20,3 +20,7 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases), [BepInEx 5.X]
 - **Does it have a server player count changer?**
 
   No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
+
+- **Why did you change the name? (No one actually asked that)**
+
+  Because "Not Azzamods" is very confusing at times.
