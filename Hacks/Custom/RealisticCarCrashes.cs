@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using NotAzzamods.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections;
@@ -17,6 +18,7 @@ namespace NotAzzamods.Hacks.Custom
     {
         public override string Name => "Realistic Car Crashes";
         public override string Description => "";
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         private static bool enabled = false;
         private static float explosionForce = 1500f, explosionRadius = 500f, explosionUpwardsModifier = 5f;

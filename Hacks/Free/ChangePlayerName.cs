@@ -18,6 +18,8 @@ namespace NotAzzamods.Hacks.Free
 
         public override string Description => "Allows you to Change the Players Name!";
 
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+
         private InputFieldRef nameInput;
 
         public void execute(string newName)

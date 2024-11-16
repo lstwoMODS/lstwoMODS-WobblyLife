@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using HawkNetworking;
+using NotAzzamods.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Banana Peel Backpack Modifier";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         private static int maxBananaPeels = 5;
         private static bool unlimitedPeels = false;

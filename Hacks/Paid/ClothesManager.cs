@@ -1,4 +1,5 @@
 ﻿using IngameDebugConsole;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Clothing Manager";
 
         public override string Description => "Unlock or Lock all Clothes!";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public void UnlockAllClothes()
         {

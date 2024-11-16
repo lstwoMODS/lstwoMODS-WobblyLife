@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,6 +21,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "First Person";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

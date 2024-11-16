@@ -15,6 +15,8 @@ namespace NotAzzamods.Hacks.Custom
 
         public override string Description => "";
 
+        public override HacksTab HacksTab => Plugin.ServerHacksTab;
+
         public override void ConstructUI(GameObject root)
         {
             var ui = new HacksUIHelper(root);

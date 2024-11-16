@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using NotAzzamods.UI.TabMenus;
 
 namespace NotAzzamods.Hacks.Paid
 {
@@ -15,6 +16,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Give Money";
 
         public override string Description => "Give yourself any Amount of Money!";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

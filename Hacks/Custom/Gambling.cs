@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using System.Reflection;
+using NotAzzamods.UI.TabMenus;
 
 namespace NotAzzamods.Hacks.Custom
 {
@@ -18,6 +19,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Gambling";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

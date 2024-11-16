@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NotAzzamods.UI.TabMenus;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,6 +13,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Smite Player";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

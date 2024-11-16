@@ -3,7 +3,9 @@ using CustomItems;
 using NotAzzamods.CustomItems;
 using ShadowLib;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -59,6 +61,25 @@ namespace NotAzzamods.UI.TabMenus
                     cell.Item = item;
                     cell.ItemPack = pack;
                 }
+            }
+        }
+
+        public static IEnumerator InitCustomItems()
+        {
+            var path = AppDomain.CurrentDomain.BaseDirectory + "/CustomItems/";
+
+            if (!Directory.Exists(path))
+            {
+                Directory.CreateDirectory(path);
+                yield break;
+            }
+
+            var itemDirectories = Directory.GetDirectories(path);
+
+            foreach (var itemDirectory in itemDirectories)
+            {
+                Debug.Log(itemDirectory);
+                CustomItemPacks.Add(new(itemDirectory));
             }
         }
 

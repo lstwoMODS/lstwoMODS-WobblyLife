@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +16,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Museum Manager";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.SaveHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

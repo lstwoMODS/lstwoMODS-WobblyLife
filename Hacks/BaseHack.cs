@@ -3,6 +3,7 @@ using ShadowLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -20,6 +21,11 @@ namespace NotAzzamods.Hacks
         /// Unused for now.
         /// </summary>
         public abstract string Description { get; }
+
+        /// <summary>
+        /// The tab your hack should get added to.
+        /// </summary>
+        public abstract HacksTab HacksTab { get; }
 
         /// <summary>
         /// The currently selected Player.

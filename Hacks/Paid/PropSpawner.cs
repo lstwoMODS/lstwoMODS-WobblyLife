@@ -1,4 +1,5 @@
 ﻿using HawkNetworking;
+using NotAzzamods.UI.TabMenus;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -11,6 +12,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Prop Spawner";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => null;
 
         private List<GameObject> gameObjects = new List<GameObject>();
         private Dropdown dropdown;

@@ -15,7 +15,7 @@ namespace NotAzzamods.UI
     {
         public MainPanel(UIBase owner) : base(owner) { }
 
-        public override string Name => "<b><i>Not</i> AzzaMods</b>";
+        public override string Name => "<b>lstwoMODS</b>";
 
         public override int MinWidth => 640;
         public override int MinHeight => 450;

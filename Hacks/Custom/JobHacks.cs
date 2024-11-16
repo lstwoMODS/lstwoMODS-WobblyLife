@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NotAzzamods.Hacks.Custom.JobManager;
+using NotAzzamods.UI.TabMenus;
 using UnityEngine;
 
 namespace NotAzzamods.Hacks.Custom
@@ -10,6 +11,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Job Mods";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

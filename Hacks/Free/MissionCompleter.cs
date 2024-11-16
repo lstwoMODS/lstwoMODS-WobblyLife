@@ -16,6 +16,8 @@ namespace NotAzzamods.Hacks.Free
 
         public override string Description => "Completes all Active Missions";
 
+        public override HacksTab HacksTab => Plugin.SaveHacksTab;
+
         public void CompleteMissions()
         {
             WorldMission[] list = new WorldMission[WorldMissionManager.Instance.GetActiveMissions().Count];

@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using NotAzzamods.Hacks.Custom;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Linq;
 using System.Reflection;
@@ -18,6 +19,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Weather Editor";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ServerHacksTab;
 
         private HacksUIHelper.LDBTrio setWeatherLDB;
         private WeatherData[] weatherDatas;
@@ -78,7 +81,7 @@ namespace NotAzzamods.Hacks.Paid
 
             fogDistanceInput = ui.CreateLIDuo("Fog Distance", "Title", "Input", "Fog Distance").Input;
             fogDistanceInput.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
+             
             ui.AddSpacer(6);
 
             ui.CreateLabel("<b>Rain Information</b>");
@@ -115,7 +118,9 @@ namespace NotAzzamods.Hacks.Paid
                     customWeather.data.title = "Custom";
                     AddNewWeather(customWeather);
                     RefreshWeatherDatas();
-                } else
+                } 
+                
+                else
                 {
                     weatherTitleInput.Text = "Custom";
                     customWeather = SetWeather(weatherDatas.ToList().IndexOf(customWeather));
@@ -182,7 +187,7 @@ namespace NotAzzamods.Hacks.Paid
             var data = new WeatherData
             {
                 pickWeight = TryParseFloat(pickWeightInput.Text, 0),
-                data = (WeatherDataScriptableObject)ScriptableObject.CreateInstance(typeof(WeatherDataScriptableObject))
+                data = ScriptableObject.CreateInstance<WeatherDataScriptableObject>()
             };
 
             data.data.title = weatherTitleInput.Text;

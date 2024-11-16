@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using NotAzzamods.Hacks.Paid;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +18,7 @@ namespace NotAzzamods.Hacks.Custom
 
         public override string Description => "Change Properties about your Player Character!";
 
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public bool PlayerCamEnabled
         {

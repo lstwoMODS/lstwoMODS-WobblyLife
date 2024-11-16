@@ -1,4 +1,5 @@
-﻿using ShadowLib;
+﻿using NotAzzamods.UI.TabMenus;
+using ShadowLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Hide UI";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         private PlayerBasedUI playerUI;
         private PlayerController player;

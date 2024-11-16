@@ -1,4 +1,5 @@
 ﻿using HawkNetworking;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Cyberpunk Mode";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

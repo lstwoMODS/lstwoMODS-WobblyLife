@@ -8,6 +8,7 @@ using UnityEngine.UI;
 using static Mono.Security.X509.X520;
 using UniverseLib.UI;
 using ShadowLib;
+using NotAzzamods.UI.TabMenus;
 
 namespace NotAzzamods.Hacks.Paid
 {
@@ -16,6 +17,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Achievement Manager";
 
         public override string Description => "Unlock and Lock Achievements!";
+
+        public override HacksTab HacksTab => Plugin.SaveHacksTab;
 
         private Dropdown achievementDropdown;
 

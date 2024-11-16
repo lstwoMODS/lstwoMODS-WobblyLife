@@ -1,5 +1,6 @@
 ﻿using HarmonyLib;
 using HawkNetworking;
+using NotAzzamods.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Server Settings";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ServerHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

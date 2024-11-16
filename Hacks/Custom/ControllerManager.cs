@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NotAzzamods.UI.TabMenus;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -13,6 +14,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Player Controller Manager";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         private Toggle clothingAbilitiesToggle;
         private Toggle allowRespawningToggle;

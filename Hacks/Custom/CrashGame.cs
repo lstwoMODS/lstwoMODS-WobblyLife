@@ -1,4 +1,5 @@
 ﻿using MonoMod.Utils;
+using NotAzzamods.UI.TabMenus;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +16,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Spawn Random Props";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         private int iterations = 100;
         private InputFieldRef iterationsInput;

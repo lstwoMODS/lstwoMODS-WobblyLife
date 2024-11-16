@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using NotAzzamods.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Jetpack Multiplier";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         private static bool fuelEnabled = true;
         private static bool allPlayers = true;

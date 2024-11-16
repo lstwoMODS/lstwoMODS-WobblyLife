@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Rewired;
 using UnityEngine.UI;
+using NotAzzamods.UI.TabMenus;
 
 namespace NotAzzamods.Hacks.Free
 {
@@ -19,6 +20,7 @@ namespace NotAzzamods.Hacks.Free
 
         public override string Name => "Movement Manager";
         public override string Description => "The Managing Movement";
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         private HacksUIHelper.LIBTrio moveSpeedLib, jumpHeightLib;
         private Toggle noclipToggle;

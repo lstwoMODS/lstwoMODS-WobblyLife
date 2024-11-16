@@ -1,4 +1,5 @@
-﻿using RuntimeInspectorNamespace;
+﻿using NotAzzamods.UI.TabMenus;
+using RuntimeInspectorNamespace;
 using ShadowLib;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,8 @@ namespace NotAzzamods.Hacks.Custom
         public override string Name => "Road Vehicle Modifier";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.VehicleHacksTab;
 
         private PlayerVehicleRoad vehicle;
         private PlayerVehicleRoadMovement movement;

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NotAzzamods.UI.TabMenus;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -14,6 +15,8 @@ namespace NotAzzamods.Hacks.Free
         public override string Name => "Job Completer";
 
         public override string Description => "Complete any Job instantly!";
+
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using NotAzzamods.UI.TabMenus;
 using UnityEngine;
 
 namespace NotAzzamods.Hacks.Free
@@ -11,6 +12,7 @@ namespace NotAzzamods.Hacks.Free
         public override string Name => "Prevent Drowning";
 
         public override string Description => "Allow yourself to Walk Underwater!";
+        public override HacksTab HacksTab => Plugin.ServerHacksTab;
 
         public void TogglePlayerDrownPrevention(bool b)
         {

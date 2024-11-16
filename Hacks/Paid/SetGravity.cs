@@ -7,6 +7,7 @@ using UnityEngine;
 using UniverseLib.UI;
 using UnityEngine.UI;
 using UniverseLib.UI.Models;
+using NotAzzamods.UI.TabMenus;
 
 namespace NotAzzamods.Hacks.Paid
 {
@@ -15,6 +16,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Set Gravity";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ServerHacksTab;
 
         private InputFieldRef inputX;
         private InputFieldRef inputY;

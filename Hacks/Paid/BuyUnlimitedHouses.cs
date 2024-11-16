@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using NotAzzamods.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections.Generic;
@@ -19,6 +20,8 @@ namespace NotAzzamods.Hacks.Paid
         public override string Name => "Buy Unlimited Houses";
 
         public override string Description => "";
+
+        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
 
         public override void ConstructUI(GameObject root)
         {

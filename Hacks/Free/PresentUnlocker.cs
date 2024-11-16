@@ -1,4 +1,5 @@
 ﻿using IngameDebugConsole;
+using NotAzzamods.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -10,6 +11,8 @@ namespace NotAzzamods.Hacks.Free
         public override string Name => "Present Manager";
 
         public override string Description => "Manages your Presents.";
+
+        public override HacksTab HacksTab => Plugin.SaveHacksTab;
 
         public void UnlockAll()
         {

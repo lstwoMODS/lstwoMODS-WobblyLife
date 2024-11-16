@@ -1,9 +1,11 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using BepInEx.Logging;
+using Newtonsoft.Json.Linq;
 using ShadowLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Technie.PhysicsCreator;
 using UnityEngine;
@@ -137,9 +139,34 @@ namespace NotAzzamods.UI.TabMenus
 
         public async Task RefreshAsync()
         {
-            await Plugin.DownloadPrefabJSON();
+            await DownloadPrefabJSON();
 
             cellHandler.Refresh();
+        }
+
+        public static async Task DownloadPrefabJSON()
+        {
+            string githubUrl = "https://raw.githubusercontent.com/lstwo/NotAzzamods/main/Data/NotAzzamods_prefabs.json";
+            string fileName = AppDomain.CurrentDomain.BaseDirectory + "/NotAzzamods_prefabs.json";
+
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage response = await client.GetAsync(githubUrl);
+                    response.EnsureSuccessStatusCode();
+                    string jsonContent = await response.Content.ReadAsStringAsync();
+
+                    string exeFolderPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string filePath = Path.Combine(exeFolderPath, fileName);
+
+                    File.WriteAllText(filePath, jsonContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogSource.LogError($"An error occurred: {ex.Message}");
+            }
         }
     }
 
