@@ -15,7 +15,17 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases), [BepInEx 5.X]
 | ----------------: | :--------------------: | :--------------------: |
 | **Compatibility** | ✅Fully compatible    | 🟨 Most Functions Work |
 
-# Installation Guide by ChatGPT so people can stop bothering me
+# Automatic Installation (If available)
+
+If your release has an installer zip, you can install it like this:
+
+1. Download Installer
+2. Unzip the File
+3. Double Click the **EXE File**
+
+If it didn't work try the manual installation:
+
+# Manual Installation
 
 ## Step 1: Install BepInEx 5
 1. Download **BepInEx 5** (Mono version) for Windows x64 from the official [BepInEx GitHub releases](https://github.com/BepInEx/BepInEx/releases) (The file should be called something along the lines of `BepInEx_win_x64_5.x.x.x.zip`).
