@@ -23,6 +23,9 @@ If your release has an installer zip, you can install it like this:
 2. Unzip the File
 3. Double Click the **EXE File**
 
+> [!NOTE]
+> You may have to create an exception for your anti virus to allow this file
+
 If it didn't work try the manual installation:
 
 # Manual Installation
