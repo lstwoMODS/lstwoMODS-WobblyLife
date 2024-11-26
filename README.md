@@ -150,7 +150,7 @@ If you want to get the latest and most unfinished features you can try to build 
 1. Clone the repository
 2. Open it in Visual Studio (or any other IDE / compiler)
 3. Build the Project
-4. Copy the lstwoMODS.dll from `\<Project Folder\>/bin/Debug/net46/` to `\<Game FOlder\>/BepInEx/plugins/`
+4. Copy the lstwoMODS.dll from `<Project Folder>/bin/Debug/net46/` to `<Game Folder>/BepInEx/plugins/`
 
 # FAQ
 
