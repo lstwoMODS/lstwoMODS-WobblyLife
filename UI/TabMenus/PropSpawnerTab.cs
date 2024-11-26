@@ -165,7 +165,7 @@ namespace NotAzzamods.UI.TabMenus
             }
             catch (Exception ex)
             {
-                LogSource.LogError($"An error occurred: {ex.Message}");
+                Plugin.LogSource.LogError($"An error occurred: {ex.Message}");
             }
         }
     }

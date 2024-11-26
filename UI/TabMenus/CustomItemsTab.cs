@@ -78,8 +78,7 @@ namespace NotAzzamods.UI.TabMenus
 
             foreach (var itemDirectory in itemDirectories)
             {
-                Debug.Log(itemDirectory);
-                CustomItemPacks.Add(new(itemDirectory));
+                Plugin.CustomItemPacks.Add(new(itemDirectory));
             }
         }
 

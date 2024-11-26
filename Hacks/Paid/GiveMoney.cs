@@ -59,7 +59,7 @@ namespace NotAzzamods.Hacks.Paid
             if (Player == null) return;
             if (!Player.Controller.networkObject.IsOwner()) return;
 
-            Player.Controller.GetPlayerControllerEmployment().UpdateMoney(-Plugin.playerController.GetPlayerControllerEmployment().GetLocalMoney());
+            Player.Controller.GetPlayerControllerEmployment().UpdateMoney(-Player.Controller.GetPlayerControllerEmployment().GetLocalMoney());
         }
 
         public void SpawnMoney(int amount)
