@@ -6,7 +6,7 @@ You can open the menu in game using F2.
 
 # Installation Requirements
 
-Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases), [BepInEx 5.X](https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.2) and [UniverseLib](https://github.com/sinai-dev/UniverseLib/releases)
+Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases) and [BepInEx 5.X](https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.2)
 
 > [!NOTE]
 > NotAzzamods only supports BepInEx 5.X for Mono so far
