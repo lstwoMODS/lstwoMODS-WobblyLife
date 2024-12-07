@@ -61,12 +61,10 @@ If it didn't work try the manual installation:
    - `CustomItems.dll` (may not exist in older versions but required for future updates)
 
 ## Step 3: Download Required Dependencies
-1. Download **ShadowLib** from its release page. You need these files:
+Download **ShadowLib** from its release page. You need these files:
    - `ShadowLib.dll`
    - `lstwo.shadowlib`
-2. Download **UniverseLib** Mono version from its release page:
-   - Get the zip file named `UniverseLib.Mono.zip`.
-   - Extract it and copy the `UniverseLib.Mono` folder (containing `UniverseLib.Mono.dll` and `UniverseLib.Mono.xml`).
+   - `UniverseLib.Mono.dll`
 
 ## Step 4: Install Plugins
 1. Navigate to the `BepInEx/plugins` folder inside your Wobbly Life game folder.
@@ -83,9 +81,7 @@ If it didn't work try the manual installation:
    Your `BepInEx/plugins` folder should look like this:
    ```
    Wobbly Life/BepInEx/plugins
-     ├── UniverseLib.Mono
-     |   ├── UniverseLib.Mono.dll
-     |   └── UniverseLib.Mono.xml
+     ├── UniverseLib.Mono.dll
      ├── CustomItems.dll
      ├── lstwo.shadowlib
      ├── lstwoMODS.dll / NotAzzamods.dll
