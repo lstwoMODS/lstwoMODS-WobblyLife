@@ -21,7 +21,7 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases), [BepInEx 5.X]
 
 If your release has an installer zip, you can install it like this:
 
-1. Download Installer
+1. Download Installer from [the releases page](https://github.com/lstwo/lstwoMODS/releases)
 2. Unzip the File
 3. Double Click the **EXE File**
 
