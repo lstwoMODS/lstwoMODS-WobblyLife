@@ -75,8 +75,7 @@ Download **ShadowLib** from its release page. You need these files:
    - From **ShadowLib**:
      - `ShadowLib.dll`
      - `lstwo.shadowlib`
-   - From **UniverseLib** (place the whole folder):
-     - `UniverseLib.Mono/`
+     - `UniverseLib.Mono.dll`
 
    Your `BepInEx/plugins` folder should look like this:
    ```
