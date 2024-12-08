@@ -32,6 +32,13 @@ If it didn't work try the manual installation:
 
 # Manual Installation
 
+> [!WARNING]
+> This Guide is currently broken.
+>
+> While I'm working on fixing it just:
+>
+> Download the installer > unzip it > copy all files of the `files` folder > paste them into your wobbly life folder
+
 ## Step 1: Install BepInEx 5
 1. Download **BepInEx 5** (Mono version) for Windows x64 from the official [BepInEx GitHub releases](https://github.com/BepInEx/BepInEx/releases) (The file should be called something along the lines of `BepInEx_win_x64_5.x.x.x.zip`).
 2. Copy & Paste the contents of the downloaded zip file into your Wobbly Life game folder.
