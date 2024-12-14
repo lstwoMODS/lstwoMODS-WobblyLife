@@ -1,6 +1,6 @@
 # lstwoMODS (formerly "NotAzzamods")
 
-A free recreation of Azzamods for Wobbly Life containing a lot of Azzamods mods but also more than double original ones.
+A free recreation of Azzamods for Wobbly Life containing a lot of Azzamods mods but also more than double original ones as a BepInEx plugin.
 
 You can open the menu in game using F2.
 
