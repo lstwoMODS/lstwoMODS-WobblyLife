@@ -6,7 +6,7 @@ You can open the menu in game using F2.
 
 # Installation Requirements
 
-Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases) and [BepInEx 5.X](https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.2)
+Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases), [Cinematic Unity Explorer](https://github.com/originalnicodr/CinematicUnityExplorer/releases) and [BepInEx 5.X](https://github.com/BepInEx/BepInEx/releases/tag/v5.4.23.2)
 
 > [!NOTE]
 > NotAzzamods only supports BepInEx 5.X for Mono so far
@@ -17,27 +17,12 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases) and [BepInEx 5
 | ----------------: | :--------------------: | :--------------------: |
 | **Compatibility** | ✅Fully compatible    | 🟨 Most Functions Work |
 
-# Automatic Installation (If available)
+# Automatic Installation
 
-If your release has an installer zip, you can install it like this:
+lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDIOS/lstwoMODSInstaller/). If you scroll down to the ReadMe it should tell you how to set it up.
+If that doesn't work try the manual installation:
 
-1. Download Installer from [the releases page](https://github.com/lstwo/lstwoMODS/releases)
-2. Unzip the File
-3. Double Click the **EXE File**
-
-> [!NOTE]
-> You may have to create an exception for your anti virus to allow this file
-
-If it didn't work try the manual installation:
-
-# Manual Installation
-
-> [!WARNING]
-> This Guide is currently broken.
->
-> While I'm working on fixing it just:
->
-> Download the installer > unzip it > copy all files of the `files` folder > paste them into your wobbly life folder
+# Manual Installation (try automatic first)
 
 ## Step 1: Install BepInEx 5
 1. Download **BepInEx 5** (Mono version) for Windows x64 from the official [BepInEx GitHub releases](https://github.com/BepInEx/BepInEx/releases) (The file should be called something along the lines of `BepInEx_win_x64_5.x.x.x.zip`).
@@ -71,7 +56,11 @@ If it didn't work try the manual installation:
 Download **ShadowLib** from its release page. You need these files:
    - `ShadowLib.dll`
    - `lstwo.shadowlib`
-   - `UniverseLib.Mono.dll`
+
+Download **Cinematic Unity Explorer** from its release page. You need this file:
+   - `CinematicUnityExplorer.BepInEx5.Mono.zip`
+
+Extract the zip file after downloading.
 
 ## Step 4: Install Plugins
 1. Navigate to the `BepInEx/plugins` folder inside your Wobbly Life game folder.
@@ -82,12 +71,15 @@ Download **ShadowLib** from its release page. You need these files:
    - From **ShadowLib**:
      - `ShadowLib.dll`
      - `lstwo.shadowlib`
-     - `UniverseLib.Mono.dll`
+  - From **Cinematic Unity Explorer** (files contained in the zip file at `/plugins/CinematicUnityExplorer/`)
+     - `CinematicUnityExplorer.BIE5.Mono.dll`
+     - `UniverseLib.Mono`
 
    Your `BepInEx/plugins` folder should look like this:
    ```
    Wobbly Life/BepInEx/plugins
      ├── UniverseLib.Mono.dll
+     ├── CinematicUnityExplorer.BIE5.Mono.dll
      ├── CustomItems.dll
      ├── lstwo.shadowlib
      ├── lstwoMODS.dll / NotAzzamods.dll
@@ -99,7 +91,7 @@ Download **ShadowLib** from its release page. You need these files:
 
 ## Troubleshooting
 - If the mod does not load, ensure the files are in the correct `BepInEx/plugins` folder.
-- Verify that you are using **BepInEx 5 Mono** and **UniverseLib Mono** (not IL2CPP).
+- Verify that you are using **BepInEx 5 Mono**, **UniverseLib Mono** and **Cinematic Unity Explorer BepInEx 5 Mono** (not IL2CPP).
 - Check the BepInEx logs in `BepInEx/LogOutput.log` for any error messages.
 - If it still doesn't load submit an issue [here](https://github.com/lstwo/lstwoMODS/issues)
   
