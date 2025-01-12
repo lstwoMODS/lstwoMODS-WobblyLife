@@ -1,0 +1,103 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net46</TargetFramework>
+    <AssemblyName>lstwoMODS</AssemblyName>
+    <Description>My first plugin</Description>
+    <Version>1.0.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <Optimize>True</Optimize>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <Optimize>False</Optimize>
+    <DebugType>full</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+
+	  <Reference Include="CustomItems">
+		  <HintPath>lib\CustomItems.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="CinematicUnityExplorer.BIE5.Mono">
+		  <HintPath>lib\CinematicUnityExplorer.BIE5.Mono.dll</HintPath>
+	  </Reference>
+	  
+	  <Reference Include="Rewired.Core">
+		  <HintPath>lib\Rewired_Core.dll</HintPath>
+	  </Reference>
+	  
+	  <Reference Include="ShadowLib">
+		  <HintPath>lib\ShadowLib.dll</HintPath>
+	  </Reference>
+	  
+	  <Reference Include="Rewired.Windows">
+		  <HintPath>lib\Rewired_Windows.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="UMod">
+		  <HintPath>lib\UMod.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="Utils">
+		  <HintPath>lib\Utils.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="UMod.Interface">
+		  <HintPath>lib\UMod-Interface.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="Unity.Addressables">
+		  <HintPath>lib\Unity.Addressables.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="UMod.ModTools">
+		  <HintPath>lib\UMod-ModTools.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="UMod.Shared">
+		  <HintPath>lib\UMod-Shared.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="HawkNetworkingPlugins">
+		  <HintPath>lib\HawkNetworkingPlugins.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="IngameDebugConsole">
+		  <HintPath>lib\IngameDebugConsole.Runtime.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="UnityEngine.UI">
+		  <HintPath>lib\UnityEngine.UI.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="netstandard">
+		  <HintPath>lib\netstandard.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="HawkNetworking">
+		  <HintPath>lib\HawkNetworking.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="WobblyLife">
+		  <HintPath>lib\Game.dll</HintPath>
+	  </Reference>
+
+	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+    <PackageReference Include="BepInEx.Core" Version="5.*" />
+    <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
+    <PackageReference Include="UnityEngine.Modules" Version="2020.3.44" IncludeAssets="compile" />
+    <PackageReference Include="UniverseLib.Mono" Version="1.5.1" />
+    <PackageReference Include="WobblyLife.GameLibs" Version="0.9.6" />
+  </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
