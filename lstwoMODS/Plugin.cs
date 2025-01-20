@@ -66,9 +66,6 @@ namespace NotAzzamods
             Debug.Log(AssetBundle);
             KeybindManager = gameObject.AddComponent<KeybindManager>();
 
-            InitMods();
-            InitUI();
-
             GameInstance.onAssignedPlayerCharacter += (character) =>
             {
                 if(!HawkNetworkManager.DefaultInstance.IsOffline())
@@ -86,6 +83,12 @@ namespace NotAzzamods
             };
 
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        }
+
+        private void Start()
+        {
+            InitMods();
+            InitUI();
         }
 
         private static IEnumerator NameEasterEggThingy(PlayerCharacter character)
@@ -128,7 +131,11 @@ namespace NotAzzamods
 
         public static void InitChildClasses<T>()
         {
-            var childTypes = Assembly.GetExecutingAssembly().GetTypes().Where(t => t.IsSubclassOf(typeof(T)) && !t.IsAbstract);
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            var childTypes = assemblies.SelectMany(assembly => assembly.GetTypes()).Where(t => t.IsSubclassOf(typeof(T)) && !t.IsAbstract);
+
+            assemblies.ToList().ForEach(assembly => Debug.Log(assembly.FullName));
+            childTypes.ToList().ForEach(assembly => Debug.Log(assembly.FullName));
 
             foreach (var type in childTypes)
             {
