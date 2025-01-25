@@ -63,7 +63,6 @@ namespace NotAzzamods
         {
             Instance = this;
             AssetBundle = AssetUtils.LoadAssetBundleFromPluginsFolder("lstwo.lstwomods.assets");
-            Debug.Log(AssetBundle);
             KeybindManager = gameObject.AddComponent<KeybindManager>();
 
             GameInstance.onAssignedPlayerCharacter += (character) =>
@@ -133,9 +132,6 @@ namespace NotAzzamods
         {
             var assemblies = AppDomain.CurrentDomain.GetAssemblies();
             var childTypes = assemblies.SelectMany(assembly => assembly.GetTypes()).Where(t => t.IsSubclassOf(typeof(T)) && !t.IsAbstract);
-
-            assemblies.ToList().ForEach(assembly => Debug.Log(assembly.FullName));
-            childTypes.ToList().ForEach(assembly => Debug.Log(assembly.FullName));
 
             foreach (var type in childTypes)
             {

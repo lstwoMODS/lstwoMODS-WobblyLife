@@ -69,7 +69,7 @@ namespace NotAzzamods.Keybinds
 
                 UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", root), 0, 6, 9999, 0);
 
-                var inputGroup = UIFactory.CreateHorizontalGroup(root, "inputGroup", true, false, false, true);
+                var inputGroup = UIFactory.CreateHorizontalGroup(root, "inputGroup", false, false, true, true);
                 UIFactory.SetLayoutElement(inputGroup, 0, 0, 9999, 9999);
 
                 UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", inputGroup), 6, 0, 0, 9999);
@@ -80,9 +80,10 @@ namespace NotAzzamods.Keybinds
                 foreach(var image in sliderObj.GetComponentsInChildren<Image>())
                 {
                     image.sprite = HacksUIHelper.RoundedRect;
+                    image.type = Image.Type.Sliced;
                 }
 
-                UIFactory.SetLayoutElement(sliderObj, 0, 32, 9999, 0);
+                UIFactory.SetLayoutElement(sliderObj, 555, 32, 9999, 0);
 
                 UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", inputGroup), 6, 0, 0, 9999);
 
