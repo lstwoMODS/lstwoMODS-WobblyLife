@@ -1,6 +1,5 @@
 # lstwoMODS (formerly "NotAzzamods")
 
-A free recreation of Azzamods for Wobbly Life containing a lot of Azzamods mods but also more than double original ones as a BepInEx plugin.
 A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwo/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
 
 # Installation Requirements
