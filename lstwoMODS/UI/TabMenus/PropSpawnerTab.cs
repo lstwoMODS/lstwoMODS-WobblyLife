@@ -14,8 +14,11 @@ using UnityEngine.UI;
 using UniverseLib.UI;
 using UniverseLib.UI.Models;
 using UniverseLib.UI.Widgets.ScrollView;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.UI.TabMenus
+namespace lstwoMODS_WobblyLife.UI.TabMenus
 {
     public class PropSpawnerTab : BaseTab
     {
@@ -144,8 +147,8 @@ namespace NotAzzamods.UI.TabMenus
 
         public static async Task DownloadPrefabJSON()
         {
-            string githubUrl = "https://raw.githubusercontent.com/lstwo/NotAzzamods/main/Data/NotAzzamods_prefabs.json";
-            string fileName = AppDomain.CurrentDomain.BaseDirectory + "/NotAzzamods_prefabs.json";
+            string githubUrl = "https://raw.githubusercontent.com/lstwo/lstwoMODS_WobblyLife/main/Data/lstwoMODS_WobblyLife_prefabs.json";
+            string fileName = AppDomain.CurrentDomain.BaseDirectory + "/lstwoMODS_WobblyLife_prefabs.json";
 
             try
             {
@@ -270,7 +273,7 @@ namespace NotAzzamods.UI.TabMenus
 
             try
             {
-                jsonData = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/NotAzzamods_prefabs.json");
+                jsonData = File.ReadAllText(AppDomain.CurrentDomain.BaseDirectory + "/lstwoMODS_WobblyLife_prefabs.json");
             }
             catch(Exception e)
             {

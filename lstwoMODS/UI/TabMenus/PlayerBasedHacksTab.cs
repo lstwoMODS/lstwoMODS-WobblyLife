@@ -1,17 +1,18 @@
-﻿using NotAzzamods.Hacks;
+﻿using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_WobblyLife.Hacks;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UniverseLib.UI;
 
-namespace NotAzzamods.UI.TabMenus
+namespace lstwoMODS_WobblyLife.UI.TabMenus
 {
-    public class HacksTab : BaseTab
+    public class PlayerBasedHacksTab : HacksTab
     {
-        public bool enablePlayerDropdown;
-
-        public List<BaseHack> Hacks = new();
+        public List<PlayerBasedHack> PlayerBasedHacks = new();
         public PlayerRef Player;
 
         private Dropdown playerDropdown;
@@ -20,16 +21,25 @@ namespace NotAzzamods.UI.TabMenus
         private GameObject infoHackRoot;
         private InfoHack infoHack;
 
-        public HacksTab(string name = "Mods", bool enablePlayerDropdown = true)
+        public PlayerBasedHacksTab(string name = "Mods")
         {
             Name = name;
-
-            this.enablePlayerDropdown = enablePlayerDropdown;
         }
 
         public override void ConstructUI(GameObject root)
         {
-            base.ConstructUI(root);
+            this.root = root;
+            ui = new HacksUIHelper(root);
+
+            root.SetActive(false);
+
+            foreach(var hack in Hacks)
+            {
+                if(hack is PlayerBasedHack playerBasedHack)
+                {
+                    PlayerBasedHacks.Add(playerBasedHack);
+                }
+            }
 
             playerDropdown = ui.CreateDropdown("playerDropdown", (index) =>
             {
@@ -38,14 +48,18 @@ namespace NotAzzamods.UI.TabMenus
                     Player = players[index];
                     infoHackRoot.SetActive(!Player.Controller.networkObject.IsOwner());
 
-                    foreach (var hack in Hacks)
+                    foreach (var hack in PlayerBasedHacks)
                     {
                         try
                         {
-                            if (Player != null) hack.Player = Player;
+                            if (Player != null)
+                            {
+                                hack.Player = Player;
+                            }
 
                             hack.RefreshUI();
-                        } catch (Exception e)
+                        } 
+                        catch (Exception e)
                         {
                             Debug.LogException(e);
                         }
@@ -58,9 +72,9 @@ namespace NotAzzamods.UI.TabMenus
             bool b = true;
 
             infoHack = new InfoHack();
-            Hacks.Insert(0, infoHack);
+            PlayerBasedHacks.Insert(0, infoHack);
 
-            foreach (var hack in Hacks)
+            foreach (var hack in PlayerBasedHacks)
             {
                 try
                 {
@@ -83,10 +97,15 @@ namespace NotAzzamods.UI.TabMenus
                     {
                         newRoot.SetActive(!newRoot.activeSelf);
 
-                        if (Player != null) hack.Player = Player;
+                        if (Player != null)
+                        {
+                            hack.Player = Player;
+                        }
 
                         if (newRoot.activeSelf)
+                        {
                             hack.RefreshUI();
+                        }
                     };
                     UIFactory.SetLayoutElement(hackBtn.GameObject, 0, 28, 9999, 0);
 
@@ -102,7 +121,8 @@ namespace NotAzzamods.UI.TabMenus
                     new ShadowLib.UIHelper(newRoot).AddSpacer(6);
 
                     newRoot.SetActive(false);
-                } catch (Exception e)
+                } 
+                catch (Exception e)
                 {
                     Plugin.LogSource.LogError(e);
                 }
@@ -111,15 +131,16 @@ namespace NotAzzamods.UI.TabMenus
 
         public override void RefreshUI()
         {
-            playerDropdown.gameObject.SetActive(enablePlayerDropdown);
-
-            if(enablePlayerDropdown && GameInstance.InstanceExists && GameInstance.Instance.GetPlayerControllers() != null)
+            if(GameInstance.InstanceExists && GameInstance.Instance.GetPlayerControllers() != null)
             {
                 playerDropdown.ClearOptions();
 
                 var controllers = GameInstance.Instance.GetPlayerControllers();
 
-                if (controllers.Count == 0) return;
+                if (controllers.Count == 0)
+                {
+                    return;
+                }
 
                 players = new PlayerRef[controllers.Count];
 
@@ -138,14 +159,9 @@ namespace NotAzzamods.UI.TabMenus
                 playerDropdown.RefreshShownValue();
 
                 infoHackRoot.SetActive(!Player.Controller.networkObject.IsOwner());
-            } 
-            
-            else if(!enablePlayerDropdown)
-            {
-                infoHackRoot.SetActive(false);
             }
 
-            foreach (var hack in Hacks)
+            foreach (var hack in PlayerBasedHacks)
             {
                 try
                 {

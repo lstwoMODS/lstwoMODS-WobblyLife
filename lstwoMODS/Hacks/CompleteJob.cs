@@ -1,4 +1,4 @@
-﻿using NotAzzamods.UI.TabMenus;
+﻿using lstwoMODS_WobblyLife.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,10 +7,13 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
-    internal class CompleteJob : BaseHack
+    internal class CompleteJob : PlayerBasedHack
     {
         public override string Name => "Job Completer";
 
@@ -39,7 +42,7 @@ namespace NotAzzamods.Hacks
 
         public void Fail()
         {
-            Player.Employment.GetActiveJob().ServerJobFailed("Host requested job failure using NotAzzamods");
+            Player.Employment.GetActiveJob().ServerJobFailed("Host requested job failure using lstwoMODS_WobblyLife");
         }
 
         public override void RefreshUI()

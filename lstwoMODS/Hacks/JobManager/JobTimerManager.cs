@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UniverseLib.UI.Models;
 
-namespace NotAzzamods.Hacks.JobManager
+namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
     public class JobTimerManager : BaseJobManager
     {

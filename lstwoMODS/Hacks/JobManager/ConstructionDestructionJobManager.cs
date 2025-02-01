@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
-namespace NotAzzamods.Hacks.JobManager
+namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
     public class ConstructionDestructionJobManager : BaseJobManager
     {

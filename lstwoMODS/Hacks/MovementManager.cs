@@ -9,11 +9,14 @@ using System.Threading.Tasks;
 using UnityEngine;
 using Rewired;
 using UnityEngine.UI;
-using NotAzzamods.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
-    public class MovementManager : BaseHack
+    public class MovementManager : PlayerBasedHack
     {
         public static bool infiniteJump = false;
         public static bool multiJump = false;

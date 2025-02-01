@@ -2,7 +2,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace NotAzzamods
+namespace lstwoMODS_WobblyLife
 {
     internal class WobblyServerUtilCompat
     {

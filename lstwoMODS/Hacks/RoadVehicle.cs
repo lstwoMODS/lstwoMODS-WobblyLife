@@ -1,4 +1,4 @@
-﻿using NotAzzamods.UI.TabMenus;
+﻿using lstwoMODS_WobblyLife.UI.TabMenus;
 using RuntimeInspectorNamespace;
 using ShadowLib;
 using System;
@@ -9,10 +9,13 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
-    public class RoadVehicle : BaseHack
+    public class RoadVehicle : PlayerBasedHack
     {
         public override string Name => "Road Vehicle Modifier";
 

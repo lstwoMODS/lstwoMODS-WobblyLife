@@ -8,9 +8,12 @@ using UnityEngine.UI;
 using static Mono.Security.X509.X520;
 using UniverseLib.UI;
 using ShadowLib;
-using NotAzzamods.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
     public class AchievementManager : BaseHack
     {
@@ -45,6 +48,7 @@ namespace NotAzzamods.Hacks
                 if (i >= achievements.Length) return;
                 selectedAchievement = achievements[i];
             });
+            achievementDropdown.image.sprite = HacksUIHelper.RoundedRect;
             UIFactory.SetLayoutElement(dropdown, 256 * 2 + 32, 32, 0, 0);
 
             ui.AddSpacer(6);
@@ -79,6 +83,8 @@ namespace NotAzzamods.Hacks
         public override void RefreshUI()
         {
             achievements = (WobblyAchievement[])Enum.GetValues(typeof(WobblyAchievement));
+
+            achievementDropdown.ClearOptions();
 
             foreach (var achievement in achievements)
             {
