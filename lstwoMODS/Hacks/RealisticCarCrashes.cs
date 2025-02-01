@@ -1,5 +1,5 @@
 ﻿using HarmonyLib;
-using NotAzzamods.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections;
@@ -11,8 +11,11 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using UniverseLib.UI.Models;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
     public class RealisticCarCrashes : BaseHack
     {
@@ -27,7 +30,7 @@ namespace NotAzzamods.Hacks
 
         public override void ConstructUI(GameObject root)
         {
-            new Harmony("lstwo.NotAzzamods.CatCrash").PatchAll(typeof(Patches));
+            new Harmony("lstwo.lstwoMODS_WobblyLife.CatCrash").PatchAll(typeof(Patches));
 
             var ui = new HacksUIHelper(root);
 

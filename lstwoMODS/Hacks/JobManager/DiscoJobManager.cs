@@ -6,7 +6,7 @@ using UnityEngine;
 using UniverseLib;
 using UniverseLib.UI.Models;
 
-namespace NotAzzamods.Hacks.JobManager
+namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
     public class DiscoJobManager : BaseJobManager
     {

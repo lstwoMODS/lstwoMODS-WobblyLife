@@ -7,8 +7,11 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UniverseLib;
 using UniverseLib.UI.Panels;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks.JobManager
+namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
     public abstract class BaseJobManager
     {

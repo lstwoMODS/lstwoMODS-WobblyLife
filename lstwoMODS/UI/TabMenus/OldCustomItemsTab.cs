@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
-using NotAzzamods.CustomItems;
+using lstwoMODS_WobblyLife.CustomItems;
 using ShadowLib;
 using System;
 using System.Collections;
@@ -15,8 +15,9 @@ using UniverseLib.UI.Models;
 using UniverseLib.UI.Widgets.ScrollView;
 using CustomItems;
 using HawkNetworking;
+using lstwoMODS_Core.UI.TabMenus;
 
-namespace NotAzzamods.UI.TabMenus
+namespace lstwoMODS_WobblyLife.UI.TabMenus
 {
     public class OldCustomItemsTab : BaseTab
     {

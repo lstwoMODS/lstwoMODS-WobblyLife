@@ -8,9 +8,12 @@ using UnityEngine.UI;
 using static Mono.Security.X509.X520;
 using UniverseLib.UI;
 using ShadowLib;
-using NotAzzamods.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
     public class AchievementManager : BaseHack
     {

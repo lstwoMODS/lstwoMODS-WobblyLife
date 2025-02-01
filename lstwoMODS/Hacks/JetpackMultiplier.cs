@@ -1,5 +1,5 @@
 ﻿using HarmonyLib;
-using NotAzzamods.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
 using ShadowLib;
 using System;
 using System.Collections.Generic;
@@ -9,8 +9,11 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
     public class JetpackMultiplier : BaseHack
     {
@@ -30,7 +33,7 @@ namespace NotAzzamods.Hacks
 
         public override void ConstructUI(GameObject root)
         {
-            new Harmony("lstwo.NotAzzamods.JetpackMultiplier").PatchAll(typeof(Patches));
+            new Harmony("lstwo.lstwoMODS_WobblyLife.JetpackMultiplier").PatchAll(typeof(Patches));
 
             var ui = new HacksUIHelper(root);
 

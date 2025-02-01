@@ -1,4 +1,4 @@
-﻿using NotAzzamods.UI.TabMenus;
+﻿using lstwoMODS_WobblyLife.UI.TabMenus;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,10 +6,13 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
-    public class ControllerManager : BaseHack
+    public class ControllerManager : PlayerBasedHack
     {
         public override string Name => "Player Controller Manager";
 

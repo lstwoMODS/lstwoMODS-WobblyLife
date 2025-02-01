@@ -5,7 +5,7 @@ using UnityEngine;
 using System.Linq;
 using System;
 
-namespace NotAzzamods
+namespace lstwoMODS_WobblyLife
 {
     internal class NameEasterEgg : MonoBehaviour
     {

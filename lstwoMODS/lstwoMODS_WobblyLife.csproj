@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net46</TargetFramework>
-    <AssemblyName>lstwoMODS</AssemblyName>
-    <Description>My first plugin</Description>
+    <AssemblyName>lstwoMODS_WobblyLife</AssemblyName>
+    <Description></Description>
     <Version>1.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
@@ -23,6 +23,10 @@
 
 	  <Reference Include="CustomItems">
 		  <HintPath>lib\CustomItems.dll</HintPath>
+	  </Reference>
+
+	  <Reference Include="lstwoMODS_Core">
+		  <HintPath>lib\lstwoMODS_Core.dll</HintPath>
 	  </Reference>
 
 	  <Reference Include="CinematicUnityExplorer.BIE5.Mono">

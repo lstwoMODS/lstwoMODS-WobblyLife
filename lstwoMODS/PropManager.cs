@@ -8,7 +8,7 @@ using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using UnityEngine;
 
-namespace NotAzzamods
+namespace lstwoMODS_WobblyLife
 {
     public static class PropManager
     {

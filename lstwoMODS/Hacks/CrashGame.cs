@@ -1,5 +1,5 @@
 ﻿using MonoMod.Utils;
-using NotAzzamods.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,10 +8,13 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UniverseLib.UI.Models;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.Hacks
+namespace lstwoMODS_WobblyLife.Hacks
 {
-    public class CrashGame : BaseHack
+    public class CrashGame : PlayerBasedHack
     {
         public override string Name => "Spawn Random Props";
 

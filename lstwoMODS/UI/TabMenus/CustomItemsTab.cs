@@ -1,6 +1,6 @@
 ﻿using BepInEx.Configuration;
 using CustomItems;
-using NotAzzamods.CustomItems;
+using lstwoMODS_WobblyLife.CustomItems;
 using ShadowLib;
 using System;
 using System.Collections;
@@ -14,8 +14,11 @@ using UnityEngine.UI;
 using UniverseLib.UI;
 using UniverseLib.UI.Models;
 using UniverseLib.UI.Widgets.ScrollView;
+using lstwoMODS_Core;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
 
-namespace NotAzzamods.UI.TabMenus
+namespace lstwoMODS_WobblyLife.UI.TabMenus
 {
     public class CustomItemsTab : BaseTab
     {

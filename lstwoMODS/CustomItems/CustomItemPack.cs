@@ -6,7 +6,7 @@ using UnityEngine;
 using CustomItems;
 using Newtonsoft.Json;
 
-namespace NotAzzamods.CustomItems
+namespace lstwoMODS_WobblyLife.CustomItems
 {
     public class CustomItemPack
     {
