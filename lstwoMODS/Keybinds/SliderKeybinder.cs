@@ -124,7 +124,11 @@ namespace NotAzzamods.Keybinds
                     return;
                 }
 
-                text.text = string.Join(" + ", Array.ConvertAll(secondaryKeys.ToArray(), key => key.ToString())) + " + " + ((KeyCode)primaryKey).ToString();
+                var _text = "";
+                secondaryKeys.ForEach(key => _text += key.ToString() + " + ");
+                _text += primaryKey.ToString();
+
+                text.text = _text;
             }
         }
     }

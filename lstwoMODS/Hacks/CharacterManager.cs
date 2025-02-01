@@ -27,10 +27,7 @@ namespace NotAzzamods.Hacks
             }
             set
             {
-                if (Player != null)
-                {
-                    Player.Character.SetPlayerCamUIAllowed(value);
-                }
+                Player?.Character.SetPlayerCamUIAllowed(value);
             }
         }
 
@@ -42,27 +39,38 @@ namespace NotAzzamods.Hacks
             }
             set
             {
-                // Colors
-                var colors = playerColorApplyBtn.GameObject.GetComponent<Button>().colors;
-                var color = value;
-
-                color.a = 1;
-                colors.normalColor = color;
-
-                // UI
-                playerColorSliderR.value = color.r;
-                playerColorSliderG.value = color.g;
-                playerColorSliderB.value = color.b;
-
-                playerColorApplyBtn.GameObject.GetComponent<Button>().colors = colors;
-                playerColorApplyBtn.GameObject.GetComponent<Image>().color = color;
-                playerColorApplyBtn.GameObject.GetComponentInChildren<Text>().color = InvertColor(color);
+                Player.Character.GetPlayerCharacterCustomize().SetCharacterColor(value, true, 0);
             }
         }
 
+        public Color NewPlayerColor
+        {
+            get
+            {
+                return newPlayerColor;
+            }
+            set
+            {
+                // Colors
+                newPlayerColor = value;
+                var colors = playerColorApplyBtn.GameObject.GetComponent<Button>().colors;
 
+                newPlayerColor.a = 1;
+                colors.normalColor = newPlayerColor;
+
+                // UI
+                playerColorSliderR.value = newPlayerColor.r;
+                playerColorSliderG.value = newPlayerColor.g;
+                playerColorSliderB.value = newPlayerColor.b;
+
+                playerColorApplyBtn.GameObject.GetComponent<Button>().colors = colors;
+                playerColorApplyBtn.GameObject.GetComponent<Image>().color = newPlayerColor;
+                playerColorApplyBtn.GameObject.GetComponentInChildren<Text>().color = InvertColor(newPlayerColor);
+            }
+        }
+
+        private Color newPlayerColor;
         private ButtonRef playerColorApplyBtn;
-        private ColorBlock playerColorBtnColor;
         private Slider playerColorSliderR, playerColorSliderG, playerColorSliderB;
 
         public override void ConstructUI(GameObject root)
@@ -96,57 +104,52 @@ namespace NotAzzamods.Hacks
 
             ui.AddSpacer(6);
 
-            playerColorApplyBtn = ui.CreateButton("Apply", () => SetPlayerColor(PlayerColor, true, 0), color: new(0, .35f, 0));
-            playerColorBtnColor = playerColorApplyBtn.GameObject.GetComponent<Button>().colors;
+            playerColorApplyBtn = ui.CreateButton("Apply", () => SetPlayerColor(NewPlayerColor, true, 0), color: new(0, .35f, 0));
 
             ui.AddSpacer(6);
         }
 
         public override void RefreshUI()
         {
-            if (Player == null) return;
+            if (Player == null)
+            {
+                return;
+            }
 
-            PlayerColor = PlayerColor;
-
+            NewPlayerColor = PlayerColor;
         }
 
         public override void Update() { }
 
         public void KillPlayer(float time = 1)
         {
-            if (Player != null)
-            {
-                Player.Character.Kill(time);
-            }
+            Player?.Character.Kill(time);
         }
 
         public void SetPlayerColor(Color color, bool smoothTransition = true, float timeTillDefault = 0)
         {
-            if (Player != null)
-            {
-                Player.Character.GetPlayerCharacterCustomize().SetCharacterColor(color, smoothTransition, timeTillDefault);
-            }
+            Player?.Character.GetPlayerCharacterCustomize().SetCharacterColor(color, smoothTransition, timeTillDefault);
         }
 
         private void SetPlayerColorBtnR(float r)
         {
-            var color = PlayerColor;
+            var color = NewPlayerColor;
             color.r = r;
-            PlayerColor = color;
+            NewPlayerColor = color;
         }
 
         private void SetPlayerColorBtnG(float g)
         {
-            var color = PlayerColor;
+            var color = NewPlayerColor;
             color.g = g;
-            PlayerColor = color;
+            NewPlayerColor = color;
         }
 
         private void SetPlayerColorBtnB(float b)
         {
-            var color = PlayerColor;
+            var color = NewPlayerColor;
             color.b = b;
-            PlayerColor = color;
+            NewPlayerColor = color;
         }
 
         public static Color InvertColor(Color color)

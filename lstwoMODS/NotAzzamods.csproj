@@ -94,7 +94,7 @@
     <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
     <PackageReference Include="UnityEngine.Modules" Version="2020.3.44" IncludeAssets="compile" />
     <PackageReference Include="UniverseLib.Mono" Version="1.5.1" />
-    <PackageReference Include="WobblyLife.GameLibs" Version="0.9.6" />
+    <PackageReference Include="WobblyLife.GameLibs" Version="0.9.6.5" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
