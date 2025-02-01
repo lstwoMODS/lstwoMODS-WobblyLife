@@ -48,6 +48,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                 if (i >= achievements.Length) return;
                 selectedAchievement = achievements[i];
             });
+            achievementDropdown.image.sprite = HacksUIHelper.RoundedRect;
             UIFactory.SetLayoutElement(dropdown, 256 * 2 + 32, 32, 0, 0);
 
             ui.AddSpacer(6);
@@ -82,6 +83,8 @@ namespace lstwoMODS_WobblyLife.Hacks
         public override void RefreshUI()
         {
             achievements = (WobblyAchievement[])Enum.GetValues(typeof(WobblyAchievement));
+
+            achievementDropdown.ClearOptions();
 
             foreach (var achievement in achievements)
             {
