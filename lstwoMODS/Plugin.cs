@@ -35,6 +35,7 @@ namespace lstwoMODS_WobblyLife
         public static HacksTab ServerHacksTab { get; private set; } = new("Server Mods");
         public static HacksTab SaveHacksTab { get; private set; } = new("Save File Mods");
         public static HacksTab ExtraHacksTab { get; private set; } = new("Extra Mods");
+        public static PropSpawnerTab PropSpawnerTab { get; private set; } = new();
         public static CustomItemsTab CustomItemsTab { get; private set; } = new();
 
         public static List<CustomItemPack> CustomItemPacks { get; private set; } = new();
@@ -100,7 +101,6 @@ namespace lstwoMODS_WobblyLife
 
         public static void InitMods()
         {
-            _ = PropSpawnerTab.DownloadPrefabJSON();
             _StartCoroutine(CustomItemsTab.InitCustomItems());
             WobblyServerUtilCompat.Init();
 
