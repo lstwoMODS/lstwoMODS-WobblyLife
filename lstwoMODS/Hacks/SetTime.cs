@@ -10,6 +10,9 @@ using UniverseLib.UI.Models;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityEngine.Rendering.PostProcessing;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -47,6 +50,17 @@ namespace lstwoMODS_WobblyLife.Hacks
             var setEveningBtn = ui.CreateButton("Set Time to Evening", SetTimeEvening);
             ui.AddSpacer(6);
             var setMidnightBtn = ui.CreateButton("Set Time to Midnight", SetTimeMidnight);
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Day Night Cycle\" Component", () =>
+            {
+                if (DayNightCycle.InstanceExists)
+                {
+                    InspectorManager.Inspect(DayNightCycle.Instance);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

@@ -9,6 +9,8 @@ using UnityEngine.UI;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -31,6 +33,17 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             clothingAbilitiesToggle = ui.CreateToggle("ClothingAbilitiesToggle", "Enable Clothing Abilities", SetClothingAbilitiesEnabled, true);
             allowRespawningToggle = ui.CreateToggle("AllowRespawning", "Allow Respawning", (b) => Player.Controller.SetAllowedToRespawn(this, b));
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Player Controller\" Component", () =>
+            {
+                if (Player != null && Player.Controller)
+                {
+                    InspectorManager.Inspect(Player.Controller);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

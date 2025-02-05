@@ -12,6 +12,9 @@ using UnityEngine.UI;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityEngine.Rendering.PostProcessing;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -100,6 +103,17 @@ namespace lstwoMODS_WobblyLife.Hacks
             boostSeconds = ui.CreateLIBTrio("boost seconds", "Boost Seconds", "Seconds");
             boostSeconds.Button.OnClick = () => movement.GetType().GetField("boostSeconds", Plugin.Flags).SetValue(movement, float.Parse(boostSeconds.Input.Text));
             boostSeconds.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect Road Vehicle Game Object", () =>
+            {
+                if (vehicle)
+                {
+                    InspectorManager.Inspect(vehicle.gameObject);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

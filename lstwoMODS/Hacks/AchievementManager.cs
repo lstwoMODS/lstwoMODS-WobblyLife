@@ -12,6 +12,8 @@ using lstwoMODS_WobblyLife.UI.TabMenus;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityExplorer;
+using UnityExplorer.UI;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -76,6 +78,17 @@ namespace lstwoMODS_WobblyLife.Hacks
                     global::AchievementManager.Instance.LockAchievement(achievement, PlayerUtils.GetMyPlayer());
                 }
             }, "Lock All");
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Achievement Manager\" Component", () =>
+            {
+                if(global::AchievementManager.InstanceExists)
+                {
+                    InspectorManager.Inspect(global::AchievementManager.Instance);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

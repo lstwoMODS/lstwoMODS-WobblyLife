@@ -7,6 +7,8 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -114,6 +116,17 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             lockToggle = ui.CreateToggle("lock", "Is vehicle locked", (b) => Locked = b);
             interactableToggle = ui.CreateToggle("interactable", "Is vehicle interactable", (b) => Interactable = b);
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Action Enter Exit Interact\" Component", () =>
+            {
+                if (action)
+                {
+                    InspectorManager.Inspect(action);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

@@ -19,6 +19,8 @@ using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 using System.Linq;
 using UnityExplorer;
+using UnityExplorer.UI;
+using HawkNetworking;
 
 namespace lstwoMODS_WobblyLife.UI.TabMenus
 {
@@ -353,11 +355,47 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
             }
         }
 
+        public GameObject InspectedObjectToSpawn
+        {
+            get
+            {
+                foreach (var inspector in InspectorManager.Inspectors)
+                {
+                    if (!inspector.IsActive)
+                    {
+                        continue;
+                    }
+
+                    var inspectedObj = inspector.Target;
+
+                    if (inspectedObj is not GameObject && inspectedObj is not Component)
+                    {
+                        continue;
+                    }
+
+                    if (inspectedObj is Component component && !component.gameObject.TryGetComponent<HawkNetworkBehaviour>(out _))
+                    {
+                        continue;
+                    }
+
+                    if (inspectedObj is GameObject go && !go.TryGetComponent<HawkNetworkBehaviour>(out _))
+                    {
+                        continue;
+                    }
+
+                    return inspectedObj as GameObject;
+                }
+
+                return null;
+            }
+        }
+
         private GameObject scrollView;
         private GameObject scrollViewContent;
         private string selectedObject;
         private PropCellHandler cellHandler;
         private ButtonRef spawnBtn;
+        private ButtonRef spawnInspectedBtn;
         private ButtonRef inspectBtn;
         private GameObject lastSpawnedProp;
 
@@ -374,7 +412,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
 
             var scrollGroup = UIFactory.CreateUIObject("group", root);
             UIFactory.SetLayoutGroup<HorizontalLayoutGroup>(scrollGroup, true, false, true, true);
-            UIFactory.SetLayoutElement(scrollGroup, 0, 600, 9999, 0);
+            UIFactory.SetLayoutElement(scrollGroup, 0, 563, 9999, 0);
 
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", scrollGroup), 5, 0, 0, 9999);
 
@@ -388,7 +426,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", scrollGroup), 5, 0, 0, 9999);
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", root), 0, 5, 9999, 0);
 
-            spawnBtn = UIFactory.CreateButton(root, "SpawnBtn", "Spawn Prop", HacksUIHelper.ButtonColor);
+            spawnBtn = UIFactory.CreateButton(root, "SpawnBtn", "Spawn Prop", HacksUIHelper.ButtonColor4);
             spawnBtn.Transform.GetComponent<Image>().sprite = HacksUIHelper.RoundedRect;
             spawnBtn.OnClick = () =>
             {
@@ -401,16 +439,30 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
 
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", root), 0, 5, 0, 9999);
 
-            inspectBtn = UIFactory.CreateButton(root, "inspect", "Inspect Last Spawned Object", HacksUIHelper.ButtonColor);
+            inspectBtn = UIFactory.CreateButton(root, "inspect", "Inspect Last Spawned Object (Unity Explorer)", HacksUIHelper.ButtonColor4);
             inspectBtn.Transform.GetComponent<Image>().sprite = HacksUIHelper.RoundedRect;
             inspectBtn.OnClick = () =>
             {
                 if (lastSpawnedProp != null)
                 {
                     InspectorManager.Inspect(lastSpawnedProp);
+                    UIManager.ShowMenu = true;
                 }
             };
             UIFactory.SetLayoutElement(inspectBtn.GameObject, 0, 32, 9999, 0);
+
+            UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", root), 0, 5, 9999, 0);
+
+            spawnInspectedBtn = UIFactory.CreateButton(root, "spawn inspected", "Spawn Inspected Object (Unity Explorer)", HacksUIHelper.ButtonColor4);
+            spawnInspectedBtn.Transform.GetComponent<Image>().sprite = HacksUIHelper.RoundedRect;
+            spawnInspectedBtn.OnClick = () =>
+            {
+                if(InspectedObjectToSpawn != null)
+                {
+                    InstantiateSingleProp(InspectedObjectToSpawn.GetComponent<HawkNetworkBehaviour>());
+                }
+            };
+            UIFactory.SetLayoutElement(spawnInspectedBtn.GameObject, 0, 32, 9999, 0);
         }
 
         private void InstantiateSingleProp(string prop)
@@ -444,11 +496,11 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
 
             NetworkPrefab.SpawnNetworkPrefab(address, (behavior) =>
             {
-                if(behavior == null)
+                if (behavior == null)
                 {
                     NetworkPrefab.SpawnNetworkPrefab("Assets/Content/" + address, (behavior) =>
                     {
-                        if(behavior != null)
+                        if (behavior != null)
                         {
                             lastSpawnedProp = behavior.gameObject;
                         }
@@ -460,7 +512,22 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
                     lastSpawnedProp = behavior.gameObject;
                 }
 
-            }, position);
+            }, position, bSendTransform: true);
+        }
+
+        private void InstantiateSingleProp(HawkNetworkBehaviour prop)
+        {
+            var player = PlayerUtils.GetMyPlayer();
+
+            if (player == null || prop == null)
+            {
+                return;
+            }
+
+            var character = player.GetPlayerCharacter();
+            var pos = character.GetPlayerPosition() + character.GetPlayerForward();
+
+            lastSpawnedProp = NetworkPrefab.SpawnNetworkPrefab(prop.gameObject, pos, bSendTransform: true).gameObject;
         }
 
         public override void RefreshUI() { }
@@ -497,7 +564,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
 
             Rect = UIRoot.GetComponent<RectTransform>();
 
-            button = UIFactory.CreateButton(UIRoot, "button", "", HacksUIHelper.ButtonColor);
+            button = UIFactory.CreateButton(UIRoot, "button", "", HacksUIHelper.ButtonColor34);
             button.OnClick = OnCellButtonClicked;
             button.Transform.GetComponent<Image>().sprite = HacksUIHelper.RoundedRect;
             UIFactory.SetLayoutElement(button.GameObject, 0, 32, 9999, 0);

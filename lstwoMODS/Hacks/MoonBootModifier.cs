@@ -17,7 +17,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public override string Description => "";
 
-        public override HacksTab HacksTab => Plugin.ServerHacksTab;
+        public override HacksTab HacksTab => null;
 
         public override void ConstructUI(GameObject root)
         {

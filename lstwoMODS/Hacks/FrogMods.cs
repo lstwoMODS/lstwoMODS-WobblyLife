@@ -10,6 +10,8 @@ using UniverseLib.UI.Models;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -132,6 +134,17 @@ namespace lstwoMODS_WobblyLife.Hacks
             jumpForceLIB.Button.OnClick = () => JumpForce = float.Parse(jumpForceLIB.Input.Text);
 
             jumpForceInput = jumpForceLIB.Input;
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Player Frog\" Component", () =>
+            {
+                if (Frog)
+                {
+                    InspectorManager.Inspect(Frog);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

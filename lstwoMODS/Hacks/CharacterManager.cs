@@ -6,6 +6,8 @@ using UniverseLib.UI.Models;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -108,6 +110,17 @@ namespace lstwoMODS_WobblyLife.Hacks
             ui.AddSpacer(6);
 
             playerColorApplyBtn = ui.CreateButton("Apply", () => SetPlayerColor(NewPlayerColor, true, 0), color: new(0, .35f, 0));
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Player Character\" Component", () =>
+            {
+                if (Player != null && Player.Character)
+                {
+                    InspectorManager.Inspect(Player.Character);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

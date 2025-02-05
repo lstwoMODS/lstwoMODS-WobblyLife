@@ -20,7 +20,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public override string Description => "";
 
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+        public override HacksTab HacksTab => null;
 
         private int iterations = 100;
         private InputFieldRef iterationsInput;

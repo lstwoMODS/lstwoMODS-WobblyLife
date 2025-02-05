@@ -25,7 +25,7 @@ namespace lstwoMODS_WobblyLife.Hacks
         private HacksUIHelper.LDBTrio unlockVehicleLDB;
         private HacksUIHelper.LDBTrio lockVehicleLDB;
 
-        public void UnlockAllClothes()
+        public void UnlockAllVehicles()
         {
             var playerController = PlayerUtils.GetMyPlayer();
 
@@ -44,7 +44,7 @@ namespace lstwoMODS_WobblyLife.Hacks
             }
         }
 
-        public void LockAllClothes()
+        public void LockAllVehicles()
         {
             var playerController = PlayerUtils.GetMyPlayer();
 
@@ -67,7 +67,7 @@ namespace lstwoMODS_WobblyLife.Hacks
         {
             var ui = new HacksUIHelper(root);
 
-            ui.AddSpacer(6);
+            /*ui.AddSpacer(6);
 
             unlockVehicleLDB = ui.CreateLDBTrio("Unlock Vehicle", "unlockClothe", onClick: () =>
             {
@@ -109,11 +109,11 @@ namespace lstwoMODS_WobblyLife.Hacks
 
                 Player.ControllerUnlocker.LockVehicle(reference);
             },
-            buttonText: "Unlock");
+            buttonText: "Unlock");*/
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Vehicle Unlocker", "Vehicle Unlocker", UnlockAllClothes, "Unlock All Vehicles", LockAllClothes, "Lock All Vehicles");
+            ui.CreateLBBTrio("Vehicle Unlocker", "Vehicle Unlocker", UnlockAllVehicles, "Unlock All Vehicles", LockAllVehicles, "Lock All Vehicles");
 
             ui.AddSpacer(6);
         }

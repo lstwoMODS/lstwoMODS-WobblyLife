@@ -8,6 +8,9 @@ using UnityEngine;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using UnityEngine.Rendering.PostProcessing;
+using UnityExplorer.UI;
+using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
@@ -30,6 +33,17 @@ namespace lstwoMODS_WobblyLife.Hacks
             ui.AddSpacer(6);
 
             ui.CreateLBBTrio("Ragdoll Player", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout");
+
+            ui.AddSpacer(6);
+
+            ui.CreateButton("Inspect \"Ragdoll Controller\" Component", () =>
+            {
+                if (Player != null && Player.RagdollController)
+                {
+                    InspectorManager.Inspect(Player.RagdollController);
+                    UIManager.ShowMenu = true;
+                }
+            }, "inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }
