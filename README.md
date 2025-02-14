@@ -9,9 +9,6 @@ A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwo/lstwoMODS-Co
 
 Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
 
-> [!NOTE]
-> lstwoMODS only supports BepInEx 5.X for Mono so far
-
 # Compatibility Chart
 
 | **Mod**           | **Wobbly Server Util** | **Wobbly's Fav**       |
@@ -66,21 +63,8 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
   - First Person
   - Hide UI
 
-# Building Yourself
-
-If you want to get the latest and most unfinished features you can try to build it yourself.
-
-1. Clone the repository
-2. Open it in Visual Studio (or any other IDE / compiler)
-3. Build the Project
-4. Copy the lstwoMODS.dll from `<Project Folder>/bin/Debug/net46/` to `<Game Folder>/BepInEx/plugins/`
-
 # FAQ
 
 - **Does it have a server player count changer?**
 
   No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
-
-- **Why did you change the name? (No one actually asked that)**
-
-  Because "Not Azzamods" is very confusing at times.
