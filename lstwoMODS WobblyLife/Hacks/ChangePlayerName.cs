@@ -38,7 +38,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var lib = ui.CreateLIBTrio("Player Name", "Player Name", "Name");
+            var lib = ui.CreateLIBTrio("Player Name", "lstwo.ChangePlayerName.Name", "Name");
             lib.Button.OnClick = () => execute(lib.Input.Text);
             nameInput = lib.Input;
 

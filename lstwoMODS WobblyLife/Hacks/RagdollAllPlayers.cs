@@ -26,15 +26,17 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Ragdoll All Players", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout");
+            ui.CreateLBBTrio("Ragdoll All Players", "lstwo.RagdollAllPlayers.RagdollAll", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout", 
+                buttonName1: "lstwo.RagdollAllPlayers.RagdollAllButton", buttonName2: "lstwo.RagdollAllPlayers.KnockOutAllButton");
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Kill All Players", "KillPlayer", () => KillPlayer(1), "Quick Kill", () => KillPlayer(0), "Respawn");
+            ui.CreateLBBTrio("Kill All Players", "lstwo.RagdollAllPlayers.KillPlayer", () => KillPlayer(1), "Quick Kill", "lstwo.RagdollAllPlayers.QuickKillButton", () => KillPlayer(0), 
+                "Respawn", "lstwo.RagdollAllPlayers.RespawnButton");
 
             ui.AddSpacer(6);
 
-            var akpLib = ui.CreateLIBTrio("Advanced Kill All Players", "AdvancedKillPlayer", "Knockout Time in Seconds", null, "Kill");
+            var akpLib = ui.CreateLIBTrio("Advanced Kill All Players", "lstwo.RagdollAllPlayers.AdvancedKillPlayer", "Knockout Time in Seconds", null, "Kill");
             akpLib.Button.OnClick = () => KillPlayer(float.Parse(akpLib.Input.Text));
             akpLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 

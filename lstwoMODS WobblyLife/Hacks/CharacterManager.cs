@@ -84,11 +84,12 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Kill Player", "KillPlayer", () => KillPlayer(1), "Quick Kill Player", () => KillPlayer(0), "Respawn Player");
+            ui.CreateLBBTrio("Kill Player", "KillPlayer", () => KillPlayer(1), "Quick Kill Player", "lstwo.CharacterManager.QuickKillPlayer", () => KillPlayer(0), "Respawn Player", 
+                "lstwo.CharacterManager.RespawnPlayer");
 
             ui.AddSpacer(6);
 
-            var akpLib = ui.CreateLIBTrio("Advanced Kill Player", "AdvancedKillPlayer", "Knockout Time in Seconds", null, "Kill");
+            var akpLib = ui.CreateLIBTrio("Advanced Kill Player", "lstwo.CharacterManager.AdvancedKillPlayer", "Knockout Time in Seconds", null, "Kill");
             akpLib.Button.OnClick = () => KillPlayer(float.Parse(akpLib.Input.Text));
             akpLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
@@ -98,18 +99,18 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            playerColorSliderR = ui.CreateSlider("playerColorSliderR");
+            playerColorSliderR = ui.CreateSlider("lstwo.CharacterManager.playerColorSliderR");
             playerColorSliderR.onValueChanged.AddListener(SetPlayerColorBtnR);
 
-            playerColorSliderG = ui.CreateSlider("playerColorSliderR");
+            playerColorSliderG = ui.CreateSlider("lstwo.CharacterManager.playerColorSliderG");
             playerColorSliderG.onValueChanged.AddListener(SetPlayerColorBtnG);
 
-            playerColorSliderB = ui.CreateSlider("playerColorSliderR");
+            playerColorSliderB = ui.CreateSlider("lstwo.CharacterManager.playerColorSliderB");
             playerColorSliderB.onValueChanged.AddListener(SetPlayerColorBtnB);
 
             ui.AddSpacer(6);
 
-            playerColorApplyBtn = ui.CreateButton("Apply", () => SetPlayerColor(NewPlayerColor, true, 0), color: new(0, .35f, 0));
+            playerColorApplyBtn = ui.CreateButton("Apply", () => SetPlayerColor(NewPlayerColor, true, 0), "lstwo.CharacterManager.playerColorApplyBtn", new(0, .35f, 0));
 
             ui.AddSpacer(6);
 
@@ -120,7 +121,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(Player.Character);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.CharacterManager.Inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

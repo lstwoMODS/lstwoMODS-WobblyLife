@@ -113,7 +113,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var maxSpeedLIB = ui.CreateLIBTrio("Max Frog Speed", "maxSpeed", "10.0");
+            var maxSpeedLIB = ui.CreateLIBTrio("Max Frog Speed", "lstwo.FrogMods.MaxFrogSpeed", "10.0");
             maxSpeedLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             maxSpeedLIB.Button.OnClick = () => MaxSpeed = float.Parse(maxSpeedLIB.Input.Text);
 
@@ -121,7 +121,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var moveSpeedLIB = ui.CreateLIBTrio("Frog Movement Speed", "moveSpeed", "20.0");
+            var moveSpeedLIB = ui.CreateLIBTrio("Frog Movement Speed", "lstwo.FrogMods.FrogMoveSpeed", "20.0");
             moveSpeedLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             moveSpeedLIB.Button.OnClick = () => MovementSpeed = float.Parse(moveSpeedLIB.Input.Text);
 
@@ -129,7 +129,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var jumpForceLIB = ui.CreateLIBTrio("Frog Jump Force", "jumpForce", "20.0");
+            var jumpForceLIB = ui.CreateLIBTrio("Frog Jump Force", "lstwo.FrogMods.FrogJumpForce", "20.0");
             jumpForceLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             jumpForceLIB.Button.OnClick = () => JumpForce = float.Parse(jumpForceLIB.Input.Text);
 
@@ -144,7 +144,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(Frog);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.FrogMods.Inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

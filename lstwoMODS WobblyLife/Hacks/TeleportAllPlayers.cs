@@ -25,9 +25,10 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var exitToggle = ui.CreateToggle("ForceExit", "Force Exit (Vehicles, Telephone Boxes, etc.)");
+            var exitToggle = ui.CreateToggle("lstwo.TeleportAllPlayers.ForceExit", "Force Exit (Vehicles, Telephone Boxes, etc.)");
 
-            ui.CreateLBDuo("Teleport All Players to Selected Player", "Teleport", () => TeleportPlayers(exitToggle.isOn), "Teleport");
+            ui.CreateLBDuo("Teleport All Players to Selected Player", "lstwo.TeleportAllPlayers.Teleport", () => TeleportPlayers(exitToggle.isOn), "Teleport", 
+                "lstwo.TeleportAllPlayers.TeleportButton");
 
             ui.AddSpacer(6);
         }

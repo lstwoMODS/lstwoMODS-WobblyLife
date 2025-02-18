@@ -36,9 +36,9 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("first person", "Enable First Person", (b) => firstPersonEnabled = b);
-            ui.CreateToggle("first person player 1", "Enable First Person for Player 1 only", (b) => firstPersonEnabledPlayer1 = b);
-            ui.CreateToggle("cutoff", "Enable Character Cutoff when in First Person", (b) => enableCutoff = b, true);
+            ui.CreateToggle("lstwo.FirstPerson.Enable", "Enable First Person", (b) => firstPersonEnabled = b);
+            ui.CreateToggle("lstwo.FirstPerson.PlayerOneOnly", "Enable First Person for Player 1 only", (b) => firstPersonEnabledPlayer1 = b);
+            ui.CreateToggle("lstwo.FirstPerson.EnableCutoff", "Enable Character Cutoff when in First Person", (b) => enableCutoff = b, true);
 
             ui.AddSpacer(6);
         }

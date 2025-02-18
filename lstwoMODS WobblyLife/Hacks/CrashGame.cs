@@ -36,22 +36,22 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var lib = ui.CreateLIBTrio("Spawn Prop Shop Props", "", "Amount of Props", Crash, "Spawn");
+            var lib = ui.CreateLIBTrio("Spawn Prop Shop Props", "lstwo.CrashGame.SpawnRandomProps", "Amount of Props", Crash, "Spawn");
             iterationsInput = lib.Input;
 
             ui.AddSpacer(6);
 
-            var waitLib = ui.CreateLIBTrio("Delay between props in seconds", "", "Seconds of delay");
+            var waitLib = ui.CreateLIBTrio("Delay between props in seconds", "lstwo.CrashGame.SetDelay", "Seconds of delay");
             waitLib.Button.OnClick = () => delayBetweenProps = float.Parse(waitLib.Input.Text);
 
             ui.AddSpacer(6);
 
-            var waitLib2 = ui.CreateLIBTrio("Amount of props between delay", "", "Prop amount");
+            var waitLib2 = ui.CreateLIBTrio("Amount of props between delay", "lstwo.CrashGame.SetAmount", "Prop amount");
             waitLib2.Button.OnClick = () => amountOfPropsForDelay = uint.Parse(waitLib2.Input.Text);
 
             ui.AddSpacer(6);
 
-            var stopLB = ui.CreateLBDuo("Stop", "", () => Plugin.Instance.StopCoroutine(coroutine), "Stop");
+            var stopLB = ui.CreateLBDuo("Stop", "lstwo.CrashGame.Stop", () => Plugin.Instance.StopCoroutine(coroutine), "Stop", "lstwo.CrashGame.StopButton");
 
             ui.AddSpacer(6);
         }

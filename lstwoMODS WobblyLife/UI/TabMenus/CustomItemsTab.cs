@@ -39,7 +39,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
         {
             base.ConstructUI(root);
 
-            gridViewObj = UIFactory.CreateGridGroup(root, "gridView", new(268, 436 - 128), new(6, 6), new Color(.095f, .108f, .133f));
+            gridViewObj = UIFactory.CreateGridGroup(root, "gridView", new(268, 436 - 128), new(6, 6), HacksUIHelper.HacksMenuBG);
             gridView = gridViewObj.GetComponent<GridLayoutGroup>();
         }
 

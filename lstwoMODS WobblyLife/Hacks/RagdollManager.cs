@@ -28,11 +28,13 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Lock Ragdoll State", onClick1: LockRagdoll, onClick2: UnlockRagdoll, buttonText1: "Lock", buttonText2: "Unlock");
+            ui.CreateLBBTrio("Lock Ragdoll State", "lstwo.RagdollManager.LockState", onClick1: LockRagdoll, onClick2: UnlockRagdoll, buttonText1: "Lock", buttonText2: "Unlock", 
+                buttonName1: "lstwo.RagdollManager.Lock", buttonName2: "lstwo.RagdollManager.Unlock");
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Ragdoll Player", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout");
+            ui.CreateLBBTrio("Ragdoll Player", "lstwo.RagdollManager.RagdollPlayert", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout", 
+                buttonName1: "lstwo.RagdollManager.Ragdoll", buttonName2: "lstwo.RagdollManager.Knockout");
 
             ui.AddSpacer(6);
 
@@ -43,7 +45,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(Player.RagdollController);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.RagdollManager.inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

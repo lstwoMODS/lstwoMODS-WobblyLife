@@ -37,7 +37,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBDuo("Complete active Missions", "CompleteMissions", CompleteMissions, "Complete All");
+            ui.CreateLBDuo("Complete active Missions", "lstwo.MissionComplete.CompleteMissions", CompleteMissions, "Complete All", "lstwo.MissionComplete.CompleteAll");
 
             ui.AddSpacer(6);
         }

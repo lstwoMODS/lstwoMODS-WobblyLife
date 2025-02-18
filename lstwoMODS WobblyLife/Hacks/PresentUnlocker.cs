@@ -63,11 +63,12 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Present Unlocker", "PresentUnlocker", UnlockAll, "Unlock All", LockAll, "Lock All");
+            ui.CreateLBBTrio("Present Unlocker", "lstwo.PresentUnlocker.PresentUnlocker", UnlockAll, "Unlock All", "lstwo.PresentUnlocker.UnlockAll", LockAll, "Lock All", 
+                "lstwo.PresentUnlocker.LockAll");
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("ShowPresentsOnMap", "Show Presents on Map", ShowPresentsOnMap);
+            ui.CreateToggle("lstwo.PresentUnlocker.ShowPresentsOnMap", "Show Presents on Map", ShowPresentsOnMap);
 
             ui.AddSpacer(6);
         }

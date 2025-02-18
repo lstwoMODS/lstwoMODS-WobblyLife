@@ -36,11 +36,11 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("enable", "Enable Mod", (b) => enabled = b);
+            ui.CreateToggle("lstwo.RealisticCarCrashes.enable", "Enable Mod", (b) => enabled = b);
 
             ui.AddSpacer(6);
 
-            var forceLIB = ui.CreateLIBTrio("Explosion Force", "force", "1500.0");
+            var forceLIB = ui.CreateLIBTrio("Explosion Force", "lstwo.RealisticCarCrashes.force", "1500.0");
             forceLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             forceLIB.Button.OnClick = () => explosionForce = float.Parse(forceLIB.Input.Text);
 
@@ -48,7 +48,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var upwardsModifierLIB = ui.CreateLIBTrio("Upwards Modifier", "upwardsModifier", "5.0");
+            var upwardsModifierLIB = ui.CreateLIBTrio("Upwards Modifier", "lstwo.RealisticCarCrashes.upwardsModifier", "5.0");
             upwardsModifierLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             upwardsModifierLIB.Button.OnClick = () => explosionForce = float.Parse(forceLIB.Input.Text);
 

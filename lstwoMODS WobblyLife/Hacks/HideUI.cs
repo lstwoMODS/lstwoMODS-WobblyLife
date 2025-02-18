@@ -29,7 +29,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("hide minimap", "Hide Minimap", (b) => PlayerUtils.GetMyPlayer().SetMinimapDisabled(this, b));
+            ui.CreateToggle("lstwo.HideUI.HideMinimap", "Hide Minimap", (b) => PlayerUtils.GetMyPlayer().SetMinimapDisabled(this, b));
 
             ui.AddSpacer(6);
         }

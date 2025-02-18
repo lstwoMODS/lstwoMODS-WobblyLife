@@ -110,7 +110,8 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Clothing Unlocker", "Clothing Unlocker", UnlockAllClothes, "Unlock All Clothes", LockAllClothes, "Lock All Clothes");
+            ui.CreateLBBTrio("Clothing Unlocker", "Clothing Unlocker", UnlockAllClothes, "Unlock All Clothes", "lstwo.ClothingManager.UnlockAll", LockAllClothes, "Lock All Clothes",
+                "lstwo.ClothingManager.LockAll");
 
             ui.AddSpacer(6);
         }

@@ -25,7 +25,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBDuo("Spawn Lightning at Players Position", "", () =>
+            ui.CreateLBDuo("Spawn Lightning at Players Position", "lstwo.SmitePlayer.Smite", () =>
             {
                 var data = WeatherSystem.Instance.GetCurrentWeatherData();
                 var index = WeatherSystem.Instance.GetAllWeatherData().ToList().IndexOf(data);

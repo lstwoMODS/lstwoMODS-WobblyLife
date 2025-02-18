@@ -39,11 +39,11 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("forAllPlayer", "Enable for All Players", (b) => allPlayers = b, true);
+            ui.CreateToggle("lstwo.JetpackMultiplier.EnableForAll", "Enable for All Players", (b) => allPlayers = b, true);
 
             ui.AddSpacer(6);
 
-            fuelTimeLIB = ui.CreateLIBTrio("Jetpack Fuel Time", "fuelTime", "Fuel Time in Seconds");
+            fuelTimeLIB = ui.CreateLIBTrio("Jetpack Fuel Time", "lstwo.JetpackMultiplier.fuelTime", "Fuel Time in Seconds");
             fuelTimeLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             fuelTimeLIB.Button.OnClick = () =>
             {
@@ -52,11 +52,11 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("enableJetpackFuel", "Enable Jetpack Fuel (Toggle Off for Infinite Time)", (b) => fuelEnabled = b, true);
+            ui.CreateToggle("lstwo.JetpackMultiplier.enableJetpackFuel", "Enable Jetpack Fuel (Toggle Off for Infinite Time)", (b) => fuelEnabled = b, true);
 
             ui.AddSpacer(6);
 
-            speedLIB = ui.CreateLIBTrio("Jetpack Speed", "speed");
+            speedLIB = ui.CreateLIBTrio("Jetpack Speed", "lstwo.JetpackMultiplier.speed");
             speedLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
             speedLIB.Button.OnClick = () =>
             {

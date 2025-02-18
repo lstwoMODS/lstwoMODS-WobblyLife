@@ -31,8 +31,8 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            clothingAbilitiesToggle = ui.CreateToggle("ClothingAbilitiesToggle", "Enable Clothing Abilities", SetClothingAbilitiesEnabled, true);
-            allowRespawningToggle = ui.CreateToggle("AllowRespawning", "Allow Respawning", (b) => Player.Controller.SetAllowedToRespawn(this, b));
+            clothingAbilitiesToggle = ui.CreateToggle("lstwo.ControllerManager.EnableClothingAbilities", "Enable Clothing Abilities", SetClothingAbilitiesEnabled, true);
+            allowRespawningToggle = ui.CreateToggle("lstwo.ControllerManager.AllowRespawning", "Allow Respawning", (b) => Player.Controller.SetAllowedToRespawn(this, b));
 
             ui.AddSpacer(6);
 
@@ -43,7 +43,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(Player.Controller);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.ControllerManager.inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

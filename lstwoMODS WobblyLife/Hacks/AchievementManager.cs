@@ -58,10 +58,10 @@ namespace lstwoMODS_WobblyLife.Hacks
             ui.CreateLBBTrio("Unlock / Lock Achievement", "AchievementControls", () =>
             {
                 global::AchievementManager.Instance.UnlockAchievement(selectedAchievement, PlayerUtils.GetMyPlayer());
-            }, "Unlock", () =>
+            }, "Unlock", "lstwo.AchievementManager.Unlock", () =>
             {
                 global::AchievementManager.Instance.LockAchievement(selectedAchievement, PlayerUtils.GetMyPlayer());
-            }, "Lock");
+            }, "Lock", "lstwo.AchievementManager.Lock");
 
             ui.AddSpacer(6);
 
@@ -71,13 +71,13 @@ namespace lstwoMODS_WobblyLife.Hacks
                 {
                     global::AchievementManager.Instance.UnlockAchievement(achievement, PlayerUtils.GetMyPlayer());
                 }
-            }, "Unlock All", () =>
+            }, "Unlock All", "lstwo.AchievementManager.UnlockAll", () =>
             {
                 foreach (var achievement in achievements)
                 {
                     global::AchievementManager.Instance.LockAchievement(achievement, PlayerUtils.GetMyPlayer());
                 }
-            }, "Lock All");
+            }, "Lock All", "lstwo.AchievementManager.LockAll");
 
             ui.AddSpacer(6);
 
@@ -88,7 +88,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(global::AchievementManager.Instance);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.AchievementManager.Inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

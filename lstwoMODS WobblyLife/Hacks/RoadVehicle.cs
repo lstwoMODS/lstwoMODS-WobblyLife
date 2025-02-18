@@ -42,19 +42,19 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            indestructable = ui.CreateToggle("indestructable", "Is indestructable", (b) => vehicle.SetIndestructable(this, b));
-            lockMovement = ui.CreateToggle("lock movement", "Lock movement", (b) => vehicle.SetLockMovement(this, b));
-            isPersonal = ui.CreateToggle("is personal", "Is personal vehicle", (b) => vehicle.SetIsPersonalVehicle(b));
+            indestructable = ui.CreateToggle("lstwo.RoadVehicle.indestructable", "Is indestructable", (b) => vehicle.SetIndestructable(this, b));
+            lockMovement = ui.CreateToggle("lstwo.RoadVehicle.lock movement", "Lock movement", (b) => vehicle.SetLockMovement(this, b));
+            isPersonal = ui.CreateToggle("lstwo.RoadVehicle.is personal", "Is personal vehicle", (b) => vehicle.SetIsPersonalVehicle(b));
 
             ui.AddSpacer(6);
 
-            damageSpeed = ui.CreateLIBTrio("Set damage speed multiplier", "damage speed", "multiplier");
+            damageSpeed = ui.CreateLIBTrio("Set damage speed multiplier", "lstwo.RoadVehicle.damage speed", "multiplier");
             damageSpeed.Button.OnClick = () => movement.SetDamageSpeedMul(float.Parse(damageSpeed.Input.Text));
             damageSpeed.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
 
-            topSpeedMph = ui.CreateLIBTrio("Set top speed in mph", "top speed", "Top speed in mph");
+            topSpeedMph = ui.CreateLIBTrio("Set top speed in mph", "lstwo.RoadVehicle.top speed", "Top speed in mph");
             topSpeedMph.Button.OnClick = () =>
             {
                 movement.GetType().GetField("defaultTopSpeedMph", Plugin.Flags).SetValue(movement, float.Parse(topSpeedMph.Input.Text));
@@ -64,19 +64,19 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            downForce = ui.CreateLIBTrio("Down force", "down force", "Down Force");
+            downForce = ui.CreateLIBTrio("Down force", "lstwo.RoadVehicle.down force", "Down Force");
             downForce.Button.OnClick = () => movement.GetType().GetField("downForce", Plugin.Flags).SetValue(movement, float.Parse(downForce.Input.Text));
             downForce.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
 
-            wheelStiffness = ui.CreateLIBTrio("Wheel stiffness", "wheel stiffness");
+            wheelStiffness = ui.CreateLIBTrio("Wheel stiffness", "lstwo.RoadVehicle.wheel stiffness");
             wheelStiffness.Button.OnClick = () => movement.GetType().GetField("wheelStiffness", Plugin.Flags).SetValue(movement, float.Parse(wheelStiffness.Input.Text));
             wheelStiffness.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(12);
 
-            hasBoost = ui.CreateToggle("has boost", "Has Boost", (b) =>
+            hasBoost = ui.CreateToggle("lstwo.RoadVehicle.has boost", "Has Boost", (b) =>
             {
                 movement.GetType().GetField("bAllowBoost", Plugin.Flags).SetValue(movement, b);
 
@@ -94,13 +94,13 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            boostPow = ui.CreateLIBTrio("Boost power", "boost pow", "Boost Power");
+            boostPow = ui.CreateLIBTrio("Boost power", "lstwo.RoadVehicle.boost pow", "Boost Power");
             boostPow.Button.OnClick = () => movement.GetType().GetField("boostPow", Plugin.Flags).SetValue(movement, float.Parse(boostPow.Input.Text));
             boostPow.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
 
-            boostSeconds = ui.CreateLIBTrio("boost seconds", "Boost Seconds", "Seconds");
+            boostSeconds = ui.CreateLIBTrio("Boost Seconds", "lstwo.RoadVehicle.Boost Seconds", "Seconds");
             boostSeconds.Button.OnClick = () => movement.GetType().GetField("boostSeconds", Plugin.Flags).SetValue(movement, float.Parse(boostSeconds.Input.Text));
             boostSeconds.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
@@ -113,7 +113,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(vehicle.gameObject);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.RoadVehicle.inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

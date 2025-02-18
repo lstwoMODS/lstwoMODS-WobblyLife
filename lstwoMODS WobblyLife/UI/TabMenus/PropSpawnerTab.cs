@@ -416,7 +416,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
 
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", scrollGroup), 5, 0, 0, 9999);
 
-            scrollView = UIFactory.CreateScrollView(scrollGroup, "scroll", out scrollViewContent, out _, new Color(.114f, .129f, .161f));
+            scrollView = UIFactory.CreateScrollView(scrollGroup, "scroll", out scrollViewContent, out _, HacksUIHelper.BGColor2);
             UIFactory.SetLayoutElement(scrollView, 0, 0, 9999, 9999);
             UIFactory.SetLayoutElement(scrollViewContent, 0, 0, 9999, 9999);
 
@@ -564,7 +564,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
 
             Rect = UIRoot.GetComponent<RectTransform>();
 
-            button = UIFactory.CreateButton(UIRoot, "button", "", HacksUIHelper.ButtonColor34);
+            button = UIFactory.CreateButton(UIRoot, "button", "", HacksUIHelper.ButtonColor);
             button.OnClick = OnCellButtonClicked;
             button.Transform.GetComponent<Image>().sprite = HacksUIHelper.RoundedRect;
             UIFactory.SetLayoutElement(button.GameObject, 0, 32, 9999, 0);

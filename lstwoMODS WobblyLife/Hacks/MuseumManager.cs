@@ -28,7 +28,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("forceFinishMuseumToggle", "Force Finish all Museum Collections", (b) => forceFinishMuseum = b);
+            ui.CreateToggle("lstwo.MuseumManager.forceFinishMuseumToggle", "Force Finish all Museum Collections", (b) => forceFinishMuseum = b);
 
             ui.AddSpacer(6);
         }

@@ -33,7 +33,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("enabled", "Enable Unlimited Houses (Only for you)", (b) => enabled = b);
+            ui.CreateToggle("lstwo.BuyUnlimitedHouses.EnableBuyUnlimitedHouses", "Enable Unlimited Houses (Only for you)", (b) => enabled = b);
 
             ui.AddSpacer(6);
         }

@@ -38,18 +38,18 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var timeSpeedLib = ui.CreateLIBTrio("Set Time Speed", "speed", "1", () => SetTimeOfDaySpeed(float.Parse(timeSpeedInput.Text)));
+            var timeSpeedLib = ui.CreateLIBTrio("Set Time Speed", "lstwo.SetTime.speed", "1", () => SetTimeOfDaySpeed(float.Parse(timeSpeedInput.Text)));
             timeSpeedInput = timeSpeedLib.Input;
 
             ui.AddSpacer(6);
 
-            var setMorningBtn = ui.CreateButton("Set Time to Morning", SetTimeMorning);
+            var setMorningBtn = ui.CreateButton("Set Time to Morning", SetTimeMorning, "lstwo.SetTime.Morning");
             ui.AddSpacer(6);
-            var setMiddayBtn = ui.CreateButton("Set Time to Midday", SetTimeMidday);
+            var setMiddayBtn = ui.CreateButton("Set Time to Midday", SetTimeMidday, "lstwo.SetTime.Midday");
             ui.AddSpacer(6);
-            var setEveningBtn = ui.CreateButton("Set Time to Evening", SetTimeEvening);
+            var setEveningBtn = ui.CreateButton("Set Time to Evening", SetTimeEvening, "lstwo.SetTime.Evening");
             ui.AddSpacer(6);
-            var setMidnightBtn = ui.CreateButton("Set Time to Midnight", SetTimeMidnight);
+            var setMidnightBtn = ui.CreateButton("Set Time to Midnight", SetTimeMidnight, "lstwo.SetTime.Midnight");
 
             ui.AddSpacer(6);
 
@@ -60,7 +60,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(DayNightCycle.Instance);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.SetTime.inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

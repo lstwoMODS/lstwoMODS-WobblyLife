@@ -38,7 +38,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("", "Is Respawning Allowed", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.IsRespawningAllowed", "Is Respawning Allowed", (b) =>
             {
                 respawningAllowed = b;
 
@@ -46,7 +46,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("", "Allow Vehicle Spawning", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.AllowVehicleSpawning", "Allow Vehicle Spawning", (b) =>
             {
                 enableVehicles = b;
 
@@ -57,7 +57,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                 catch { }
 
             }, true);
-            ui.CreateToggle("", "Allow Vehicle Damage", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.AllowVehicleDamage", "Allow Vehicle Damage", (b) =>
             {
                 enableVehicleDamage = b;
 
@@ -71,7 +71,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("", "Allow Tank Spawning", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.AllowTankSpawning", "Allow Tank Spawning", (b) =>
             {
                 enableVehicleTank = b;
 
@@ -82,7 +82,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                 catch { }
 
             }, true);
-            ui.CreateToggle("", "Allow UFO Spawning", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.AllowUFOSpawning", "Allow UFO Spawning", (b) =>
             {
                 enableVehicleUFO = b;
 
@@ -96,7 +96,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("", "Allow Vehicle Boost", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.AllowVehicleBoost", "Allow Vehicle Boost", (b) =>
             {
                 enableVehicleBoost = b;
 
@@ -110,12 +110,12 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("PreventPlayerDrowningToggle", "Prevent Player Drowing", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.PreventPlayerDrowningToggle", "Prevent Player Drowing", (b) =>
             {
                 activePlayer = b;
             });
 
-            ui.CreateToggle("PreventVehicleDrowningToggle", "Prevent Vehicle Drowing", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.PreventVehicleDrowningToggle", "Prevent Vehicle Drowing", (b) =>
             {
                 activeVehicle = b;
             });

@@ -28,17 +28,17 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            var giveMoney = ui.CreateLIBTrio("Give Money", "GiveMoney", "Money to Give", null, "Give");
+            var giveMoney = ui.CreateLIBTrio("Give Money", "lstwo.GiveMoney.GiveMoney", "Money to Give", null, "Give");
             giveMoney.Button.OnClick = () => _GiveMoney(int.Parse(giveMoney.Input.Text));
             giveMoney.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
 
             ui.AddSpacer(6);
 
-            ui.CreateLBDuo("Reset Money", "ResetMoney", ResetMoney, "Reset");
+            ui.CreateLBDuo("Reset Money", "lstwo.GiveMoney.ResetMoney", ResetMoney, "Reset", "lstwo.GiveMoney.ResetButton");
 
             ui.AddSpacer(6);
 
-            var spawnMoney = ui.CreateLIBTrio("Spawn Money Bag", "SpawnMoney", "Money to Spawn", null, "Give");
+            var spawnMoney = ui.CreateLIBTrio("Spawn Money Bag", "lstwo.GiveMoney.SpawnMoney", "Money to Spawn", null, "Give");
             spawnMoney.Button.OnClick = () => SpawnMoney(int.Parse(spawnMoney.Input.Text));
             spawnMoney.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
 

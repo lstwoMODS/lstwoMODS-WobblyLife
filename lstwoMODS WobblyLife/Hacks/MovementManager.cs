@@ -39,27 +39,27 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            moveSpeedLib = ui.CreateLIBTrio("Set Move Speed", "SetMoveSpeed", "Move Speed");
+            moveSpeedLib = ui.CreateLIBTrio("Set Move Speed", "lstwo.MovementManager.SetMoveSpeed", "Move Speed");
             moveSpeedLib.Button.OnClick = () => SetMoveSpeed(float.Parse(moveSpeedLib.Input.Text));
             moveSpeedLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
 
-            jumpHeightLib = ui.CreateLIBTrio("Set Jump Height", "SetJumpHeight", "Jump Height");
+            jumpHeightLib = ui.CreateLIBTrio("Set Jump Height", "lstwo.MovementManager.SetJumpHeight", "Jump Height");
             jumpHeightLib.Button.OnClick = () => SetJumpHeight(float.Parse(jumpHeightLib.Input.Text));
             jumpHeightLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("AllowInfiniteJump", "Enable Infinite Jump Hack (Only for you)", SetInfiniteJump);
+            ui.CreateToggle("lstwo.MovementManager.AllowInfiniteJump", "Enable Infinite Jump Hack (Only for you)", SetInfiniteJump);
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("AllowMultiJump", "Enable Multi Jump Hack (Only for you)", SetMultiJump);
+            ui.CreateToggle("lstwo.MovementManager.AllowMultiJump", "Enable Multi Jump Hack (Only for you)", SetMultiJump);
 
             ui.AddSpacer(6);
 
-            noclipToggle = ui.CreateToggle("Noclip", "Enable Noclip (Fly Mode)", SetNoclipEnabled);
+            noclipToggle = ui.CreateToggle("lstwo.MovementManager.Noclip", "Enable Noclip (Fly Mode)", SetNoclipEnabled);
 
             ui.AddSpacer(6);
 
@@ -70,7 +70,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(Player.CharacterMovement);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.MovementManager.inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

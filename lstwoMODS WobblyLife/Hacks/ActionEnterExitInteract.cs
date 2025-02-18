@@ -102,20 +102,21 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            knockoutToggle = ui.CreateToggle("knockoutToggle", "Should knockout if going fast", (b) => ShouldKnockoutIfGoingFast = b, true);
+            knockoutToggle = ui.CreateToggle("lstwo.ActionEnterExitInteract.KnockoutIfGoingFast", "Should knockout if going fast", (b) => ShouldKnockoutIfGoingFast = b, true);
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Evacuate Players", "Evactuate", () => action.EvacuateAll(), "Evacuate All Players", () => action.EvacuateAllExceptDriver(), "Evacuate All Except Driver");
+            ui.CreateLBBTrio("Evacuate Players", "lstwo.ActionEnterExitInteract.EvacuatePlayers", () => action.EvacuateAll(), "Evacuate All Players", "lstwo.ActionEnterExitInteract.EvacuateAll",
+                () => action.EvacuateAllExceptDriver(), "Evacuate All Except Driver", "lstwo.ActionEnterExitInteract.EvacuateAllExceptDriver");
 
             ui.AddSpacer(6);
 
-            ui.CreateLBDuo("Evacuate Selected Player", "evacuatePlayer", () => action.EvacuatePlayer(Player.Controller), "Evacuate");
+            ui.CreateLBDuo("Evacuate Selected Player", "lstwo.ActionEnterExitInteract.EvacuateSelectedPlayer", () => action.EvacuatePlayer(Player.Controller), "Evacuate");
 
             ui.AddSpacer(6);
 
-            lockToggle = ui.CreateToggle("lock", "Is vehicle locked", (b) => Locked = b);
-            interactableToggle = ui.CreateToggle("interactable", "Is vehicle interactable", (b) => Interactable = b);
+            lockToggle = ui.CreateToggle("lstwo.ActionEnterExitInteract.IsVehicleLocked", "Is vehicle locked", (b) => Locked = b);
+            interactableToggle = ui.CreateToggle("lstwo.ActionEnterExitInteract.IsVehicleInteractable", "Is vehicle interactable", (b) => Interactable = b);
 
             ui.AddSpacer(6);
 
@@ -126,7 +127,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(action);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.ActionEnterExitInteract.Inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

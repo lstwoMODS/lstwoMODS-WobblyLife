@@ -15,7 +15,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public override string Description => "";
 
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+        public override HacksTab HacksTab => null;
 
         public JobHacks()
         {
@@ -51,8 +51,8 @@ namespace lstwoMODS_WobblyLife.Hacks
         {
             if (Player == null) return;
 
-            if (Player.Employment.GetActiveJob())
-                currentJobMission = Player.Employment.GetActiveJob();
+            if (Player.ControllerEmployment.GetActiveJob())
+                currentJobMission = Player.ControllerEmployment.GetActiveJob();
             else
                 currentJobMission = null;
 

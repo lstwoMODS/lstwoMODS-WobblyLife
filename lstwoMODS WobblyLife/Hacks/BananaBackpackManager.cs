@@ -37,7 +37,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            maxBananasLib = ui.CreateLIBTrio("Max Banana Peels", "maxBananasLib");
+            maxBananasLib = ui.CreateLIBTrio("Max Banana Peels", "lstwo.BananaBackpackManager.MaxBananaPeelsLIB");
             maxBananasLib.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
             maxBananasLib.Button.OnClick = () =>
             {
@@ -46,7 +46,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("unlimitedBanana", "Unlimited Banana Peels but No Limit or Unlimited Limit but no Limit", (b) => unlimitedPeels = b);
+            ui.CreateToggle("lstwo.BananaBackpackManager.UnlimitedBananaPeels", "Unlimited Banana Peels", (b) => unlimitedPeels = b);
 
             ui.AddSpacer(6);
         }

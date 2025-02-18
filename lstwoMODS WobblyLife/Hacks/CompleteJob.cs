@@ -27,11 +27,11 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBDuo("Complete Job", "CompleteJob", execute, "Complete");
+            ui.CreateLBDuo("Complete Job", "lstwo.CompleteJob.CompleteJob", execute, "Complete");
 
             ui.AddSpacer(6);
 
-            ui.CreateLBDuo("Fail Job", "FailJob", Fail, "Fail");
+            ui.CreateLBDuo("Fail Job", "lstwo.CompleteJob.FailJob", Fail, "Fail");
         }
 
         public void execute()
@@ -42,7 +42,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public void Fail()
         {
-            Player.Employment.GetActiveJob().ServerJobFailed("Host requested job failure using lstwoMODS_WobblyLife");
+            Player.ControllerEmployment.GetActiveJob().ServerJobFailed("Host requested job failure using lstwoMODS_WobblyLife");
         }
 
         public override void RefreshUI()

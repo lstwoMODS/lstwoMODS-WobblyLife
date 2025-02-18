@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34024.191
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "lstwoMODS WobblyLife", "lstwoMODS\lstwoMODS WobblyLife.csproj", "{6721D835-8031-4665-A009-4B858FB6A499}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CustomItems", "CustomItems\CustomItems.csproj", "{F84E1F0E-2B86-4494-AE6B-45624E59A997}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "lstwoMODS WobblyLife", "lstwoMODS WobblyLife\lstwoMODS WobblyLife.csproj", "{1B2BB229-DE79-41BF-89FC-3D48E53A889F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,14 +13,14 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{6721D835-8031-4665-A009-4B858FB6A499}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6721D835-8031-4665-A009-4B858FB6A499}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6721D835-8031-4665-A009-4B858FB6A499}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6721D835-8031-4665-A009-4B858FB6A499}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F84E1F0E-2B86-4494-AE6B-45624E59A997}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F84E1F0E-2B86-4494-AE6B-45624E59A997}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F84E1F0E-2B86-4494-AE6B-45624E59A997}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F84E1F0E-2B86-4494-AE6B-45624E59A997}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1B2BB229-DE79-41BF-89FC-3D48E53A889F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B2BB229-DE79-41BF-89FC-3D48E53A889F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B2BB229-DE79-41BF-89FC-3D48E53A889F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B2BB229-DE79-41BF-89FC-3D48E53A889F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

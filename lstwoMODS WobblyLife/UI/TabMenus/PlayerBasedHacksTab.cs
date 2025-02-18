@@ -41,7 +41,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
                 }
             }
 
-            playerDropdown = ui.CreateDropdown("playerDropdown", (index) =>
+            playerDropdown = ui.CreateDropdown("lstwo.PlayerBasedHack.playerDropdown", (index) =>
             {
                 if (index < players.Length)
                 {
@@ -184,42 +184,32 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
     public class PlayerRef
     {
         public PlayerController Controller { get; private set; }
-        public PlayerControllerInputManager ControllerInputManager { get; private set; }
-        public PlayerControllerUnlocker ControllerUnlocker { get; private set; }
-        public PlayerControllerInputHint ControllerInputHint { get; private set; }
-        public PlayerControllerUI ControllerUI { get; private set; }
-        public PlayerControllerSettings ControllerSettings { get; private set; }
-        public PlayerControllerSpectate ControllerSpectate { get; private set; }
-        public PlayerControllerWaypoint ControllerWaypoint { get; private set; }
-        public PlayerControllerEmployment Employment { get; private set; }
 
-        public PlayerCharacter Character { get; private set; }
-        public WorldDynamicObject WorldDynamicObject { get; private set; }
-        public RagdollController RagdollController { get; private set; }
-        public PlayerCharacterMovement CharacterMovement { get; private set; }
-        public PlayerCharacterInput CharacterInput { get; private set; }
-        public PlayerCharacterSound CharacterSound { get; private set; }
-        public PlayerNPCDialog NPCDialog { get; private set; }
+        public PlayerControllerInputManager ControllerInputManager => Controller?.GetPlayerControllerInputManager();
+        public PlayerControllerUnlocker ControllerUnlocker => Controller?.GetPlayerControllerUnlocker();
+        public PlayerControllerInputHint ControllerInputHint => Controller?.GetPlayerControllerInputHint();
+        public PlayerControllerUI ControllerUI => Controller?.GetPlayerControllerUI();
+        public PlayerControllerSettings ControllerSettings => Controller?.GetPlayerControllerSettings();
+        public PlayerControllerSpectate ControllerSpectate => Controller?.GetPlayerControllerSpectate();
+        public PlayerControllerWaypoint ControllerWaypoint => Controller?.GetPlayerControllerWaypoint();
+        public PlayerControllerEmployment ControllerEmployment => Controller?.GetPlayerControllerEmployment();
+        public PlayerControllerInteractor ControllerInteractor => Controller?.GetPlayerControllerInteractor();
+        public MinimapIcon MinimapIcon => Controller?.GetComponent<MinimapIcon>();
+        public PlayerControllerPet ControllerPet => Controller?.GetPlayerControllerPet();
+
+        public PlayerCharacter Character => Controller?.GetPlayerCharacter();
+        public WorldDynamicObject WorldDynamicObject => Character?.GetWorldDynamicObject();
+        public RagdollController RagdollController => Character?.GetRagdollController();
+        public PlayerCharacterMovement CharacterMovement => Character?.GetPlayerCharacterMovement();
+        public PlayerCharacterInput CharacterInput => Character?.GetPlayerCharacterInput();
+        public PlayerCharacterSound CharacterSound => Character?.GetPlayerCharacterSound();
+        public PlayerNPCDialog NPCDialog => Character?.GetComponent<PlayerNPCDialog>();
+        public CharacterCustomize CharacterCustomize => Character?.GetPlayerCharacterCustomize();
+        public CharacterFace CharacterFace => Character?.GetComponent<CharacterFace>();
 
         public void SetPlayerController(PlayerController controller)
         {
             Controller = controller;
-            ControllerInputManager = controller.GetPlayerControllerInputManager();
-            ControllerUnlocker = controller.GetPlayerControllerUnlocker();
-            ControllerInputHint = controller.GetPlayerControllerInputHint();
-            ControllerUI = controller.GetPlayerControllerUI();
-            ControllerSettings = controller.GetPlayerControllerSettings();
-            ControllerSpectate = controller.GetPlayerControllerSpectate();
-            ControllerWaypoint = controller.GetPlayerControllerWaypoint();
-            Employment = controller.GetPlayerControllerEmployment();
-
-            Character = controller.GetPlayerCharacter();
-            WorldDynamicObject = Character.GetWorldDynamicObject();
-            RagdollController = Character.GetRagdollController();
-            CharacterMovement = Character.GetPlayerCharacterMovement();
-            CharacterInput = Character.GetPlayerCharacterInput();
-            CharacterSound = Character.GetPlayerCharacterSound();
-            NPCDialog = Character.GetComponent<PlayerNPCDialog>();
         }
 
         public void SetPlayerCharacter(PlayerCharacter character)

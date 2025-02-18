@@ -46,7 +46,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            setWeatherLDB = ui.CreateLDBTrio("Set Current Weather", "SetWeather", "- Select Weather -", onValueChanged: (index) =>
+            setWeatherLDB = ui.CreateLDBTrio("Set Current Weather", "lstwo.WeatherEditor.SetWeather", "- Select Weather -", onValueChanged: (index) =>
             {
                 var data = weatherDatas[index];
 
@@ -66,20 +66,20 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.CreateLabel("<b>Base Weather Information</b>");
 
-            weatherTitleInput = ui.CreateLIDuo("Weather Title", "Title", "Input", "Weather Title").Input;
+            weatherTitleInput = ui.CreateLIDuo("Weather Title", "lstwo.WeatherEditor.Title", "lstwo.WeatherEditor.TitleInput", "Weather Title").Input;
 
             ui.AddSpacer(6);
 
-            pickWeightInput = ui.CreateLIDuo("Pick Chance", "Title", "Input", "0 (0%) - 1 (100%)").Input;
+            pickWeightInput = ui.CreateLIDuo("Pick Chance", "lstwo.WeatherEditor.PickChance", "lstwo.WeatherEditor.PickChanceInput", "0 (0%) - 1 (100%)").Input;
             pickWeightInput.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
 
-            transitionTimeInput = ui.CreateLIDuo("Transition Time", "transitionTimeInput", "Input", "e.g. 1").Input;
+            transitionTimeInput = ui.CreateLIDuo("Transition Time", "lstwo.WeatherEditor.transitionTimeInput", "lstwo.WeatherEditor.TransitionTimeInput", "e.g. 1").Input;
 
             ui.AddSpacer(6);
 
-            fogDistanceInput = ui.CreateLIDuo("Fog Distance", "Title", "Input", "Fog Distance").Input;
+            fogDistanceInput = ui.CreateLIDuo("Fog Distance", "lstwo.WeatherEditor.FogDistance", "lstwo.WeatherEditor.FogDistanceInput", "Fog Distance").Input;
             fogDistanceInput.Component.characterValidation = InputField.CharacterValidation.Decimal;
 
             ui.AddSpacer(6);
@@ -92,7 +92,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", rainStateGroup), 32, 32);
 
-            var rainStateDropdownObj = UIFactory.CreateDropdown(rainStateGroup, "rainStateDropdown", out rainStateDropdown, "", 16, null, Enum.GetNames(typeof(WeatherIntensity)));
+            var rainStateDropdownObj = UIFactory.CreateDropdown(rainStateGroup, "lstwo.WeatherEditor.RainStateDropdown", out rainStateDropdown, "", 16, null, Enum.GetNames(typeof(WeatherIntensity)));
             rainStateDropdown.image.sprite = HacksUIHelper.RoundedRect;
             UIFactory.SetLayoutElement(rainStateDropdownObj, 256, 32, 0, 0);
 
@@ -110,7 +110,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             var group = ui.CreateHorizontalGroup("applyGroup", true, true, true, true);
 
-            var setCustomWeatherButton = UIFactory.CreateButton(group, "Set Weather", "Set Weather", HacksUIHelper.ButtonColor);
+            var setCustomWeatherButton = UIFactory.CreateButton(group, "lstwo.WeatherEditor.SetWeather", "Set Weather", HacksUIHelper.ButtonColor);
             UIFactory.SetLayoutElement(setCustomWeatherButton.GameObject, 256, 32, 0, 0);
             setCustomWeatherButton.Component.image = setCustomWeatherButton.GameObject.GetComponent<Image>();
             setCustomWeatherButton.Component.image.sprite = HacksUIHelper.RoundedRect;
@@ -136,7 +136,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", group), 32);
 
-            var addCustomWeatherButton = UIFactory.CreateButton(group, "Add Weather to List", "Add Weather to List", HacksUIHelper.ButtonColor);
+            var addCustomWeatherButton = UIFactory.CreateButton(group, "lstwo.WeatherEditor.AddToList", "Add Weather to List", HacksUIHelper.ButtonColor);
             UIFactory.SetLayoutElement(addCustomWeatherButton.GameObject, 256, 32, 0, 0);
             addCustomWeatherButton.Component.image = addCustomWeatherButton.GameObject.GetComponent<Image>();
             addCustomWeatherButton.Component.image.sprite = HacksUIHelper.RoundedRect;
@@ -149,7 +149,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", group), 32);
 
-            var overrideSelectedWeatherButton = UIFactory.CreateButton(group, "Override", "Override Selected Weather", HacksUIHelper.ButtonColor);
+            var overrideSelectedWeatherButton = UIFactory.CreateButton(group, "lstwo.WeatherEditor.Override", "Override Selected Weather", HacksUIHelper.ButtonColor);
             UIFactory.SetLayoutElement(overrideSelectedWeatherButton.GameObject, 256, 32, 0, 0);
             overrideSelectedWeatherButton.Component.image = overrideSelectedWeatherButton.GameObject.GetComponent<Image>();
             overrideSelectedWeatherButton.Component.image.sprite = HacksUIHelper.RoundedRect;
@@ -169,7 +169,7 @@ namespace lstwoMODS_WobblyLife.Hacks
                     InspectorManager.Inspect(WeatherSystem.Instance);
                     UIManager.ShowMenu = true;
                 }
-            }, "inspect", null, 256 * 3 + 32 * 2, 32);
+            }, "lstwo.WeatherEditor.inspect", null, 256 * 3 + 32 * 2, 32);
 
             ui.AddSpacer(6);
         }

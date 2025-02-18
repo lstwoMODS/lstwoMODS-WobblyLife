@@ -113,7 +113,8 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateLBBTrio("Vehicle Unlocker", "Vehicle Unlocker", UnlockAllVehicles, "Unlock All Vehicles", LockAllVehicles, "Lock All Vehicles");
+            ui.CreateLBBTrio("Vehicle Unlocker", "lstwo.VehicleUnlocker.Vehicle Unlocker", UnlockAllVehicles, "Unlock All Vehicles", "lstwo.VehicleUnlocker.UnlockAll", 
+                LockAllVehicles, "Lock All Vehicles", "lstwo.VehicleUnlocker.LockAll");
 
             ui.AddSpacer(6);
         }
@@ -129,7 +130,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             allVehicles = vehicleManager.GetVehicles();
 
-            unlockVehicleLDB.Dropdown.ClearOptions();
+            /*unlockVehicleLDB.Dropdown.ClearOptions();
             lockVehicleLDB.Dropdown.ClearOptions();
 
             foreach (var vehicle in allVehicles)
@@ -141,7 +142,7 @@ namespace lstwoMODS_WobblyLife.Hacks
             }
 
             unlockVehicleLDB.Dropdown.RefreshShownValue();
-            lockVehicleLDB.Dropdown.RefreshShownValue();
+            lockVehicleLDB.Dropdown.RefreshShownValue();*/
         }
 
         public override void Update()

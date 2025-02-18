@@ -22,7 +22,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("cutoff", "Allow Player Character Cutoff", (b) => characterCutoff = b, true);
+            ui.CreateToggle("lstwo.MuseumManager.cutoff", "Allow Player Character Cutoff", (b) => characterCutoff = b, true);
 
             ui.AddSpacer(6);
         }
