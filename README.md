@@ -2,9 +2,6 @@
 
 A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwo/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
 
-> [!IMPORTANT]
-> I am currently transitioning to separating the mod into lstwoMODS Core and lstwoMODS Wobbly Life. The current release is NOT using lstwoMODS Core, so currently just install the **requirements** of lstwoMODS Core and then install this as the modpack **without** lstwoMODS Core because this contains it.
-
 # Installation Requirements
 
 Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
