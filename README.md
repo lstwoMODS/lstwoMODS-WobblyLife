@@ -1,4 +1,4 @@
-# lstwoMODS (formerly "NotAzzamods")
+# lstwoMODS-WobblyLife
 
 A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwo/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
 
@@ -19,17 +19,16 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
 # Mod List
 
 - **Player Mods (can apply to any player)**
+  - Change Player Name
   - Character Manager
-  - Controller Manager
+  - Job Completer
+  - Player Controller Manager
   - Frog Mods
+  - Give Money (only for yourself)
+  - Movemenet Manager
   - Ragdoll Manager
   - Smite Player
   - Teleport All Players
-  - Change Player Name
-  - Complete Job
-  - Movemenet Manager
-  - Clothing Manager (only for yourself)
-  - Give Money (only for yourself)
 
 - **Vehicle Mods (can apply to any player)**
   - Enter Exit Interact Modifier
@@ -38,27 +37,30 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
 - **Server Mods (applies to all players)**
   - Ragdoll All Players
   - Server Settings
-  - Set Time
-  - Prevent Drowning
   - Set Gravity
+  - Set Time of Day
   - Weather Editor (thunder doesn't work)
 
 - **Save File Mods (applies only to you)**
-  - Museum Manager
-  - Mission Completer
-  - Present Manager
   - Achievement Manager
+  - Clothing Manager
+  - Mission Completer
+  - Museum Manager
+  - Present Manager
+  - Vehicle Unlocker (unfinished)
 
 - **Extra Mods**
-  - Accurate Physics Mode
   - Banana Peel Backpack Modifier
-  - Cyberpunk Mode
-  - Debt
-  - Jetpack Multiplier
-  - Realistic Car Crashes
   - Buy Unlimited Houses (doesn't always fully work)
   - First Person
   - Hide UI
+  - Jetpack Multiplier
+  - Player Character Cutoff Toggler
+  - Realistic Car Crashes
+
+- **Prop Spawner**
+
+- **Custom Items**
 
 # FAQ
 
