@@ -144,5 +144,10 @@ namespace lstwoMODS_WobblyLife
         {
             return Instance.StartCoroutine(routine);
         }
+
+        public static void _StopCoroutine(Coroutine routine)
+        {
+            Instance.StopCoroutine(routine);
+        }
     }
 }
