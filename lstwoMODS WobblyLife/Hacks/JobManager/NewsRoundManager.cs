@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
 using UniverseLib;
 using UniverseLib.UI.Models;
 
@@ -22,15 +23,11 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
 
             var title = ui.CreateLabel("News Round Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
-
-            var moneyLabel = ui.CreateLabel("Set Current Money Per Player", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
-
-            moneyInput = ui.CreateInputField("30", "moneyInput");
-            objects.Add(moneyInput.GameObject);
-
-            var moneyBtn = ui.CreateButton("Apply Money", () => SetMoney(int.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
+            
+            var moneyLIB = ui.CreateLIBTrio("Set Current Money Per Player", "moneyLIB", "30");
+            moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
+            objects.Add(moneyLIB.Root);
         }
 
         public override void RefreshUI()

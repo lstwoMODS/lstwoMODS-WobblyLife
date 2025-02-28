@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using lstwoMODS_Core;
 using UnityEngine;
+using UnityEngine.UI;
 using UniverseLib;
 using UniverseLib.UI.Models;
 
@@ -10,7 +12,7 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
     public class WeatherResearcherJobManager : BaseJobManager
     {
-        private InputFieldRef moneyInput;
+        private HacksUIHelper.LIBTrio moneyPerBalloon;
         private List<GameObject> objects = new();
         private QuickReflection<WeatherResearchJobMission> reflect;
 
@@ -22,15 +24,11 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
 
             var title = ui.CreateLabel("Weather Researcher Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
-
-            var moneyLabel = ui.CreateLabel("Set Money Per Balloon", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
-
-            moneyInput = ui.CreateInputField("10", "moneyInput");
-            objects.Add(moneyInput.GameObject);
-
-            var moneyBtn = ui.CreateButton("Apply", () => SetMoney(int.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
+            
+            moneyPerBalloon = ui.CreateLIBTrio("Set Money Per Balloon", "moneyPerDeliveredLIB", "10");
+            moneyPerBalloon.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyPerBalloon.Button.OnClick = () => SetMoney(int.Parse(moneyPerBalloon.Input.Text));
+            objects.Add(moneyPerBalloon.Root);
         }
 
         public override void RefreshUI()
@@ -43,7 +41,7 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             {
                 reflect = new((WeatherResearchJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
 
-                moneyInput.Text = ((int)reflect.GetField("moneyPerBalloon")).ToString();
+                moneyPerBalloon.Input.Text = ((int)reflect.GetField("moneyPerBalloon")).ToString();
             }
         }
 

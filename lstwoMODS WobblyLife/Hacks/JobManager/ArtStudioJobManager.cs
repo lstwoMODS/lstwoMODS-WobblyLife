@@ -2,15 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using lstwoMODS_Core;
 using UnityEngine;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using UnityEngine.UI;
 
 namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
     public class ArtStudioJobManager : BaseJobManager
     {
-        private InputFieldRef moneyInput;
+        private HacksUIHelper.LIBTrio moneyLIB;
         private List<GameObject> objects = new();
         private QuickReflection<ArtStudioJobMission> reflect;
 
@@ -23,19 +23,15 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             var title = ui.CreateLabel("Art Studio Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
 
-            var moneyLabel = ui.CreateLabel("Set Art Studio Job Money", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
+            moneyLIB = ui.CreateLIBTrio("Set Art Studio Job Money", "lstwo.JobManager.ArtStudioJobManager.SetMoney", "30");
+            moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
+            objects.Add(moneyLIB.Root);
 
-            moneyInput = ui.CreateInputField("30", "moneyInput");
-            objects.Add(moneyInput.GameObject);
+            objects.Add(ui.AddSpacer(6));
 
-            var moneyBtn = ui.CreateButton("Apply Money", () => SetMoney(int.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
-
-            objects.Add(ui.AddSpacer(5));
-
-            var spawnToolsBtn = ui.CreateButton("Spawn All Tools", SpawnAllTools);
-            objects.Add(spawnToolsBtn.GameObject);
+            var spawnToolsLB = ui.CreateLBDuo("Spawn All Tools", "lstwo.JobManager.ArtStudioJobManager.SpawnTools", SpawnAllTools, "Spawn", "SpawnToolsButton");
+            objects.Add(spawnToolsLB.Root);
         }
 
         public override void RefreshUI()
@@ -44,12 +40,13 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
 
             root.SetActive(b);
 
-            if (b)
+            if (!b)
             {
-                reflect = new((ArtStudioJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-                moneyInput.Text = ((int)reflect.GetField("money")).ToString();
+                return;
             }
+            
+            reflect = new((ArtStudioJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
+            moneyLIB.Input.Text = ((int)reflect.GetField("money")).ToString();
         }
 
         public void SetMoney(int money)

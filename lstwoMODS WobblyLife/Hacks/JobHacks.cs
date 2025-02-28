@@ -15,7 +15,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public override string Description => "";
 
-        public override HacksTab HacksTab => null;
+        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
 
         public JobHacks()
         {
@@ -28,7 +28,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            foreach (BaseJobManager manager in jobManagers)
+            foreach (var manager in jobManagers)
             {
                 try
                 {
@@ -51,12 +51,9 @@ namespace lstwoMODS_WobblyLife.Hacks
         {
             if (Player == null) return;
 
-            if (Player.ControllerEmployment.GetActiveJob())
-                currentJobMission = Player.ControllerEmployment.GetActiveJob();
-            else
-                currentJobMission = null;
+            currentJobMission = Player.ControllerEmployment.GetActiveJob() ? Player.ControllerEmployment.GetActiveJob() : null;
 
-            foreach (BaseJobManager manager in jobManagers)
+            foreach (var manager in jobManagers)
             {
                 try
                 {

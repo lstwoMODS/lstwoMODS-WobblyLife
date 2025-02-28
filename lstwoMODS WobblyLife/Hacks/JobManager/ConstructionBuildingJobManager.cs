@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
@@ -21,35 +22,27 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             var title = ui.CreateLabel("Construction Building Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
 
-            var moneyLabel = ui.CreateLabel("Set Current Job Money", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
+            var moneyLIB = ui.CreateLIBTrio("Set Current Job Money", "SetMoney", "0");
+            moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
+            objects.Add(moneyLIB.Root);
 
-            var moneyInput = ui.CreateInputField("0", "moneyInput");
-            objects.Add(moneyInput.GameObject);
+            objects.Add(ui.AddSpacer(12));
 
-            var moneyBtn = ui.CreateButton("Apply Money", () => SetMoney(int.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
+            var spawnResourcesBtn = ui.CreateLBDuo("Spawn Resources", "SpawnResources", SpawnResources, "Spawn", "SpawnResourcesButton");
+            objects.Add(spawnResourcesBtn.Root);
 
-            objects.Add(ui.AddSpacer(10));
+            objects.Add(ui.AddSpacer(6));
 
-            var spawnResourcesBtn = ui.CreateButton("Spawn Resources", SpawnResources);
-            objects.Add(spawnResourcesBtn.GameObject);
-
-            objects.Add(ui.AddSpacer(5));
-
-            var spawnHammersBtn = ui.CreateButton("Spawn Hammers", SpawnHammers);
-            objects.Add(spawnHammersBtn.GameObject);
-
-            objects.Add(ui.AddSpacer(5));
-
-            var moneyPerPieceLabel = ui.CreateLabel("Set Current Job Money Per Building Piece", "moneyPerPieceLabel");
-            objects.Add(moneyPerPieceLabel.gameObject);
-
-            var moneyPerPieceInput = ui.CreateInputField("2", "moneyPerPieceInput");
-            objects.Add(moneyPerPieceInput.GameObject);
-
-            var moneyPerPieceBtn = ui.CreateButton("Apply Money Per Building Piece", () => SetMoneyPerBuildingPiece(int.Parse(moneyInput.Text)));
-            objects.Add(moneyPerPieceBtn.GameObject);
+            var spawnHammersBtn = ui.CreateLBDuo("Spawn Hammers", "SpawnHammers", SpawnHammers, "Spawn", "SpawnHammersButton");
+            objects.Add(spawnHammersBtn.Root);
+            
+            objects.Add(ui.AddSpacer(6));
+            
+            var moneyPerPieceLIB = ui.CreateLIBTrio("Set Current Job Money Per Building Piece", "moneyPerPieceLIB", "2");
+            moneyPerPieceLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyPerPieceLIB.Button.OnClick = () => SetMoneyPerBuildingPiece(int.Parse(moneyPerPieceLIB.Input.Text));
+            objects.Add(moneyPerPieceLIB.Root);
         }
 
         public override void RefreshUI()

@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace lstwoMODS_WobblyLife.Hacks.JobManager
 {
@@ -21,24 +22,20 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             var title = ui.CreateLabel("Construction Destruction Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
 
-            var moneyLabel = ui.CreateLabel("Set Current Job Money", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
-
-            var moneyInput = ui.CreateInputField("0", "moneyInput");
-            objects.Add(moneyInput.GameObject);
-
-            var moneyBtn = ui.CreateButton("Apply Money", () => SetMoney(int.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
+            var moneyLIB = ui.CreateLIBTrio("Set Current Job Money", "moneyLIB", "0");
+            moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
+            objects.Add(moneyLIB.Root);
 
             objects.Add(ui.AddSpacer(10));
 
-            var spawnTools = ui.CreateButton("Spawn Tools", SpawnTools);
-            objects.Add(spawnTools.GameObject);
+            var spawnTools = ui.CreateLBDuo("Spawn Tools", "SpawnTools", SpawnTools, "Spawn", "SpawnToolsButton");
+            objects.Add(spawnTools.Root);
 
             objects.Add(ui.AddSpacer(5));
 
-            var destroyTools = ui.CreateButton("Destroy Tools", DestroyTools);
-            objects.Add(destroyTools.GameObject);
+            var destroyTools = ui.CreateLBDuo("Destroy Tools", "DestroyTools", DestroyTools, "Destroy", "DestroyToolsButton");
+            objects.Add(destroyTools.Root);
         }
 
         public override void RefreshUI()

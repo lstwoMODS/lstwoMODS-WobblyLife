@@ -1,10 +1,5 @@
-﻿using lstwoMODS_WobblyLife.UI.TabMenus;
-using ShadowLib;
-using System;
+﻿using ShadowLib;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
@@ -18,7 +13,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public override string Description => "";
 
-        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
+        public override HacksTab HacksTab => Plugin.ClientHacksTab;
 
         private PlayerBasedUI playerUI;
         private PlayerControllerUI controllerUI;

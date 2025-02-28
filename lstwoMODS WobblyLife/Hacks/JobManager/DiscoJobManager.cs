@@ -22,8 +22,8 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             var title = ui.CreateLabel("Disco Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
 
-            var missBtn = ui.CreateButton("Miss Tile", MissTile);
-            objects.Add(missBtn.GameObject);
+            var missBtn = ui.CreateLBDuo("Miss Tile", "MissTile", MissTile, "Miss", "MissTileButton");
+            objects.Add(missBtn.Root);
         }
 
         public override void RefreshUI()

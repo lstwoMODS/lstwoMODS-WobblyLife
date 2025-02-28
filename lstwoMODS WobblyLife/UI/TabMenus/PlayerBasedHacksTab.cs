@@ -21,7 +21,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
         private GameObject infoHackRoot;
         private InfoHack infoHack;
 
-        public PlayerBasedHacksTab(string name = "Mods")
+        public PlayerBasedHacksTab(Sprite icon, string name = "Mods") : base(icon)
         {
             Name = name;
         }

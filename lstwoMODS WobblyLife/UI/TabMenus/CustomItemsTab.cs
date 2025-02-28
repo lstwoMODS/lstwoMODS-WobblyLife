@@ -20,7 +20,7 @@ using lstwoMODS_Core.Hacks;
 
 namespace lstwoMODS_WobblyLife.UI.TabMenus
 {
-    public class CustomItemsTab : BaseTab
+    public class CustomItemsTab : TabWithIcon
     {
         private GridLayoutGroup gridView;
         private GameObject gridViewObj;
@@ -30,7 +30,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
         private List<CustomItem> items = new();
         private List<GameObject> itemCells = new();
 
-        public CustomItemsTab()
+        public CustomItemsTab(Sprite icon) : base(icon)
         {
             Name = "Custom Items";
         }

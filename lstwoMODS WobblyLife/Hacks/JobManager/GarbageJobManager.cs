@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.UI;
 using UniverseLib.UI.Models;
 
 namespace lstwoMODS_WobblyLife.Hacks.JobManager
@@ -25,26 +26,18 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
 
             var title = ui.CreateLabel("Garbage Job", "title", fontSize: 18);
             objects.Add(title.gameObject);
-
-            var moneyLabel = ui.CreateLabel("Set Money Earnt", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
-
-            moneyInput = ui.CreateInputField("0", "moneyInput");
-            objects.Add(moneyInput.GameObject);
-
-            var moneyBtn = ui.CreateButton("Apply Money", () => SetMoneyEarnt(int.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
+            
+            var moneyLIB = ui.CreateLIBTrio("Set Money Earned", "moneyLIB", "0");
+            moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyLIB.Button.OnClick = () => SetMoneyEarned(int.Parse(moneyLIB.Input.Text));
+            objects.Add(moneyLIB.Root);
 
             objects.Add(ui.AddSpacer(5));
-
-            var moneyPerBagLabel = ui.CreateLabel("Set Money Per Bag", "moneyLabel");
-            objects.Add(moneyPerBagLabel.gameObject);
-
-            moneyPerBagInput = ui.CreateInputField("5", "moneyInput");
-            objects.Add(moneyPerBagInput.GameObject);
-
-            var moneyPerBagBtn = ui.CreateButton("Apply Money", () => SetMoneyEarnt(int.Parse(moneyPerBagInput.Text)));
-            objects.Add(moneyPerBagBtn.GameObject);
+            
+            var moneyPerBagLIB = ui.CreateLIBTrio("Set Money Per Bag", "moneyPerBagLIB", "5");
+            moneyPerBagLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            moneyPerBagLIB.Button.OnClick = () => SetMoneyPerBag(int.Parse(moneyPerBagLIB.Input.Text));
+            objects.Add(moneyPerBagLIB.Root);
         }
 
         public override void RefreshUI()
@@ -62,7 +55,7 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             }
         }
 
-        public void SetMoneyEarnt(int money)
+        public void SetMoneyEarned(int money)
         {
             if (CheckMission())
             {

@@ -1,17 +1,7 @@
-﻿using HawkNetworking;
-using lstwoMODS_WobblyLife.UI.TabMenus;
-using ShadowLib;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UniverseLib.UI;
+﻿using UnityEngine;
 using UniverseLib.UI.Models;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
-using lstwoMODS_Core.Hacks;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {

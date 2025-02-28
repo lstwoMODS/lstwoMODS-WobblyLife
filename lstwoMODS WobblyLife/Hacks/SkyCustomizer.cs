@@ -22,7 +22,7 @@ namespace lstwoMODS_WobblyLife.Hacks
 
         public override string Name => "Sky Customizer";
         public override string Description => "";
-        public override HacksTab HacksTab => Plugin.ExtraHacksTab;
+        public override HacksTab HacksTab => Plugin.ClientHacksTab;
 
         private Material skybox;
 

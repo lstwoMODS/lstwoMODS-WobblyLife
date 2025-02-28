@@ -344,7 +344,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
         };
     }
 
-    public class PropSpawnerTab : BaseTab
+    public class PropSpawnerTab : TabWithIcon
     {
         public string SelectedProp
         {
@@ -399,7 +399,7 @@ namespace lstwoMODS_WobblyLife.UI.TabMenus
         private ButtonRef inspectBtn;
         private GameObject lastSpawnedProp;
 
-        public PropSpawnerTab()
+        public PropSpawnerTab(Sprite icon) : base(icon)
         {
             Name = "Prop Spawner";
         }

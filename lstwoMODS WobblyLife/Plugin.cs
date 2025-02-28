@@ -25,18 +25,20 @@ namespace lstwoMODS_WobblyLife
         
         public static ManualLogSource LogSource { get => Instance.Logger; }
         public static ConfigFile ConfigFile { get => Instance.Config; }
+        public static AssetBundle AssetBundle { get; private set; }
 
         // INSTANCES
         public static Plugin Instance { get; private set; }
 
         // TABS
-        public static PlayerBasedHacksTab PlayerHacksTab { get; private set; } = new("Player Mods");
-        public static PlayerBasedHacksTab VehicleHacksTab { get; private set; } = new("Vehicle Mods");
-        public static HacksTab ServerHacksTab { get; private set; } = new("Server Mods");
-        public static HacksTab SaveHacksTab { get; private set; } = new("Save File Mods");
-        public static HacksTab ExtraHacksTab { get; private set; } = new("Extra Mods");
-        public static PropSpawnerTab PropSpawnerTab { get; private set; } = new();
-        public static CustomItemsTab CustomItemsTab { get; private set; } = new();
+        public static PlayerBasedHacksTab PlayerHacksTab { get; private set; }
+        public static PlayerBasedHacksTab VehicleHacksTab { get; private set; }
+        public static HacksTab ServerHacksTab { get; private set; }
+        public static HacksTab ClientHacksTab { get; private set; }
+        public static HacksTab SaveHacksTab { get; private set; }
+        public static HacksTab ExtraHacksTab { get; private set; }
+        public static PropSpawnerTab PropSpawnerTab { get; private set; }
+        public static CustomItemsTab CustomItemsTab { get; private set; }
 
         public static List<CustomItemPack> CustomItemPacks { get; private set; } = new();
 
@@ -74,7 +76,7 @@ namespace lstwoMODS_WobblyLife
 
                     return;
                 }
-
+                
                 inputManager.EnableGameplayCameraInput(this);
                 inputManager.EnableGameplayInput(this);
                 inputManager.EnableInteratorInput(this);
@@ -83,6 +85,17 @@ namespace lstwoMODS_WobblyLife
             };
 
             lstwoMODS_Core.Plugin.UIConditions.Add(() => GameInstance.InstanceExists && GameInstance.Instance.GetGamemode());
+
+            AssetBundle = AssetUtils.LoadFromEmbeddedResources("lstwoMODS_WobblyLife.Resources.lstwomods.wobblylife.bundle");
+
+            PlayerHacksTab = new(AssetBundle.LoadAsset<Sprite>("PlayerModsIcon"), "Player Mods");
+            VehicleHacksTab = new(AssetBundle.LoadAsset<Sprite>("VehicleModsIcon"), "Vehicle Mods");
+            ServerHacksTab = new(AssetBundle.LoadAsset<Sprite>("ServerModsIcon"), "Server Mods");
+            ClientHacksTab = new(AssetBundle.LoadAsset<Sprite>("ClientModsIcon"), "Client Mods");
+            SaveHacksTab = new(AssetBundle.LoadAsset<Sprite>("SaveModsIcon"), "Save File Mods");
+            ExtraHacksTab = new(AssetBundle.LoadAsset<Sprite>("ExtraModsIcon"), "Extra Mods");
+            PropSpawnerTab = new(AssetBundle.LoadAsset<Sprite>("PropSpawnerIcon"));
+            CustomItemsTab = new(AssetBundle.LoadAsset<Sprite>("CustomItemsIcon"));
 
             Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
         }

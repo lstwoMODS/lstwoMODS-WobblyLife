@@ -80,7 +80,7 @@ public class FreeCamModifier : BaseHack
 
     public override string Name => "Free Cam Modifier";
     public override string Description => "";
-    public override HacksTab HacksTab => Plugin.ExtraHacksTab;
+    public override HacksTab HacksTab => Plugin.ClientHacksTab;
 
     public static float moveSpeed = 5f;
     public static float upMoveSpeed = 5f;

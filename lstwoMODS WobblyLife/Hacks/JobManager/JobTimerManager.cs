@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.UI;
 using UniverseLib.UI.Models;
 
 namespace lstwoMODS_WobblyLife.Hacks.JobManager
@@ -25,15 +26,11 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
 
             var title = ui.CreateLabel("Job Timer", "title", fontSize: 18);
             objects.Add(title.gameObject);
-
-            var moneyLabel = ui.CreateLabel("Set Current Job Timer", "moneyLabel");
-            objects.Add(moneyLabel.gameObject);
-
-            moneyInput = ui.CreateInputField("60 (seconds)", "moneyInput");
-            objects.Add(moneyInput.GameObject);
-
-            var moneyBtn = ui.CreateButton("Apply", () => SetTimerInSeconds(ulong.Parse(moneyInput.Text)));
-            objects.Add(moneyBtn.GameObject);
+            
+            var timeLIB = ui.CreateLIBTrio("Set Current Job Timer", "timeLIB", "60");
+            timeLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
+            timeLIB.Button.OnClick = () => SetTimerInSeconds(ulong.Parse(timeLIB.Input.Text));
+            objects.Add(timeLIB.Root);
 
             objects.Add(ui.AddSpacer(5));
 
@@ -43,8 +40,8 @@ namespace lstwoMODS_WobblyLife.Hacks.JobManager
             var bResetTimerToggle = ui.CreateToggle(label: "Reset Timer", onValueChanged: (b) => { });
             objects.Add(bResetTimerToggle.gameObject);
 
-            var setRunningBtn = ui.CreateButton("Set Running", () => SetTimerRunning(bRunningToggle.isOn, bResetTimerToggle.isOn));
-            objects.Add(setRunningBtn.GameObject);
+            var setRunningBtn = ui.CreateLBDuo("Set Running", "SetRunning", () => SetTimerRunning(bRunningToggle.isOn, bResetTimerToggle.isOn), "Apply", "SetIsRunningButton");
+            objects.Add(setRunningBtn.Root);
         }
 
         public override void RefreshUI()
