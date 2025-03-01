@@ -25,7 +25,7 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
   - Player Controller Manager
   - Frog Mods
   - Give Money (only for yourself)
-  - Movemenet Manager
+  - Movement Manager
   - Ragdoll Manager
   - Smite Player
   - Teleport All Players
