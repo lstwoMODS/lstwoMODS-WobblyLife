@@ -1,6 +1,6 @@
 # lstwoMODS-WobblyLife
 
-A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwo/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
+A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
 
 # Installation Requirements
 
@@ -25,7 +25,7 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
   - Player Controller Manager
   - Frog Mods
   - Give Money (only for yourself)
-  - Movemenet Manager
+  - Movement Manager
   - Ragdoll Manager
   - Smite Player
   - Teleport All Players
@@ -67,3 +67,7 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
 - **Does it have a server player count changer?**
 
   No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
+
+---
+
+Join my discord to get support or just chat: https://discord.gg/cKWcxccQXU
