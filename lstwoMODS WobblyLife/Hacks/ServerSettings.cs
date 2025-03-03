@@ -3,6 +3,7 @@ using HawkNetworking;
 using lstwoMODS_WobblyLife.UI.TabMenus;
 using ShadowLib;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection; 
@@ -110,14 +111,14 @@ namespace lstwoMODS_WobblyLife.Hacks
 
             ui.AddSpacer(6);
 
-            ui.CreateToggle("lstwo.ServerSettings.PreventPlayerDrowningToggle", "Prevent Player Drowing", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.PreventPlayerDrowningToggle", "Prevent Player Drowning", (b) =>
             {
-                activePlayer = b;
+                preventPlayerDrowning = b;
             });
 
-            ui.CreateToggle("lstwo.ServerSettings.PreventVehicleDrowningToggle", "Prevent Vehicle Drowing", (b) =>
+            ui.CreateToggle("lstwo.ServerSettings.PreventVehicleDrowningToggle", "Prevent Vehicle Drowning", (b) =>
             {
-                activeVehicle = b;
+                preventVehicleDrowning = b;
             });
 
             ui.AddSpacer(6);
@@ -140,10 +141,9 @@ namespace lstwoMODS_WobblyLife.Hacks
         public static bool enableVehicleUFO = true;
 
         public static bool enableVehicleBoost = true;
-        public static bool enableCarDrowning = true;
 
-        public static bool activePlayer = false;
-        public static bool activeVehicle = false;
+        public static bool preventPlayerDrowning = false;
+        public static bool preventVehicleDrowning = false;
 
         public class CustomGamemodePatch
         {
@@ -191,14 +191,13 @@ namespace lstwoMODS_WobblyLife.Hacks
             [HarmonyPrefix]
             public static bool SimulateVehicleInput(ref PlayerVehicleRoadMovement __instance, VehicleRoadInput input)
             {
-                if (boostEnabled.ContainsKey(__instance))
+                if (!boostEnabled.ContainsKey(__instance))
                 {
-                    var field = typeof(PlayerVehicleRoadMovement).GetField("bAllowBoost", Plugin.Flags);
-                    if (enableVehicleBoost)
-                        field.SetValue(__instance, boostEnabled[__instance]);
-                    else
-                        field.SetValue(__instance, false);
+                    return true;
                 }
+                
+                var field = typeof(PlayerVehicleRoadMovement).GetField("bAllowBoost", Plugin.Flags);
+                field.SetValue(__instance, enableVehicleBoost && boostEnabled[__instance]);
 
                 return true;
             }
@@ -215,60 +214,85 @@ namespace lstwoMODS_WobblyLife.Hacks
 
                 var t = typeof(TelephoneBox);
 
-                var actionInteract = (global::ActionEnterExitInteract)t.GetField("actionInteract", Plugin.Flags).GetValue(__instance);
-                var avaliableVehiclesData = (VehiclesScriptableObject)t.GetField("avaliableVehiclesData", Plugin.Flags).GetValue(__instance);
-                var vehicleSpawnTransform = (Transform)t.GetField("vehicleSpawnTransform", Plugin.Flags).GetValue(__instance);
+                var actionInteract = (global::ActionEnterExitInteract)t.GetField("actionInteract", Plugin.Flags)?.GetValue(__instance);
+                var avaliableVehiclesData = (VehiclesScriptableObject)t.GetField("avaliableVehiclesData", Plugin.Flags)?.GetValue(__instance);
+                var vehicleSpawnTransform = (Transform)t.GetField("vehicleSpawnTransform", Plugin.Flags)?.GetValue(__instance);
 
-                PlayerController playerController = UnitySingleton<GameInstance>.Instance.GetPlayerControllerByNetworkID(reader.ReadUInt32());
-                if (playerController && actionInteract)
+                var playerController = UnitySingleton<GameInstance>.Instance.GetPlayerControllerByNetworkID(reader.ReadUInt32());
+                
+                if (!playerController || !actionInteract)
                 {
-                    PlayerControllerEmployment employment = playerController.GetPlayerControllerEmployment();
-                    if (playerController == actionInteract.GetDriverController() && employment)
-                    {
-                        actionInteract.RequestExit(playerController);
-                        Guid guid = reader.ReadGUID();
-                        if (playerController && avaliableVehiclesData)
-                        {
-                            AssetReference assetReference = avaliableVehiclesData.Find(guid);
-                            if (assetReference != null)
-                            {
-                                Collider[] array = Physics.OverlapSphere(vehicleSpawnTransform.position, 5f, LayerMask.GetMask(new string[] { "Vehicle" }));
-                                for (int i = 0; i < array.Length; i++)
-                                {
-                                    PlayerVehicle componentElseParent = array[i].GetComponentElseParent<PlayerVehicle>();
-                                    if (componentElseParent && componentElseParent.networkObject != null)
-                                    {
-                                        componentElseParent.EvacuateAll();
-                                        VanishComponent.VanishAndDestroy(componentElseParent.gameObject);
-                                    }
-                                }
-                                NetworkPrefab.SpawnNetworkPrefab(assetReference, delegate (HawkNetworkBehaviour x)
-                                {
-                                    if (!AllowSpawnVehicle(x.gameObject)) VanishComponent.VanishAndDestroy(x.gameObject);
-
-                                    if (x.GetComponent<PlayerVehicleRoadMovement>() != null &&
-                                        !PlayerVehicleRoadMovementPatch.boostEnabled.ContainsKey(x.GetComponent<PlayerVehicleRoadMovement>()))
-                                    {
-                                        FieldInfo field = typeof(PlayerVehicleRoadMovement).GetField("bAllowBoost", Plugin.Flags);
-                                        PlayerVehicleRoadMovementPatch.boostEnabled.Add(x.GetComponent<PlayerVehicleRoadMovement>(),
-                                            (bool)field.GetValue(x.GetComponent<PlayerVehicleRoadMovement>()));
-                                    }
-
-                                    PlayerVehicle playerVehicle = x as PlayerVehicle;
-                                    if (playerVehicle)
-                                    {
-                                        global::ActionEnterExitInteract actionEnterExitInteract = playerVehicle.GetActionEnterExitInteract();
-                                        if (actionEnterExitInteract != null)
-                                        {
-                                            actionEnterExitInteract.RequestEnter(playerController);
-                                        }
-                                        employment.SetPersonalVehicle(playerVehicle);
-                                    }
-                                }, new Vector3?(vehicleSpawnTransform.position), new Quaternion?(vehicleSpawnTransform.rotation), null, false, false, false, true);
-                            }
-                        }
-                    }
+                    return false;
                 }
+                
+                var employment = playerController.GetPlayerControllerEmployment();
+
+                if (playerController != actionInteract.GetDriverController() || !employment)
+                {
+                    return false;
+                }
+                
+                actionInteract.RequestExit(playerController);
+                var guid = reader.ReadGUID();
+
+                if (!playerController || !avaliableVehiclesData)
+                {
+                    return false;
+                }
+                
+                var assetReference = avaliableVehiclesData.Find(guid);
+
+                if (assetReference == null)
+                {
+                    return false;
+                }
+                
+                var array = Physics.OverlapSphere(vehicleSpawnTransform.position, 5f, LayerMask.GetMask(new string[] { "Vehicle" }));
+                
+                foreach (var overlap in array)
+                {
+                    var componentElseParent = overlap.GetComponentElseParent<PlayerVehicle>();
+                    
+                    if (!componentElseParent || componentElseParent.networkObject == null)
+                    {
+                        continue;
+                    }
+                    
+                    componentElseParent.EvacuateAll();
+                    VanishComponent.VanishAndDestroy(componentElseParent.gameObject);
+                }
+                
+                NetworkPrefab.SpawnNetworkPrefab(assetReference, delegate (HawkNetworkBehaviour x)
+                {
+                    if (!AllowSpawnVehicle(x.gameObject))
+                    {
+                        VanishComponent.VanishAndDestroy(x.gameObject);
+                    }
+
+                    if (x.GetComponent<PlayerVehicleRoadMovement>() != null &&
+                        !PlayerVehicleRoadMovementPatch.boostEnabled.ContainsKey(x.GetComponent<PlayerVehicleRoadMovement>()))
+                    {
+                        var field = typeof(PlayerVehicleRoadMovement).GetField("bAllowBoost", Plugin.Flags);
+                        PlayerVehicleRoadMovementPatch.boostEnabled.Add(x.GetComponent<PlayerVehicleRoadMovement>(),
+                            (bool)field.GetValue(x.GetComponent<PlayerVehicleRoadMovement>()));
+                    }
+
+                    var playerVehicle = x as PlayerVehicle;
+
+                    if (!playerVehicle)
+                    {
+                        return;
+                    }
+                    
+                    var actionEnterExitInteract = playerVehicle.GetActionEnterExitInteract();
+                    
+                    if (actionEnterExitInteract != null)
+                    {
+                        actionEnterExitInteract.RequestEnter(playerController);
+                    }
+                    
+                    employment.SetPersonalVehicle(playerVehicle);
+                }, vehicleSpawnTransform.position, vehicleSpawnTransform.rotation, null, false, false, false, true);
 
                 return false;
             }
@@ -280,34 +304,72 @@ namespace lstwoMODS_WobblyLife.Hacks
                 return true;
             }
 
-            [HarmonyPatch(typeof(PlayerCharacterMovement), "IsInWater")]
+            [HarmonyPatch(typeof(PlayerCharacterMovement), "SimulateWater")]
             [HarmonyPrefix]
-            private static bool SetIsInWaterPrefix(ref bool __result)
+            private static bool SimulateWaterPrefix(ref PlayerCharacterMovement __instance)
             {
-                if (activePlayer)
+                var r = new QuickReflection<PlayerCharacterMovement>(__instance, Plugin.Flags);
+
+                var water = (Water)r.GetField("water");
+                var head = (RagdollPart)r.GetField("head");
+                var playerCharacter = (PlayerCharacter)r.GetField("playerCharacter");
+                var characterCustomize = (CharacterCustomize)r.GetField("characterCustomize");
+                var bDrowning = (bool)r.GetField("bDrowning");
+                var timeDrowning = (float)r.GetField("timeDrowning");
+                var hipRigidbody = (Rigidbody)r.GetField("hipRigidbody");
+
+                if (!__instance.IsInWater() || !head || !playerCharacter || !characterCustomize)
                 {
-                    __result = false;
                     return false;
+                }
+                
+                var waterDataScriptableObject = water.GetWaterDataScriptableObject();
+                
+                if (waterDataScriptableObject.IsOverrideCharacterColor())
+                {
+                    characterCustomize.SetCharacterColor(waterDataScriptableObject.GetOverrideCharacterColor(), true, 5f);
+                }
+                
+                var waterAnchorTransform = water.GetWaterAnchorTransform();
+                
+                if (playerCharacter.IsDead())
+                {
+                    return false;
+                }
+                
+                var num = waterAnchorTransform.position.y - head.transform.position.y;
+                
+                if (water.IsDeep() && num >= 1f && !preventPlayerDrowning)
+                {
+                    if (!bDrowning)
+                    {
+                        r.SetField("bDrowning", true);
+                        r.SetField("timeDrowning", Time.time);
+                    }
                 }
                 else
                 {
-                    return true;
+                    r.SetField("bDrowning", false);
                 }
+
+                if (!bDrowning || !(Time.time - timeDrowning >= 3f) || preventPlayerDrowning)
+                {
+                    return false;
+                }
+                
+                var num2 = (waterAnchorTransform.position.y - hipRigidbody.transform.position.y) / 2f;
+                playerCharacter.Kill(num2 + 2f);
+                __instance.StartCoroutine((IEnumerator)r.GetMethod("SimulateDrowning", waterAnchorTransform));
+
+                return false;
             }
 
-            [HarmonyPatch(typeof(PlayerVehicleMovement), "IsInWater")]
+            [HarmonyPatch(typeof(PlayerVehicleMovement), "ShouldDestroyWhenUnderWaterTooLong")]
             [HarmonyPrefix]
-            private static bool SetIsInWaterVehiclePrefix(ref bool __result)
+            private static bool ShouldDestroyWhenUnderWaterTooLongPrefix(ref bool __result)
             {
-                if (activeVehicle)
-                {
-                    __result = false;
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
+                __result = false;
+                return !preventVehicleDrowning;
             }
         }
     }

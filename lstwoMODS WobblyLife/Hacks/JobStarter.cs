@@ -43,9 +43,9 @@ public class JobStarter : PlayerBasedHack
             return;
         }
         
-        foreach (var dispensor in jobDispensors)
+        foreach (var dispenser in jobDispensors)
         {
-            startJobLDB.Dropdown.options.Add(new(dispensor.gameObject.name));
+            startJobLDB.Dropdown.options.Add(new(dispenser.gameObject.name));
         }
         
         startJobLDB.Dropdown.RefreshShownValue();

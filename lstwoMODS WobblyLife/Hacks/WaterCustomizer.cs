@@ -217,8 +217,6 @@ public class WaterCustomizer : BaseHack
                 {
                     continue;
                 }
-                
-                Debug.Log(mat);
 
                 waterMaterials.Add(new(mat));
             }
