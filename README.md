@@ -67,3 +67,7 @@ lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDI
 - **Does it have a server player count changer?**
 
   No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
+
+---
+
+Join my discord to get support or just chat: https://discord.gg/cKWcxccQXU
