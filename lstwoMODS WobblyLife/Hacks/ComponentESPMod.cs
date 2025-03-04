@@ -12,6 +12,8 @@ using Object = UnityEngine.Object;
 
 namespace lstwoMODS_WobblyLife.Hacks;
 
+// CRASHES THE GAME
+
 public class ComponentESPMod : BaseHack
 {
     public override void ConstructUI(GameObject root)

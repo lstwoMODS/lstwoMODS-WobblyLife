@@ -18,12 +18,10 @@ using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
-    public class RoadVehicle : PlayerBasedHack
+    public class RoadVehicleModifier : PlayerBasedHack
     {
         public override string Name => "Road Vehicle Modifier";
-
         public override string Description => "";
-
         public override HacksTab HacksTab => Plugin.VehicleHacksTab;
 
         private PlayerVehicleRoad vehicle;
@@ -37,12 +35,12 @@ namespace lstwoMODS_WobblyLife.Hacks
         public override void ConstructUI(GameObject root)
         {
             this.root = root;
-
+            
             var ui = new HacksUIHelper(root);
-
+            
             ui.AddSpacer(6);
-
-            indestructable = ui.CreateToggle("lstwo.RoadVehicle.indestructable", "Is indestructable", (b) => vehicle.SetIndestructable(this, b));
+            
+            indestructable = ui.CreateToggle("lstwo.RoadVehicle.indestructible", "Is indestructible", (b) => vehicle.SetIndestructable(this, b));
             lockMovement = ui.CreateToggle("lstwo.RoadVehicle.lock movement", "Lock movement", (b) => vehicle.SetLockMovement(this, b));
             isPersonal = ui.CreateToggle("lstwo.RoadVehicle.is personal", "Is personal vehicle", (b) => vehicle.SetIsPersonalVehicle(b));
 

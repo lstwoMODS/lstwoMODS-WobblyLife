@@ -12,12 +12,10 @@ using UnityExplorer;
 
 namespace lstwoMODS_WobblyLife.Hacks
 {
-    public class ActionEnterExitInteract : PlayerBasedHack
+    public class ActionEnterExitInteractModifier : PlayerBasedHack
     {
-        public override string Name => "Enter Exit Interact";
-
+        public override string Name => "Enter Exit Interact Modifier";
         public override string Description => "";
-
         public override HacksTab HacksTab => Plugin.VehicleHacksTab;
 
         public bool ShouldKnockoutIfGoingFast
