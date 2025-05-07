@@ -6,6 +6,10 @@ A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMOD
 
 Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
 
+# Links
+
+﻿Discord: https://discord.gg/cKWcxccQXU (get support / request features)﻿
+
 # Compatibility Chart
 
 | **Mod**           | **Wobbly Server Util** | **Wobbly's Fav**       |
@@ -15,6 +19,10 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
 # Automatic Installation
 
 lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDIOS/lstwoMODSInstaller/). If you scroll down to the ReadMe it should tell you how to set it up.
+
+# Manual Installation
+
+Follow the instructions [here](https://github.com/lstwoMODS/lstwoMODS-Core/blob/main/README.md#manual-installation) with this mod being your modpack.
   
 # Mod List
 
