@@ -75,7 +75,3 @@ Follow the instructions [here](https://github.com/lstwoMODS/lstwoMODS-Core/blob/
 - **Does it have a server player count changer?**
 
   No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
-
-# License
-
-https://github.com/lstwo/super-skibidi-license/blob/main/LICENSE.md
