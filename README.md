@@ -76,6 +76,6 @@ Follow the instructions [here](https://github.com/lstwoMODS/lstwoMODS-Core/blob/
 
   No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
 
----
+# License
 
-Join my discord to get support or just chat: https://discord.gg/cKWcxccQXU
+https://github.com/lstwo/super-skibidi-license/blob/main/LICENSE.md
