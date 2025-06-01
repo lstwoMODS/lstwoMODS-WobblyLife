@@ -16,6 +16,11 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
 | ----------------: | :--------------------: | :--------------------: |
 | **Compatibility** | ✅Fully compatible    | 🟨 Most Functions Work |
 
+# Quick Install Link
+
+https://mods.lstwo.net/download.php?game=rubber_band_games.wobbly_life
+This will download a zip file after a few seconds. Extract it and drag the `Wobbly Life.exe` onto the `DRAG GAME EXE HERE.bat` file.
+
 # Automatic Installation
 
 lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDIOS/lstwoMODSInstaller/). If you scroll down to the ReadMe it should tell you how to set it up.
