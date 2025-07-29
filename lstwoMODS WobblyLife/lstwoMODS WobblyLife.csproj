@@ -33,64 +33,8 @@
 		  <HintPath>lib\CinematicUnityExplorer.BIE5.Mono.dll</HintPath>
 	  </Reference>
 	  
-	  <Reference Include="Rewired.Core">
-		  <HintPath>lib\Rewired_Core.dll</HintPath>
-	  </Reference>
-	  
 	  <Reference Include="ShadowLib">
 		  <HintPath>lib\ShadowLib.dll</HintPath>
-	  </Reference>
-	  
-	  <Reference Include="Rewired.Windows">
-		  <HintPath>lib\Rewired_Windows.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="UMod">
-		  <HintPath>lib\UMod.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="Utils">
-		  <HintPath>lib\Utils.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="UMod.Interface">
-		  <HintPath>lib\UMod-Interface.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="Unity.Addressables">
-		  <HintPath>lib\Unity.Addressables.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="UMod.ModTools">
-		  <HintPath>lib\UMod-ModTools.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="UMod.Shared">
-		  <HintPath>lib\UMod-Shared.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="HawkNetworkingPlugins">
-		  <HintPath>lib\HawkNetworkingPlugins.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="IngameDebugConsole">
-		  <HintPath>lib\IngameDebugConsole.Runtime.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="UnityEngine.UI">
-		  <HintPath>lib\UnityEngine.UI.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="netstandard">
-		  <HintPath>lib\netstandard.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="HawkNetworking">
-		  <HintPath>lib\HawkNetworking.dll</HintPath>
-	  </Reference>
-
-	  <Reference Include="WobblyLife">
-		  <HintPath>lib\Game.dll</HintPath>
 	  </Reference>
 
 	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />

@@ -1,6 +1,5 @@
 ﻿using lstwoMODS_WobblyLife.UI.TabMenus;
 using NWH;
-using ShadowLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,143 +9,104 @@ using UnityEngine;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using ModWobblyLife;
+using UnityEngine.Localization;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class VehicleUnlocker : BaseHack
 {
-    public class VehicleUnlocker : BaseHack
+    public override string Name => "Vehicle Unlocker";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+
+    private List<RewardVehicleData> vehicleRewards = new();
+    private HacksUIHelper.LDBTrio unlockVehicleLDB;
+    private HacksUIHelper.LDBTrio lockVehicleLDB;
+
+    public void UnlockAllVehicles()
     {
-        public override string Name => "Vehicle Unlocker";
+        var playerController = GameInstance.Instance.GetFirstLocalPlayerController();
 
-        public override string Description => "";
-
-        public override HacksTab HacksTab => Plugin.SaveHacksTab;
-
-        private List<PlayerVehicle> allVehicles;
-        private HacksUIHelper.LDBTrio unlockVehicleLDB;
-        private HacksUIHelper.LDBTrio lockVehicleLDB;
-
-        public void UnlockAllVehicles()
+        if (!playerController)
         {
-            var playerController = PlayerUtils.GetMyPlayer();
-
-            if (!playerController)
-            {
-                return;
-            }
-
-            var Player = new PlayerRef();
-            Player.SetPlayerController(playerController);
-
-            foreach (var vehicle in allVehicles)
-            {
-                var reference = VehicleManager.Instance.GetVehicleReference(vehicle.GetAssetId());
-                Player.ControllerUnlocker.UnlockVehicle(reference);
-            }
+            return;
         }
 
-        public void LockAllVehicles()
+        foreach (var vehicleReward in vehicleRewards)
         {
-            var playerController = PlayerUtils.GetMyPlayer();
-
-            if (!playerController)
-            {
-                return;
-            }
-
-            var Player = new PlayerRef();
-            Player.SetPlayerController(playerController);
-
-            foreach (var vehicle in allVehicles)
-            {
-                var reference = VehicleManager.Instance.GetVehicleReference(vehicle.GetAssetId());
-                Player.ControllerUnlocker.LockVehicle(reference);
-            }
+            vehicleReward.Reward([playerController]);
         }
+    }
 
-        public override void ConstructUI(GameObject root)
+    public void UnlockVehicle(RewardData vehicle)
+    {
+        var playerController = GameInstance.Instance.GetFirstLocalPlayerController();
+            
+        if (!playerController)
         {
-            var ui = new HacksUIHelper(root);
+            return;
+        }
+            
+        vehicle.Reward([playerController]);
+    }
 
-            /*ui.AddSpacer(6);
+    public override void ConstructUI(GameObject root)
+    {
+        var ui = new HacksUIHelper(root);
 
-            unlockVehicleLDB = ui.CreateLDBTrio("Unlock Vehicle", "unlockClothe", onClick: () =>
+        ui.AddSpacer(6);
+
+        ui.CreateLabel("NOTE: This does NOT include purchasable vehicles");
+            
+        ui.AddSpacer(6);
+
+        unlockVehicleLDB = ui.CreateLDBTrio("Unlock Vehicle", "unlockVehicle", onClick: () =>
             {
-                var playerController = PlayerUtils.GetMyPlayer();
-
-                if (!playerController)
+                if (vehicleRewards == null || unlockVehicleLDB.Dropdown.value >= vehicleRewards.Count)
                 {
                     return;
                 }
 
-                var Player = new PlayerRef();
-                Player.SetPlayerController(playerController);
-
-                var index = unlockVehicleLDB.Dropdown.value;
-                var vehicle = allVehicles[index];
-                var reference = VehicleManager.Instance.GetVehicleReference(vehicle.GetAssetId());
-
-                Player.ControllerUnlocker.UnlockVehicle(reference);
+                UnlockVehicle(vehicleRewards[unlockVehicleLDB.Dropdown.value]);
             },
             buttonText: "Unlock");
+            
+        ui.AddSpacer(6);
 
-            ui.AddSpacer(6);
+        ui.CreateLBDuo("Vehicle Unlocker", "lstwo.VehicleUnlocker.Vehicle Unlocker", UnlockAllVehicles, "Unlock All Vehicles", "lstwo.VehicleUnlocker.UnlockAll");
 
-            lockVehicleLDB = ui.CreateLDBTrio("Lock Vehicle", "lockClothe", onClick: () =>
-            {
-                var playerController = PlayerUtils.GetMyPlayer();
+        ui.AddSpacer(6);
+    }
 
-                if (!playerController)
-                {
-                    return;
-                }
+    public override void RefreshUI()
+    {
+        var rewardManager = RewardManagerInstance.Instance;
+        var rewardDatabase = typeof(RewardManager).GetField("managerDatabase", lstwoMODS_Core.Plugin.Flags)?.GetValue(rewardManager);
+        var rewardDataDict = (Dictionary<Guid, RewardData>)typeof(RewardManagerDatabase).GetField("registeredRewardsHashMap", lstwoMODS_Core.Plugin.Flags)?.GetValue(rewardDatabase);
+        var vehicleRewards = rewardDataDict?.Where(x => x.Value is RewardVehicleData).Select(x => x.Value as RewardVehicleData).ToList();
 
-                var Player = new PlayerRef();
-                Player.SetPlayerController(playerController);
-
-                var index = lockVehicleLDB.Dropdown.value;
-                var vehicle = allVehicles[index];
-                var reference = VehicleManager.Instance.GetVehicleReference(vehicle.GetAssetId());
-
-                Player.ControllerUnlocker.LockVehicle(reference);
-            },
-            buttonText: "Unlock");*/
-
-            ui.AddSpacer(6);
-
-            ui.CreateLBBTrio("Vehicle Unlocker", "lstwo.VehicleUnlocker.Vehicle Unlocker", UnlockAllVehicles, "Unlock All Vehicles", "lstwo.VehicleUnlocker.UnlockAll", 
-                LockAllVehicles, "Lock All Vehicles", "lstwo.VehicleUnlocker.LockAll");
-
-            ui.AddSpacer(6);
-        }
-
-        public override void RefreshUI()
+        if (vehicleRewards == null)
         {
-            var vehicleManager = VehicleManager.Instance;
-
-            if (!vehicleManager)
-            {
-                return;
-            }
-
-            allVehicles = vehicleManager.GetVehicles();
-
-            /*unlockVehicleLDB.Dropdown.ClearOptions();
-            lockVehicleLDB.Dropdown.ClearOptions();
-
-            foreach (var vehicle in allVehicles)
-            {
-                var vehicleOption = vehicle.name;
-
-                unlockVehicleLDB.Dropdown.options.Add(new(vehicleOption));
-                lockVehicleLDB.Dropdown.options.Add(new(vehicleOption));
-            }
-
-            unlockVehicleLDB.Dropdown.RefreshShownValue();
-            lockVehicleLDB.Dropdown.RefreshShownValue();*/
+            return;
         }
 
-        public override void Update()
+        this.vehicleRewards = vehicleRewards;
+        
+        unlockVehicleLDB.Dropdown.ClearOptions();
+        var nameField = typeof(RewardVehicleData).GetField("textLocalized", lstwoMODS_Core.Plugin.Flags);
+
+        foreach (var vehicleOption in this.vehicleRewards.Select(vehicle => (LocalizedString)nameField.GetValue(vehicle)))
         {
+            unlockVehicleLDB.Dropdown.options.Add(new(vehicleOption.GetLocalizedString()));
         }
+
+        unlockVehicleLDB.Dropdown.RefreshShownValue();
+    }
+
+    public override void Update()
+    {
     }
 }

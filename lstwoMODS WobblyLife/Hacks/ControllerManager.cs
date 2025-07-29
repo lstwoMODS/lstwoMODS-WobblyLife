@@ -12,59 +12,58 @@ using lstwoMODS_Core.Hacks;
 using UnityExplorer.UI;
 using UnityExplorer;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class ControllerManager : PlayerBasedHack
 {
-    public class ControllerManager : PlayerBasedHack
+    public override string Name => "Player Controller Manager";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+
+    private Toggle clothingAbilitiesToggle;
+    private Toggle allowRespawningToggle;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Player Controller Manager";
+        var ui = new HacksUIHelper(root);
 
-        public override string Description => "";
+        ui.AddSpacer(6);
 
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+        clothingAbilitiesToggle = ui.CreateToggle("lstwo.ControllerManager.EnableClothingAbilities", "Enable Clothing Abilities", SetClothingAbilitiesEnabled, true);
+        allowRespawningToggle = ui.CreateToggle("lstwo.ControllerManager.AllowRespawning", "Allow Respawning", (b) => Player.Controller.SetAllowedToRespawn(this, b));
 
-        private Toggle clothingAbilitiesToggle;
-        private Toggle allowRespawningToggle;
+        ui.AddSpacer(6);
 
-        public override void ConstructUI(GameObject root)
+        ui.CreateButton("Inspect \"Player Controller\" Component", () =>
         {
-            var ui = new HacksUIHelper(root);
-
-            ui.AddSpacer(6);
-
-            clothingAbilitiesToggle = ui.CreateToggle("lstwo.ControllerManager.EnableClothingAbilities", "Enable Clothing Abilities", SetClothingAbilitiesEnabled, true);
-            allowRespawningToggle = ui.CreateToggle("lstwo.ControllerManager.AllowRespawning", "Allow Respawning", (b) => Player.Controller.SetAllowedToRespawn(this, b));
-
-            ui.AddSpacer(6);
-
-            ui.CreateButton("Inspect \"Player Controller\" Component", () =>
+            if (Player != null && Player.Controller)
             {
-                if (Player != null && Player.Controller)
-                {
-                    InspectorManager.Inspect(Player.Controller);
-                    UIManager.ShowMenu = true;
-                }
-            }, "lstwo.ControllerManager.inspect", null, 256 * 3 + 32 * 2, 32);
-
-            ui.AddSpacer(6);
-        }
-
-        public override void RefreshUI()
-        {
-            if (Player != null)
-            {
-                clothingAbilitiesToggle.isOn = (bool)typeof(PlayerController).GetField("bServerAllowedCustomsClothingAbilities", Plugin.Flags).GetValue(Player.Controller);
-                allowRespawningToggle.isOn = Player.Controller.IsAllowedToRespawn();
+                InspectorManager.Inspect(Player.Controller);
+                UIManager.ShowMenu = true;
             }
-        }
+        }, "lstwo.ControllerManager.inspect", null, 256 * 3 + 32 * 2, 32);
 
-        public override void Update()
-        {
-        }
+        ui.AddSpacer(6);
+    }
 
-        public void SetClothingAbilitiesEnabled(bool enabled)
+    public override void RefreshUI()
+    {
+        if (Player != null)
         {
-            if (Player != null)
-                Player.Controller.ServerSetAllowedCustomClothingAbilities(enabled);
+            clothingAbilitiesToggle.isOn = (bool)typeof(PlayerController).GetField("bServerAllowedCustomsClothingAbilities", Plugin.Flags).GetValue(Player.Controller);
+            allowRespawningToggle.isOn = Player.Controller.IsAllowedToRespawn();
         }
+    }
+
+    public override void Update()
+    {
+    }
+
+    public void SetClothingAbilitiesEnabled(bool enabled)
+    {
+        if (Player != null)
+            Player.Controller.ServerSetAllowedCustomClothingAbilities(enabled);
     }
 }

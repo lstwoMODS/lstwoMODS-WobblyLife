@@ -9,55 +9,54 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class TeleportAllPlayers : PlayerBasedHack
 {
-    public class TeleportAllPlayers : PlayerBasedHack
+    public override string Name => "Teleport All Players";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Teleport All Players";
+        var ui = new HacksUIHelper(root);
 
-        public override string Description => "";
+        ui.AddSpacer(6);
 
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+        var exitToggle = ui.CreateToggle("lstwo.TeleportAllPlayers.ForceExit", "Force Exit (Vehicles, Telephone Boxes, etc.)");
 
-        public override void ConstructUI(GameObject root)
+        ui.CreateLBDuo("Teleport All Players to Selected Player", "lstwo.TeleportAllPlayers.Teleport", () => TeleportPlayers(exitToggle.isOn), "Teleport", 
+            "lstwo.TeleportAllPlayers.TeleportButton");
+
+        ui.AddSpacer(6);
+    }
+
+    public void TeleportPlayers(bool forceExit)
+    {
+        if (Player == null || !GameInstance.InstanceExists) return;
+
+        var pos = Player.Character.GetPlayerPosition();
+
+        foreach (var player in GameInstance.Instance.GetPlayerControllers())
         {
-            var ui = new HacksUIHelper(root);
+            if (player == Player.Controller) continue;
 
-            ui.AddSpacer(6);
-
-            var exitToggle = ui.CreateToggle("lstwo.TeleportAllPlayers.ForceExit", "Force Exit (Vehicles, Telephone Boxes, etc.)");
-
-            ui.CreateLBDuo("Teleport All Players to Selected Player", "lstwo.TeleportAllPlayers.Teleport", () => TeleportPlayers(exitToggle.isOn), "Teleport", 
-                "lstwo.TeleportAllPlayers.TeleportButton");
-
-            ui.AddSpacer(6);
-        }
-
-        public void TeleportPlayers(bool forceExit)
-        {
-            if (Player == null || !GameInstance.InstanceExists) return;
-
-            var pos = Player.Character.GetPlayerPosition();
-
-            foreach (var player in GameInstance.Instance.GetPlayerControllers())
+            if (forceExit)
             {
-                if (player == Player.Controller) continue;
-
-                if (forceExit)
-                {
-                    player.GetPlayerControllerInteractor().ForceRequestExit();
-                }
-
-                player.GetPlayerCharacter().SetPlayerPosition(pos);
+                player.GetPlayerControllerInteractor().ForceRequestExit();
             }
-        }
 
-        public override void RefreshUI()
-        {
+            player.GetPlayerCharacter().SetPlayerPosition(pos);
         }
+    }
 
-        public override void Update()
-        {
-        }
+    public override void RefreshUI()
+    {
+    }
+
+    public override void Update()
+    {
     }
 }

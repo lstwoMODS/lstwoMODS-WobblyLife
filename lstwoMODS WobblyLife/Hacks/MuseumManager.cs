@@ -10,52 +10,51 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class MuseumManager : BaseHack
 {
-    public class MuseumManager : BaseHack
+    private static bool forceFinishMuseum = false;
+
+    public override string Name => "Museum Manager";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+
+    public override void ConstructUI(GameObject root)
     {
-        private static bool forceFinishMuseum = false;
+        var ui = new HacksUIHelper(root);
 
-        public override string Name => "Museum Manager";
+        ui.AddSpacer(6);
 
-        public override string Description => "";
+        ui.CreateToggle("lstwo.MuseumManager.forceFinishMuseumToggle", "Force Finish all Museum Collections", (b) => forceFinishMuseum = b);
 
-        public override HacksTab HacksTab => Plugin.SaveHacksTab;
+        ui.AddSpacer(6);
+    }
 
-        public override void ConstructUI(GameObject root)
+    public override void RefreshUI()
+    {
+    }
+
+    public override void Update()
+    {
+    }
+
+    public class WorldMissionMuseumPatch
+    {
+        [HarmonyPatch(typeof(WorldMissionMuseum), "HasCompletedAllCollections")]
+        [HarmonyPrefix]
+        public static bool Prefix(ref bool __result)
         {
-            var ui = new HacksUIHelper(root);
-
-            ui.AddSpacer(6);
-
-            ui.CreateToggle("lstwo.MuseumManager.forceFinishMuseumToggle", "Force Finish all Museum Collections", (b) => forceFinishMuseum = b);
-
-            ui.AddSpacer(6);
-        }
-
-        public override void RefreshUI()
-        {
-        }
-
-        public override void Update()
-        {
-        }
-
-        public class WorldMissionMuseumPatch
-        {
-            [HarmonyPatch(typeof(WorldMissionMuseum), "HasCompletedAllCollections")]
-            [HarmonyPrefix]
-            public static bool Prefix(ref bool __result)
+            if (forceFinishMuseum)
             {
-                if (forceFinishMuseum)
-                {
-                    __result = true;
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
+                __result = true;
+                return false;
+            }
+            else
+            {
+                return true;
             }
         }
     }

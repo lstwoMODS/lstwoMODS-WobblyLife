@@ -9,35 +9,34 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class InfoHack : PlayerBasedHack
 {
-    public class InfoHack : PlayerBasedHack
+    public override string Name => "Some Hacks are Disabled!";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => null;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Some Hacks are Disabled!";
+        var ui = new HacksUIHelper(root);
 
-        public override string Description => "";
+        ui.AddSpacer(6);
 
-        public override HacksTab HacksTab => null;
+        ui.CreateLabel("Some hacks were disabled and don't work on other players! This is to prevent people from tampering with other people's save files.\n" +
+                       "This is because some hacks would allow users to reset players money, lock all their clothes, etc.");
 
-        public override void ConstructUI(GameObject root)
-        {
-            var ui = new HacksUIHelper(root);
+        ui.AddSpacer(6);
+    }
 
-            ui.AddSpacer(6);
+    public override void RefreshUI()
+    {
 
-            ui.CreateLabel("Some hacks were disabled and don't work on other players! This is to prevent people from tampering with other people's save files.\n" +
-                "This is because some hacks would allow users to reset players money, lock all their clothes, etc.");
+    }
 
-            ui.AddSpacer(6);
-        }
-
-        public override void RefreshUI()
-        {
-
-        }
-
-        public override void Update()
-        {
-        }
+    public override void Update()
+    {
     }
 }

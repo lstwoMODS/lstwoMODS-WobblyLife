@@ -10,92 +10,91 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class RagdollAllPlayers : BaseHack
 {
-    public class RagdollAllPlayers : BaseHack
+    public override string Name => "Ragdoll All Players";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => Plugin.ServerHacksTab;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Ragdoll All Players";
+        var ui = new HacksUIHelper(root);
 
-        public override string Description => "";
+        ui.AddSpacer(6);
 
-        public override HacksTab HacksTab => Plugin.ServerHacksTab;
+        ui.CreateLBBTrio("Ragdoll All Players", "lstwo.RagdollAllPlayers.RagdollAll", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout", 
+            buttonName1: "lstwo.RagdollAllPlayers.RagdollAllButton", buttonName2: "lstwo.RagdollAllPlayers.KnockOutAllButton");
 
-        public override void ConstructUI(GameObject root)
+        ui.AddSpacer(6);
+
+        ui.CreateLBBTrio("Kill All Players", "lstwo.RagdollAllPlayers.KillPlayer", () => KillPlayer(1), "Quick Kill", "lstwo.RagdollAllPlayers.QuickKillButton", () => KillPlayer(0), 
+            "Respawn", "lstwo.RagdollAllPlayers.RespawnButton");
+
+        ui.AddSpacer(6);
+
+        var akpLib = ui.CreateLIBTrio("Advanced Kill All Players", "lstwo.RagdollAllPlayers.AdvancedKillPlayer", "Knockout Time in Seconds", null, "Kill");
+        akpLib.Button.OnClick = () => KillPlayer(float.Parse(akpLib.Input.Text));
+        akpLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
+
+        ui.AddSpacer(6);
+    }
+
+    public void KillPlayer(float time = 1)
+    {
+        if (!GameInstance.InstanceExists) return;
+
+        foreach (var controller in GameInstance.Instance.GetPlayerControllers())
         {
-            var ui = new HacksUIHelper(root);
+            var Player = new PlayerRef();
 
-            ui.AddSpacer(6);
+            Player.SetPlayerController(controller);
 
-            ui.CreateLBBTrio("Ragdoll All Players", "lstwo.RagdollAllPlayers.RagdollAll", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout", 
-                buttonName1: "lstwo.RagdollAllPlayers.RagdollAllButton", buttonName2: "lstwo.RagdollAllPlayers.KnockOutAllButton");
-
-            ui.AddSpacer(6);
-
-            ui.CreateLBBTrio("Kill All Players", "lstwo.RagdollAllPlayers.KillPlayer", () => KillPlayer(1), "Quick Kill", "lstwo.RagdollAllPlayers.QuickKillButton", () => KillPlayer(0), 
-                "Respawn", "lstwo.RagdollAllPlayers.RespawnButton");
-
-            ui.AddSpacer(6);
-
-            var akpLib = ui.CreateLIBTrio("Advanced Kill All Players", "lstwo.RagdollAllPlayers.AdvancedKillPlayer", "Knockout Time in Seconds", null, "Kill");
-            akpLib.Button.OnClick = () => KillPlayer(float.Parse(akpLib.Input.Text));
-            akpLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-            ui.AddSpacer(6);
-        }
-
-        public void KillPlayer(float time = 1)
-        {
-            if (!GameInstance.InstanceExists) return;
-
-            foreach (var controller in GameInstance.Instance.GetPlayerControllers())
+            if (Player != null)
             {
-                var Player = new PlayerRef();
-
-                Player.SetPlayerController(controller);
-
-                if (Player != null)
-                {
-                    Player.Character.Kill(time);
-                }
+                Player.Character.Kill(time);
             }
         }
+    }
 
-        public void KnockoutPlayer()
+    public void KnockoutPlayer()
+    {
+        if (!GameInstance.InstanceExists) return;
+
+        foreach (var controller in GameInstance.Instance.GetPlayerControllers())
         {
-            if (!GameInstance.InstanceExists) return;
+            var Player = new PlayerRef();
 
-            foreach (var controller in GameInstance.Instance.GetPlayerControllers())
-            {
-                var Player = new PlayerRef();
+            Player.SetPlayerController(controller);
 
-                Player.SetPlayerController(controller);
-
-                if (Player != null)
-                    Player.RagdollController.Knockout();
-            }
+            if (Player != null)
+                Player.RagdollController.Knockout();
         }
+    }
 
-        public void Ragdoll()
+    public void Ragdoll()
+    {
+        if (!GameInstance.InstanceExists) return;
+
+        foreach (var controller in GameInstance.Instance.GetPlayerControllers())
         {
-            if (!GameInstance.InstanceExists) return;
+            var Player = new PlayerRef();
 
-            foreach (var controller in GameInstance.Instance.GetPlayerControllers())
-            {
-                var Player = new PlayerRef();
+            Player.SetPlayerController(controller);
 
-                Player.SetPlayerController(controller);
-
-                if (Player != null)
-                    Player.RagdollController.Ragdoll();
-            }
+            if (Player != null)
+                Player.RagdollController.Ragdoll();
         }
+    }
 
-        public override void RefreshUI()
-        {
-        }
+    public override void RefreshUI()
+    {
+    }
 
-        public override void Update()
-        {
-        }
+    public override void Update()
+    {
     }
 }

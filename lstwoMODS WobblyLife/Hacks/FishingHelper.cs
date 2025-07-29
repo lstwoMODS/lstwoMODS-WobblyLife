@@ -6,7 +6,6 @@ using HarmonyLib;
 using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
-using ShadowLib;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -21,7 +20,7 @@ public class FishingHelper : BaseHack
             return;
         }
         
-        var controller = PlayerUtils.GetMyPlayer();
+        var controller = GameInstance.Instance.GetFirstLocalPlayerController();
 
         if (!controller || !controller.IsLocal())
         {

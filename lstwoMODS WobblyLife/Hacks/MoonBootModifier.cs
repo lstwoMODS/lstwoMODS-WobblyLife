@@ -9,31 +9,30 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class MoonBootModifier : BaseHack
 {
-    public class MoonBootModifier : BaseHack
+    public override string Name => "Moon Boots Modifier";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => null;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Moon Boots Modifier";
+    }
 
-        public override string Description => "";
+    public override void RefreshUI()
+    {
+    }
 
-        public override HacksTab HacksTab => null;
+    public override void Update()
+    {
+    }
 
-        public override void ConstructUI(GameObject root)
-        {
-        }
+    public class Patches
+    {
 
-        public override void RefreshUI()
-        {
-        }
-
-        public override void Update()
-        {
-        }
-
-        public class Patches
-        {
-
-        }
     }
 }

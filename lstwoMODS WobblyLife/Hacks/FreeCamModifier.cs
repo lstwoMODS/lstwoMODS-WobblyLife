@@ -2,7 +2,6 @@ using HarmonyLib;
 using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
-using ShadowLib;
 using UnityEngine;
 using UnityEngine.UI;
 

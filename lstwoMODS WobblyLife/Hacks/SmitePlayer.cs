@@ -9,41 +9,40 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class SmitePlayer : PlayerBasedHack
 {
-    public class SmitePlayer : PlayerBasedHack
+    public override string Name => "Smite Player";
+
+    public override string Description => "";
+
+    public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Smite Player";
+        var ui = new HacksUIHelper(root);
 
-        public override string Description => "";
+        ui.AddSpacer(6);
 
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
-
-        public override void ConstructUI(GameObject root)
+        ui.CreateLBDuo("Spawn Lightning at Players Position", "lstwo.SmitePlayer.Smite", () =>
         {
-            var ui = new HacksUIHelper(root);
+            var data = WeatherSystem.Instance.GetCurrentWeatherData();
+            var index = WeatherSystem.Instance.GetAllWeatherData().ToList().IndexOf(data);
 
-            ui.AddSpacer(6);
+            WeatherSystem.Instance.ServerSetWeatherByIndex(4);
+            WeatherSystem.Instance.ServerLightingStrike(Player.Character.GetPlayerPosition());
+            WeatherSystem.Instance.ServerSetWeatherByIndex(index);
+        }, "Spawn Lightning");
 
-            ui.CreateLBDuo("Spawn Lightning at Players Position", "lstwo.SmitePlayer.Smite", () =>
-            {
-                var data = WeatherSystem.Instance.GetCurrentWeatherData();
-                var index = WeatherSystem.Instance.GetAllWeatherData().ToList().IndexOf(data);
+        ui.AddSpacer(6);
+    }
 
-                WeatherSystem.Instance.ServerSetWeatherByIndex(4);
-                WeatherSystem.Instance.ServerLightingStrike(Player.Character.GetPlayerPosition());
-                WeatherSystem.Instance.ServerSetWeatherByIndex(index);
-            }, "Spawn Lightning");
+    public override void RefreshUI()
+    {
+    }
 
-            ui.AddSpacer(6);
-        }
-
-        public override void RefreshUI()
-        {
-        }
-
-        public override void Update()
-        {
-        }
+    public override void Update()
+    {
     }
 }

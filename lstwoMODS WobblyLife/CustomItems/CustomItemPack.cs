@@ -6,92 +6,91 @@ using UnityEngine;
 using CustomItems;
 using Newtonsoft.Json;
 
-namespace lstwoMODS_WobblyLife.CustomItems
+namespace lstwoMODS_WobblyLife.CustomItems;
+
+public class CustomItemPack
 {
-    public class CustomItemPack
+    public string path;
+    public string packName;
+    public string packAuthor;
+    public List<CustomItem> items = new();
+    public List<AssetBundle> assetBundles = new();
+    public List<Assembly> assemblies = new();
+
+    public CustomItemPack(string path)
     {
-        public string path;
-        public string packName;
-        public string packAuthor;
-        public List<CustomItem> items = new();
-        public List<AssetBundle> assetBundles = new();
-        public List<Assembly> assemblies = new();
+        this.path = path;
 
-        public CustomItemPack(string path)
+        var jsonPath = $"{path}/data.json";
+        var json = File.ReadAllText(jsonPath);
+        var data = JsonConvert.DeserializeObject<JsonData>(json);
+
+        packName = data.name;
+        packAuthor = data.author;
+
+        if (data.assemblyPath != null && data.assemblyPath != "")
         {
-            this.path = path;
+            var assemblyPath = $"{path}/{data.assemblyPath}";
+            assemblies.Add(Assembly.LoadFile(Path.GetFullPath(assemblyPath)));
+        }
 
-            var jsonPath = $"{path}/data.json";
-            var json = File.ReadAllText(jsonPath);
-            var data = JsonConvert.DeserializeObject<JsonData>(json);
-
-            packName = data.name;
-            packAuthor = data.author;
-
-            if (data.assemblyPath != null && data.assemblyPath != "")
+        if (data.assemblyPaths != null)
+        {
+            foreach(var assemblyPath in data.assemblyPaths)
             {
-                var assemblyPath = $"{path}/{data.assemblyPath}";
-                assemblies.Add(Assembly.LoadFile(Path.GetFullPath(assemblyPath)));
+                var fullPath = $"{path}/{assemblyPath}";
+                assemblies.Add(Assembly.LoadFile(fullPath));
             }
+        }
 
-            if (data.assemblyPaths != null)
+
+        if (data.assetPath != null && data.assetPath != "")
+        {
+            var assetPath = $"{path}/{data.assetPath}";
+            var bundle = AssetBundle.LoadFromFile(assetPath);
+            assetBundles.Add(bundle);
+
+            foreach (var obj in bundle.LoadAllAssets<GameObject>())
             {
-                foreach(var assemblyPath in data.assemblyPaths)
+                if(obj.TryGetComponent<CustomItem>(out var item))
                 {
-                    var fullPath = $"{path}/{assemblyPath}";
-                    assemblies.Add(Assembly.LoadFile(fullPath));
+                    items.Add(item);
                 }
             }
+        }
 
-
-            if (data.assetPath != null && data.assetPath != "")
+        if (data.assetPaths != null)
+        {
+            foreach (var assetPath in data.assetPaths)
             {
-                var assetPath = $"{path}/{data.assetPath}";
-                var bundle = AssetBundle.LoadFromFile(assetPath);
+                var fullPath = $"{path}/{assetPath}";
+                var bundle = AssetBundle.LoadFromFile(fullPath);
                 assetBundles.Add(bundle);
 
                 foreach (var obj in bundle.LoadAllAssets<GameObject>())
                 {
-                    if(obj.TryGetComponent<CustomItem>(out var item))
+                    if (obj.TryGetComponent<CustomItem>(out var item))
                     {
                         items.Add(item);
                     }
                 }
             }
-
-            if (data.assetPaths != null)
-            {
-                foreach (var assetPath in data.assetPaths)
-                {
-                    var fullPath = $"{path}/{assetPath}";
-                    var bundle = AssetBundle.LoadFromFile(fullPath);
-                    assetBundles.Add(bundle);
-
-                    foreach (var obj in bundle.LoadAllAssets<GameObject>())
-                    {
-                        if (obj.TryGetComponent<CustomItem>(out var item))
-                        {
-                            items.Add(item);
-                        }
-                    }
-                }
-            }
-
-
-            foreach (var item in items)
-            {
-                HawkNetworkManager.DefaultInstance.RegisterPrefab(item);
-            }
         }
 
-        public class JsonData
+
+        foreach (var item in items)
         {
-            public string name;
-            public string author;
-            public string assetPath;
-            public string[] assetPaths;
-            public string assemblyPath;
-            public string[] assemblyPaths;
+            HawkNetworkManager.DefaultInstance.RegisterPrefab(item);
         }
+    }
+
+    public class JsonData
+    {
+        public string name;
+        public string author;
+        public string assetPath;
+        public string[] assetPaths;
+        public string assemblyPath;
+        public string[] assemblyPaths;
     }
 }

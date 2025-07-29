@@ -6,79 +6,77 @@ using UnityEngine;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
-using ShadowLib;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+internal class PresentUnlocker : BaseHack
 {
-    internal class PresentUnlocker : BaseHack
+    public override string Name => "Present Manager";
+
+    public override string Description => "Manages your Presents.";
+
+    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+
+    public void UnlockAll()
     {
-        public override string Name => "Present Manager";
+        var Player = new PlayerRef();
+        Player.SetPlayerController(GameInstance.Instance.GetFirstLocalPlayerController());
 
-        public override string Description => "Manages your Presents.";
+        if (Player == null) return;
+        if (!Player.Controller.networkObject.IsOwner()) return;
 
-        public override HacksTab HacksTab => Plugin.SaveHacksTab;
-
-        public void UnlockAll()
+        foreach (string gUID in (List<string>)typeof(PresentManager).GetField("presentsGUIDs", Plugin.Flags)
+                     .GetValue(PresentManager.Instance))
         {
-            var Player = new PlayerRef();
-            Player.SetPlayerController(PlayerUtils.GetMyPlayer());
-
-            if (Player == null) return;
-            if (!Player.Controller.networkObject.IsOwner()) return;
-
-            foreach (string gUID in (List<string>)typeof(PresentManager).GetField("presentsGUIDs", Plugin.Flags)
-                .GetValue(PresentManager.Instance))
-            {
-                Player.Controller.GetPlayerPersistentData().MiscData.UnlockPresent(Guid.Parse(gUID));
-            }
-
-            Player.ControllerUnlocker.ShowCounter(PromptCounterType.Present);
-            typeof(PlayerControllerUnlocker).GetMethod("OnPresentUnlockedChanged", Plugin.Flags)
-                .Invoke(Player.ControllerUnlocker, null);
+            Player.Controller.GetPlayerPersistentData().MiscData.UnlockPresent(Guid.Parse(gUID));
         }
 
-        public void LockAll()
-        {
-            var Player = new PlayerRef();
-            Player.SetPlayerController(PlayerUtils.GetMyPlayer());
+        Player.ControllerUnlocker.ShowCounter(PromptCounterType.Present);
+        typeof(PlayerControllerUnlocker).GetMethod("OnPresentUnlockedChanged", Plugin.Flags)
+            .Invoke(Player.ControllerUnlocker, null);
+    }
 
-            if (Player == null) return;
-            if (!Player.Controller.networkObject.IsOwner()) return;
+    public void LockAll()
+    {
+        var Player = new PlayerRef();
+        Player.SetPlayerController(GameInstance.Instance.GetFirstLocalPlayerController());
 
-            Player.Controller.GetPlayerControllerUnlocker().LockAllPresents();
+        if (Player == null) return;
+        if (!Player.Controller.networkObject.IsOwner()) return;
 
-            Player.Controller.GetPlayerControllerUnlocker().ShowCounter(PromptCounterType.Present);
-            typeof(PlayerControllerUnlocker).GetMethod("OnPresentUnlockedChanged", Plugin.Flags)
-                .Invoke(Player.Controller.GetPlayerControllerUnlocker(), null);
-        }
+        Player.Controller.GetPlayerControllerUnlocker().LockAllPresents();
 
-        public static void ShowPresentsOnMap(bool b)
-        {
-            PresentManager.Instance.SetShowAllPresentsOnMinimap(b);
-        }
+        Player.Controller.GetPlayerControllerUnlocker().ShowCounter(PromptCounterType.Present);
+        typeof(PlayerControllerUnlocker).GetMethod("OnPresentUnlockedChanged", Plugin.Flags)
+            .Invoke(Player.Controller.GetPlayerControllerUnlocker(), null);
+    }
 
-        public override void ConstructUI(GameObject root)
-        {
-            var ui = new HacksUIHelper(root);
+    public static void ShowPresentsOnMap(bool b)
+    {
+        PresentManager.Instance.SetShowAllPresentsOnMinimap(b);
+    }
 
-            ui.AddSpacer(6);
+    public override void ConstructUI(GameObject root)
+    {
+        var ui = new HacksUIHelper(root);
 
-            ui.CreateLBBTrio("Present Unlocker", "lstwo.PresentUnlocker.PresentUnlocker", UnlockAll, "Unlock All", "lstwo.PresentUnlocker.UnlockAll", LockAll, "Lock All", 
-                "lstwo.PresentUnlocker.LockAll");
+        ui.AddSpacer(6);
 
-            ui.AddSpacer(6);
+        ui.CreateLBBTrio("Present Unlocker", "lstwo.PresentUnlocker.PresentUnlocker", UnlockAll, "Unlock All", "lstwo.PresentUnlocker.UnlockAll", LockAll, "Lock All", 
+            "lstwo.PresentUnlocker.LockAll");
 
-            ui.CreateToggle("lstwo.PresentUnlocker.ShowPresentsOnMap", "Show Presents on Map", ShowPresentsOnMap);
+        ui.AddSpacer(6);
 
-            ui.AddSpacer(6);
-        }
+        ui.CreateToggle("lstwo.PresentUnlocker.ShowPresentsOnMap", "Show Presents on Map", ShowPresentsOnMap);
 
-        public override void Update()
-        {
-        }
+        ui.AddSpacer(6);
+    }
 
-        public override void RefreshUI()
-        {
-        }
+    public override void Update()
+    {
+    }
+
+    public override void RefreshUI()
+    {
     }
 }

@@ -5,45 +5,44 @@ using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class PlayerCharacterCutoffToggler : BaseHack
 {
-    public class PlayerCharacterCutoffToggler : BaseHack
+    public override string Name => "Player Character Cutoff Toggler";
+    public override string Description => "";
+    public override HacksTab HacksTab => Plugin.ClientHacksTab;
+
+    private static bool characterCutoff = true;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Player Character Cutoff Toggler";
-        public override string Description => "";
-        public override HacksTab HacksTab => Plugin.ClientHacksTab;
+        new Harmony("lstwo.lstwoMODS_WobblyLife.CharacterManager").PatchAll(typeof(HarmonyPatches));
+        var ui = new HacksUIHelper(root);
 
-        private static bool characterCutoff = true;
+        ui.AddSpacer(6);
 
-        public override void ConstructUI(GameObject root)
+        ui.CreateToggle("lstwo.MuseumManager.cutoff", "Allow Player Character Cutoff", (b) => characterCutoff = b, true);
+
+        ui.AddSpacer(6);
+    }
+
+    public override void RefreshUI()
+    {
+    }
+
+    public override void Update()
+    {
+    }
+
+    public static class HarmonyPatches
+    {
+        [HarmonyPatch(typeof(CameraFocusPlayerCharacter), "UpdateCamera")]
+        [HarmonyPostfix]
+        [HarmonyPriority(100)]
+        static void PostfixUpdateCamera(CameraFocusPlayerCharacter __instance, GameplayCamera camera)
         {
-            new Harmony("lstwo.lstwoMODS_WobblyLife.CharacterManager").PatchAll(typeof(HarmonyPatches));
-            var ui = new HacksUIHelper(root);
-
-            ui.AddSpacer(6);
-
-            ui.CreateToggle("lstwo.MuseumManager.cutoff", "Allow Player Character Cutoff", (b) => characterCutoff = b, true);
-
-            ui.AddSpacer(6);
-        }
-
-        public override void RefreshUI()
-        {
-        }
-
-        public override void Update()
-        {
-        }
-
-        public static class HarmonyPatches
-        {
-            [HarmonyPatch(typeof(CameraFocusPlayerCharacter), "UpdateCamera")]
-            [HarmonyPostfix]
-            [HarmonyPriority(1)]
-            static void PostfixUpdateCamera(CameraFocusPlayerCharacter __instance, GameplayCamera camera)
-            {
-                __instance.SetUsingCharacterCutoff(characterCutoff);
-            }
+            __instance.SetUsingCharacterCutoff(characterCutoff);
         }
     }
 }

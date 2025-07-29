@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
-using ShadowLib;
 using UnityEngine;
 using Vector3 = UnityEngine.Vector3;
 
@@ -46,7 +45,7 @@ public class PlayerTracker : GameObjectTracker
     
     public override void RefreshCache()
     {
-        playerHipRb = PlayerUtils.GetMyPlayer().GetPlayerCharacter().GetHipRigidbody();
+        playerHipRb = GameInstance.Instance.GetFirstLocalPlayerController().GetPlayerCharacter().GetHipRigidbody();
         mainCamera = Camera.main;
 
         for (var i = 0; i < trackedObjects.Count; i++)

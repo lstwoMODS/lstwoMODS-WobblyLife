@@ -12,74 +12,73 @@ using UnityEngine.Rendering.PostProcessing;
 using UnityExplorer.UI;
 using UnityExplorer;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class RagdollManager : PlayerBasedHack
 {
-    public class RagdollManager : PlayerBasedHack
+    public override string Name => "Ragdoll Manager";
+
+    public override string Description => "Change Properties of your Ragdoll";
+
+    public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+
+    public override void ConstructUI(GameObject root)
     {
-        public override string Name => "Ragdoll Manager";
+        var ui = new HacksUIHelper(root);
 
-        public override string Description => "Change Properties of your Ragdoll";
+        ui.AddSpacer(6);
 
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+        ui.CreateLBBTrio("Lock Ragdoll State", "lstwo.RagdollManager.LockState", onClick1: LockRagdoll, onClick2: UnlockRagdoll, buttonText1: "Lock", buttonText2: "Unlock", 
+            buttonName1: "lstwo.RagdollManager.Lock", buttonName2: "lstwo.RagdollManager.Unlock");
 
-        public override void ConstructUI(GameObject root)
+        ui.AddSpacer(6);
+
+        ui.CreateLBBTrio("Ragdoll Player", "lstwo.RagdollManager.RagdollPlayert", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout", 
+            buttonName1: "lstwo.RagdollManager.Ragdoll", buttonName2: "lstwo.RagdollManager.Knockout");
+
+        ui.AddSpacer(6);
+
+        ui.CreateButton("Inspect \"Ragdoll Controller\" Component", () =>
         {
-            var ui = new HacksUIHelper(root);
-
-            ui.AddSpacer(6);
-
-            ui.CreateLBBTrio("Lock Ragdoll State", "lstwo.RagdollManager.LockState", onClick1: LockRagdoll, onClick2: UnlockRagdoll, buttonText1: "Lock", buttonText2: "Unlock", 
-                buttonName1: "lstwo.RagdollManager.Lock", buttonName2: "lstwo.RagdollManager.Unlock");
-
-            ui.AddSpacer(6);
-
-            ui.CreateLBBTrio("Ragdoll Player", "lstwo.RagdollManager.RagdollPlayert", onClick1: Ragdoll, onClick2: KnockoutPlayer, buttonText1: "Ragdoll", buttonText2: "Knockout", 
-                buttonName1: "lstwo.RagdollManager.Ragdoll", buttonName2: "lstwo.RagdollManager.Knockout");
-
-            ui.AddSpacer(6);
-
-            ui.CreateButton("Inspect \"Ragdoll Controller\" Component", () =>
+            if (Player != null && Player.RagdollController)
             {
-                if (Player != null && Player.RagdollController)
-                {
-                    InspectorManager.Inspect(Player.RagdollController);
-                    UIManager.ShowMenu = true;
-                }
-            }, "lstwo.RagdollManager.inspect", null, 256 * 3 + 32 * 2, 32);
+                InspectorManager.Inspect(Player.RagdollController);
+                UIManager.ShowMenu = true;
+            }
+        }, "lstwo.RagdollManager.inspect", null, 256 * 3 + 32 * 2, 32);
 
-            ui.AddSpacer(6);
-        }
+        ui.AddSpacer(6);
+    }
 
-        public override void RefreshUI()
-        {
-        }
+    public override void RefreshUI()
+    {
+    }
 
-        public override void Update()
-        {
-        }
+    public override void Update()
+    {
+    }
 
-        public void LockRagdoll()
-        {
-            if (Player != null)
-                Player.RagdollController.LockRagdollState();
-        }
+    public void LockRagdoll()
+    {
+        if (Player != null)
+            Player.RagdollController.LockRagdollState();
+    }
 
-        public void UnlockRagdoll()
-        {
-            if (Player != null)
-                Player.RagdollController.UnlockRagdollState();
-        }
+    public void UnlockRagdoll()
+    {
+        if (Player != null)
+            Player.RagdollController.UnlockRagdollState();
+    }
 
-        public void KnockoutPlayer()
-        {
-            if (Player != null)
-                Player.RagdollController.Knockout();
-        }
+    public void KnockoutPlayer()
+    {
+        if (Player != null)
+            Player.RagdollController.Knockout();
+    }
 
-        public void Ragdoll()
-        {
-            if (Player != null)
-                Player.RagdollController.Ragdoll();
-        }
+    public void Ragdoll()
+    {
+        if (Player != null)
+            Player.RagdollController.Ragdoll();
     }
 }

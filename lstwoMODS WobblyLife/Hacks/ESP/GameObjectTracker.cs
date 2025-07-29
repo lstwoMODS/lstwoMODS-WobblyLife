@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using ShadowLib;
 using UnityEngine;
 
 namespace lstwoMODS_WobblyLife.Hacks.ESP;
@@ -21,7 +20,7 @@ public class GameObjectTracker
 
     public virtual void RefreshCache()
     {
-        playerHipRb = PlayerUtils.GetMyPlayer().GetPlayerCharacter().GetHipRigidbody();
+        playerHipRb = GameInstance.Instance.GetFirstLocalPlayerController().GetPlayerCharacter().GetHipRigidbody();
         mainCamera = Camera.main;
         objectBoundsCache.Clear();
         

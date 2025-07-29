@@ -1,7 +1,6 @@
 using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
-using ShadowLib;
 using UnityEngine;
 
 namespace lstwoMODS_WobblyLife.Hacks;
@@ -16,7 +15,7 @@ public class PetUnlocker : BaseHack
 
         ui.CreateLBBTrio("Unlock / Lock All Pets", "UnlockLockAllPetsLBB", () =>
         {
-            var player = PlayerUtils.GetMyPlayer();
+            var player = GameInstance.Instance.GetFirstLocalPlayerController();
             var controllerPet = player.GetPlayerControllerPet();
             var pets = PetManager.Instance.GetAllPets();
 
@@ -26,7 +25,7 @@ public class PetUnlocker : BaseHack
             }
         }, "Unlock", "UnlockAllPetsButton", () =>
         {
-            var player = PlayerUtils.GetMyPlayer();
+            var player = GameInstance.Instance.GetFirstLocalPlayerController();
             var controllerPet = player.GetPlayerControllerPet();
             var pets = PetManager.Instance.GetAllPets();
 

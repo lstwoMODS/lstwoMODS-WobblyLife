@@ -17,134 +17,133 @@ using UnityEngine.Rendering.PostProcessing;
 using UnityExplorer.UI;
 using UnityExplorer;
 
-namespace lstwoMODS_WobblyLife.Hacks
+namespace lstwoMODS_WobblyLife.Hacks;
+
+public class MovementManager : PlayerBasedHack
 {
-    public class MovementManager : PlayerBasedHack
+    public static bool infiniteJump = false;
+    public static bool multiJump = false;
+
+    public override string Name => "Movement Manager";
+    public override string Description => "The Managing Movement";
+    public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+
+    private HacksUIHelper.LIBTrio moveSpeedLib, jumpHeightLib;
+    private Toggle noclipToggle;
+        
+    public override void ConstructUI(GameObject root)
     {
-        public static bool infiniteJump = false;
-        public static bool multiJump = false;
+        new Harmony("NotAzza.Movement").PatchAll(typeof(MovementPatches));
 
-        public override string Name => "Movement Manager";
-        public override string Description => "The Managing Movement";
-        public override HacksTab HacksTab => Plugin.PlayerHacksTab;
+        var ui = new HacksUIHelper(root);
 
-        private HacksUIHelper.LIBTrio moveSpeedLib, jumpHeightLib;
-        private Toggle noclipToggle;
+        ui.AddSpacer(6);
 
-        public override void ConstructUI(GameObject root)
+        moveSpeedLib = ui.CreateLIBTrio("Set Move Speed", "lstwo.MovementManager.SetMoveSpeed", "Move Speed");
+        moveSpeedLib.Button.OnClick = () => SetMoveSpeed(float.Parse(moveSpeedLib.Input.Text));
+        moveSpeedLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
+
+        ui.AddSpacer(6);
+
+        jumpHeightLib = ui.CreateLIBTrio("Set Jump Height", "lstwo.MovementManager.SetJumpHeight", "Jump Height");
+        jumpHeightLib.Button.OnClick = () => SetJumpHeight(float.Parse(jumpHeightLib.Input.Text));
+        jumpHeightLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
+
+        ui.AddSpacer(6);
+
+        ui.CreateToggle("lstwo.MovementManager.AllowInfiniteJump", "Enable Infinite Jump Hack (Only for you)", SetInfiniteJump);
+
+        ui.AddSpacer(6);
+
+        ui.CreateToggle("lstwo.MovementManager.AllowMultiJump", "Enable Multi Jump Hack (Only for you)", SetMultiJump);
+
+        ui.AddSpacer(6);
+
+        noclipToggle = ui.CreateToggle("lstwo.MovementManager.Noclip", "Enable Noclip (Fly Mode)", SetNoclipEnabled);
+
+        ui.AddSpacer(6);
+
+        ui.CreateButton("Inspect \"Player Character Movement\" Component", () =>
         {
-            new Harmony("NotAzza.Movement").PatchAll(typeof(MovementPatches));
-
-            var ui = new HacksUIHelper(root);
-
-            ui.AddSpacer(6);
-
-            moveSpeedLib = ui.CreateLIBTrio("Set Move Speed", "lstwo.MovementManager.SetMoveSpeed", "Move Speed");
-            moveSpeedLib.Button.OnClick = () => SetMoveSpeed(float.Parse(moveSpeedLib.Input.Text));
-            moveSpeedLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-            ui.AddSpacer(6);
-
-            jumpHeightLib = ui.CreateLIBTrio("Set Jump Height", "lstwo.MovementManager.SetJumpHeight", "Jump Height");
-            jumpHeightLib.Button.OnClick = () => SetJumpHeight(float.Parse(jumpHeightLib.Input.Text));
-            jumpHeightLib.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-            ui.AddSpacer(6);
-
-            ui.CreateToggle("lstwo.MovementManager.AllowInfiniteJump", "Enable Infinite Jump Hack (Only for you)", SetInfiniteJump);
-
-            ui.AddSpacer(6);
-
-            ui.CreateToggle("lstwo.MovementManager.AllowMultiJump", "Enable Multi Jump Hack (Only for you)", SetMultiJump);
-
-            ui.AddSpacer(6);
-
-            noclipToggle = ui.CreateToggle("lstwo.MovementManager.Noclip", "Enable Noclip (Fly Mode)", SetNoclipEnabled);
-
-            ui.AddSpacer(6);
-
-            ui.CreateButton("Inspect \"Player Character Movement\" Component", () =>
+            if (Player != null && Player.CharacterMovement)
             {
-                if (Player != null && Player.CharacterMovement)
-                {
-                    InspectorManager.Inspect(Player.CharacterMovement);
-                    UIManager.ShowMenu = true;
-                }
-            }, "lstwo.MovementManager.inspect", null, 256 * 3 + 32 * 2, 32);
-
-            ui.AddSpacer(6);
-        }
-
-        public override void Update()
-        {
-            if (Player != null && Player.Character != null && Player.Character.GetRewiredPlayer().GetButtonDown("Jump") && multiJump)
-            {
-                PlayerCharacterMovement __instance = Player.CharacterMovement;
-                FieldInfo canJumpField = typeof(PlayerCharacterMovement).GetField("bCanJump", Plugin.Flags);
-                canJumpField.SetValue(__instance, true);
-
-                FieldInfo groundedField = typeof(PlayerCharacterMovement).GetField("bIsGrounded", Plugin.Flags);
-                groundedField.SetValue(__instance, true);
+                InspectorManager.Inspect(Player.CharacterMovement);
+                UIManager.ShowMenu = true;
             }
-        }
+        }, "lstwo.MovementManager.inspect", null, 256 * 3 + 32 * 2, 32);
 
-        public override void RefreshUI()
+        ui.AddSpacer(6);
+    }
+
+    public override void Update()
+    {
+        if (Player != null && Player.Character != null && Player.Character.GetRewiredPlayer().GetButtonDown("Jump") && multiJump)
         {
-            if (Player != null)
-            {
-                moveSpeedLib.Input.Text = Player.CharacterMovement.GetSpeedMultiplier().ToString();
-                jumpHeightLib.Input.Text = Player.CharacterMovement.GetJumpMultiplier().ToString();
-                noclipToggle.isOn = Player.CharacterMovement.IsNoClipEnabled();
-            }
-        }
+            PlayerCharacterMovement __instance = Player.CharacterMovement;
+            FieldInfo canJumpField = typeof(PlayerCharacterMovement).GetField("bCanJump", Plugin.Flags);
+            canJumpField.SetValue(__instance, true);
 
-
-        public void SetMoveSpeed(float speed)
-        {
-            if (Player != null)
-                Player.CharacterMovement.SetSpeedMultiplier(speed);
-        }
-
-        public void SetJumpHeight(float height)
-        {
-            if (Player != null)
-                Player.CharacterMovement.SetJumpMultiplier(height);
-        }
-
-
-        public void SetNoclipEnabled(bool b)
-        {
-            if (Player != null)
-                Player.CharacterMovement.SetNoClipEnabled(b);
-        }
-
-        public void SetInfiniteJump(bool b)
-        {
-            infiniteJump = b;
-            if (b == true) multiJump = false;
-        }
-
-        public void SetMultiJump(bool b)
-        {
-            multiJump = b;
-            if (b == true) infiniteJump = false;
+            FieldInfo groundedField = typeof(PlayerCharacterMovement).GetField("bIsGrounded", Plugin.Flags);
+            groundedField.SetValue(__instance, true);
         }
     }
 
-    public static class MovementPatches
+    public override void RefreshUI()
     {
-        [HarmonyPatch(typeof(PlayerCharacterMovement), "SimulateJump")]
-        [HarmonyPrefix]
-        public static void InfiniteJumpHack(PlayerCharacterMovement __instance, bool bJump)
+        if (Player != null)
         {
-            if (MovementManager.infiniteJump == true && __instance.GetPlayerBody().GetPlayerCharacter().GetPlayerController().networkObject.IsOwner())
-            {
-                FieldInfo canJumpField = typeof(PlayerCharacterMovement).GetField("bCanJump", Plugin.Flags);
-                canJumpField.SetValue(__instance, true);
+            moveSpeedLib.Input.Text = Player.CharacterMovement.GetSpeedMultiplier().ToString();
+            jumpHeightLib.Input.Text = Player.CharacterMovement.GetJumpMultiplier().ToString();
+            noclipToggle.isOn = Player.CharacterMovement.IsNoClipEnabled();
+        }
+    }
 
-                FieldInfo groundedField = typeof(PlayerCharacterMovement).GetField("bIsGrounded", Plugin.Flags);
-                groundedField.SetValue(__instance, true);
-            }
+
+    public void SetMoveSpeed(float speed)
+    {
+        if (Player != null)
+            Player.CharacterMovement.SetSpeedMultiplier(speed);
+    }
+
+    public void SetJumpHeight(float height)
+    {
+        if (Player != null)
+            Player.CharacterMovement.SetJumpMultiplier(height);
+    }
+
+
+    public void SetNoclipEnabled(bool b)
+    {
+        if (Player != null)
+            Player.CharacterMovement.SetNoClipEnabled(b);
+    }
+
+    public void SetInfiniteJump(bool b)
+    {
+        infiniteJump = b;
+        if (b == true) multiJump = false;
+    }
+
+    public void SetMultiJump(bool b)
+    {
+        multiJump = b;
+        if (b == true) infiniteJump = false;
+    }
+}
+
+public static class MovementPatches
+{
+    [HarmonyPatch(typeof(PlayerCharacterMovement), "SimulateJump")]
+    [HarmonyPrefix]
+    public static void InfiniteJumpHack(PlayerCharacterMovement __instance, bool bJump)
+    {
+        if (MovementManager.infiniteJump == true && __instance.GetPlayerBody().GetPlayerCharacter().GetPlayerController().networkObject.IsOwner())
+        {
+            FieldInfo canJumpField = typeof(PlayerCharacterMovement).GetField("bCanJump", Plugin.Flags);
+            canJumpField.SetValue(__instance, true);
+
+            FieldInfo groundedField = typeof(PlayerCharacterMovement).GetField("bIsGrounded", Plugin.Flags);
+            groundedField.SetValue(__instance, true);
         }
     }
 }
