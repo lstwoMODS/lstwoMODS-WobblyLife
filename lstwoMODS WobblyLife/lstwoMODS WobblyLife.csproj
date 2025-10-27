@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net46</TargetFramework>
+    <TargetFramework>net472</TargetFramework>
     <AssemblyName>lstwoMODS_WobblyLife</AssemblyName>
     <Description></Description>
     <Version>1.0.0</Version>
@@ -32,10 +32,25 @@
 	  <Reference Include="CinematicUnityExplorer.BIE5.Mono">
 		  <HintPath>lib\CinematicUnityExplorer.BIE5.Mono.dll</HintPath>
 	  </Reference>
-	  
-	  <Reference Include="ShadowLib">
-		  <HintPath>lib\ShadowLib.dll</HintPath>
-	  </Reference>
+
+      <Reference Include="ImGui.NET">
+          <HintPath>lib\ImGui.NET.dll</HintPath>
+      </Reference>
+      <Reference Include="ImGuizmo.NET">
+          <HintPath>lib\ImGuizmo.NET.dll</HintPath>
+      </Reference>
+      <Reference Include="ImNodes.NET">
+          <HintPath>lib\ImNodes.NET.dll</HintPath>
+      </Reference>
+      <Reference Include="ImPlot.NET">
+          <HintPath>lib\ImPlot.NET.dll</HintPath>
+      </Reference>
+      <Reference Include="System.Runtime.CompilerServices.Unsafe">
+          <HintPath>lib\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+      </Reference>
+      <Reference Include="UImGui">
+          <HintPath>lib\UImGui.dll</HintPath>
+      </Reference>
 
 	  <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" />
@@ -51,5 +66,72 @@
   
   <ItemGroup>
     <EmbeddedResource Include="Resources\lstwomods.wobblylife.bundle" />
+    <EmbeddedResource Remove="Hacks\**" />
+    <EmbeddedResource Remove="UI\**" />
+    <EmbeddedResource Remove="Mods\JobManager\**" />
+    <EmbeddedResource Remove="Mods\ESP\**" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <Compile Remove="UI\TabMenus\CustomItemsTab.cs" />
+    <Compile Remove="UI\TabMenus\PropSpawnerTab.cs" />
+    <Compile Remove="Mods\PlayerESPMod.cs" />
+    <Compile Remove="Mods\RagdollManager.cs" />
+    <Compile Remove="Mods\RealisticCarCrashes.cs" />
+    <Compile Remove="Mods\RoadVehicleModifier.cs" />
+    <Compile Remove="Mods\ServerSettings.cs" />
+    <Compile Remove="Mods\SetGravity.cs" />
+    <Compile Remove="Mods\SetLobbyName.cs" />
+    <Compile Remove="Mods\SetTime.cs" />
+    <Compile Remove="Mods\SizeChanger.cs" />
+    <Compile Remove="Mods\SkyCustomizer.cs" />
+    <Compile Remove="Mods\SmitePlayer.cs" />
+    <Compile Remove="Mods\TeleportAllPlayers.cs" />
+    <Compile Remove="Mods\TeleportPlayer.cs" />
+    <Compile Remove="Mods\VehicleESPMod.cs" />
+    <Compile Remove="Mods\VehicleUnlocker.cs" />
+    <Compile Remove="Mods\WaterCustomizer.cs" />
+    <Compile Remove="Mods\WeatherEditor.cs" />
+    <Compile Remove="Mods\PetUnlocker.cs" />
+    <Compile Remove="Mods\FishingHelper.cs" />
+    <Compile Remove="Mods\ActionEnterExitInteractModifier.cs" />
+    <Compile Remove="Mods\ComponentESPMod.cs" />
+    <Compile Remove="Mods\JobMods.cs" />
+    <Compile Remove="Mods\ArcadeModManager.cs" />
+    <Compile Remove="Mods\ManageBans.cs" />
+    <Compile Remove="Mods\CharacterManager.cs" />
+    <Compile Remove="Mods\FrogMods.cs" />
+    <Compile Remove="Mods\NPCDialog.cs" />
+    <Compile Remove="Mods\MissionCompleter.cs" />
+    <Compile Remove="Mods\JetpackMultiplier.cs" />
+    <Compile Remove="Mods\DayNightCycleSync.cs" />
+    <Compile Remove="Mods\CompleteJob.cs" />
+    <Compile Remove="Mods\GiveMoney.cs" />
+    <Compile Remove="Mods\FloodMod.cs" />
+    <Compile Remove="Mods\BananaBackpackManager.cs" />
+    <Compile Remove="Mods\ClothesManager.cs" />
+    <Compile Remove="Mods\BuyUnlimitedHouses.cs" />
+    <Compile Remove="Mods\MuseumManager.cs" />
+    <Compile Remove="Mods\ChangePlayerName.cs" />
+    <Compile Remove="Mods\AchievementManager.cs" />
+    <Compile Remove="Mods\JobStarter.cs" />
+    <Compile Remove="Mods\MoonBootModifier.cs" />
+    <Compile Remove="Mods\ControllerManager.cs" />
+    <Compile Remove="Mods\InfoMod.cs" />
+    <Compile Remove="Mods\FirstPerson.cs" />
+    <Compile Remove="Mods\HideUI.cs" />
+    <Compile Remove="Mods\BanPlayer.cs" />
+    <Compile Remove="Mods\JellyManBasementMissionManager.cs" />
+    <Compile Remove="Mods\FreeCamModifier.cs" />
+    <Compile Remove="Mods\JobManager\**" />
+    <Compile Remove="Mods\ESP\**" />
+  </ItemGroup>
+  
+  <ItemGroup>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <None Remove="Mods\JobManager\**" />
+    <None Remove="Mods\ESP\**" />
   </ItemGroup>
 </Project>
