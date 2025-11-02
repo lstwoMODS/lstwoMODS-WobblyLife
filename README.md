@@ -2,6 +2,12 @@
 
 A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
 
+# Quick Install Link
+
+https://mods.lstwo.net/download.php?game=rubber_band_games.wobbly_life
+
+This will download a zip file after a few seconds. Extract it and drag the `Wobbly Life.exe` onto the `DRAG GAME EXE HERE.bat` file.
+
 # Installation Requirements
 
 Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
@@ -16,11 +22,7 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
 | ----------------: | :--------------------: | :--------------------: |
 | **Compatibility** | ✅Fully compatible    | 🟨 Most Functions Work |
 
-# Quick Install Link
 
-https://mods.lstwo.net/download.php?game=rubber_band_games.wobbly_life
-
-This will download a zip file after a few seconds. Extract it and drag the `Wobbly Life.exe` onto the `DRAG GAME EXE HERE.bat` file.
 
 # Automatic Installation
 
