@@ -1,121 +1,64 @@
 ﻿using System.Collections.Generic;
-using UnityEngine;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_WobblyLife.UI.TabMenus;
+using UnityEngine;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class HideUI : BaseHack
+public class HideUI : BaseMod
 {
     public override string Name => "Hide UI";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
 
-    public override HacksTab HacksTab => Plugin.ClientHacksTab;
+    private PlayerRef player => GameInstance.Instance?.GetFirstLocalPlayerController();
 
-    private PlayerBasedUI playerUI;
-    private PlayerControllerUI controllerUI;
-    private PlayerController player;
-
-    private bool hideAllUI;
-    private bool hideMinimap;
-    private bool hideJobUI;
-    private bool hideJobComponents;
-    private bool hideInputHints;
+    [ModSetting] public readonly Ref<bool> hideAllUI = new();
+    [ModSetting] public readonly Ref<bool> hideMinimap = new();
+    [ModSetting] public readonly Ref<bool> hideJobUI = new();
+    [ModSetting] public readonly Ref<bool> hideJobComponents = new();
+    [ModSetting] public readonly Ref<bool> hideInputHints = new();
         
-    private List<Canvas> hiddenCanvases = new List<Canvas>();
+    private List<Canvas> hiddenCanvases = [];
     private bool prevHideAllUI;
 
-    public override void ConstructUI(GameObject root)
+    public HideUI()
     {
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.HideUI.HideAllUI", "Hide All UI", (b) =>
-        {
-            hideAllUI = b;
-            RefreshHiddenElements();
-        });
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.HideUI.DisableMinimap", "Disable Minimap", (b) =>
-        {
-            player.SetMinimapDisabled(this, b);
-        });
-
-        ui.CreateToggle("lstwo.HideUI.HideMinimap", "Hide Minimap", (b) =>
-        {
-            hideMinimap = b;
-            RefreshHiddenElements();
-        });
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.HideUI.HideJobUI", "Hide Job UI", (b) =>
-        {
-            hideJobUI = b;
-            RefreshHiddenElements();
-        });
-
-        ui.CreateToggle("lstwo.HideUI.HideJobComponents", "Hide Job Components Only", (b) =>
-        {
-            hideJobComponents = b;
-            RefreshHiddenElements();
-        });
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.HideUI.HideInputHints", "Hide Input Hints", (b) =>
-        {
-            hideInputHints = b;
-            RefreshHiddenElements();
-        });
-            
-        ui.AddSpacer(6);
-
-        ui.CreateButton("Refresh Hidden Elements", RefreshHiddenElements, "lstwo.HideUI.RefreshButton");
-        
-        ui.AddSpacer(6);
+        hideAllUI.Changed         += _ => RefreshHiddenElements();
+        hideMinimap.Changed       += b => player.Controller.SetMinimapDisabled(this, b);
+        hideMinimap.Changed       += _ => RefreshHiddenElements();
+        hideJobUI.Changed         += _ => RefreshHiddenElements();
+        hideJobComponents.Changed += _ => RefreshHiddenElements();
+        hideInputHints.Changed    += _ => RefreshHiddenElements();
     }
 
-    public override void RefreshUI()
+    [ModAction]
+    public void RefreshHiddenElements()
     {
-        player = GameInstance.Instance.GetFirstLocalPlayerController();
-        playerUI = player.GetPlayerBasedUI();
-        controllerUI = player.GetPlayerControllerUI();
-    }
-
-    public override void Update()
-    {
-    }
-
-    private void RefreshHiddenElements()
-    {
-        if (!playerUI)
+        if (!player?.PlayerBasedUI || !player?.ControllerUI)
         {
             return;
         }
 
-        player.SetMinimapVisible(!hideMinimap);
+        player.Controller.SetMinimapVisible(!hideMinimap.Value);
 
-        playerUI.GetUIJobCanvas().gameObject.GetComponent<Canvas>().enabled = !hideJobUI;
-        playerUI.GetUIJobCanvas().GetUIJobComponentCanvas().gameObject.GetComponent<Canvas>().enabled = !hideJobComponents;
-            
-        playerUI.GetUIGameplayCanvas().GetGameCanvas().GetInputHintCanvas().gameObject.GetComponent<Canvas>().enabled = !hideInputHints;
+        player.PlayerBasedUI.GetUIJobCanvas().gameObject.GetComponent<Canvas>().enabled = !hideJobUI.Value;
+        player.PlayerBasedUI.GetUIJobCanvas().GetUIJobComponentCanvas().gameObject.GetComponent<Canvas>().enabled = !hideJobComponents.Value;
+        
+        player.PlayerBasedUI.GetUIGameplayCanvas().GetGameCanvas().GetInputHintCanvas().gameObject.GetComponent<Canvas>().enabled = !hideInputHints.Value;
 
-        if (hideAllUI == prevHideAllUI)
+        if (hideAllUI.Value == prevHideAllUI)
         {
             return;
         }
         
-        if (hideAllUI)
+        if (hideAllUI.Value)
         {
             hiddenCanvases.Clear();
-                    
-            foreach (var canvas in playerUI.GetComponentsInChildren<Canvas>(false))
+            
+            foreach (var canvas in player.PlayerBasedUI.GetComponentsInChildren<Canvas>(false))
             {
                 canvas.enabled = false;
                 hiddenCanvases.Add(canvas);
@@ -131,6 +74,6 @@ public class HideUI : BaseHack
             hiddenCanvases.Clear();
         }
 
-        prevHideAllUI = hideAllUI;
+        prevHideAllUI = hideAllUI.Value;
     }
 }

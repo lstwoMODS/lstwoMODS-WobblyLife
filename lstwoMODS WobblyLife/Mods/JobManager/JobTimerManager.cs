@@ -1,73 +1,56 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class JobTimerManager : BaseJobManager
 {
-    public override Type missionType => null;
-    private QuickReflection<JobMissionTimer> reflect;
-    private List<GameObject> objects = new();
-    private InputFieldRef moneyInput;
-
+    private Ref<int> timerSeconds = new(60);
+    private Ref<bool> isRunning = new(true);
+    private Ref<bool> resetTimer = new(false);
     private JobMissionTimer timer;
 
-    public override void ConstructUI()
-    {
-        base.ConstructUI();
+    public override Type missionType => null;
 
-        var title = ui.CreateLabel("Job Timer", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override void RegisterMacros()
+    {
+        // The timer lives as a component on any job mission, so these resolve it from the
+        // player's active job rather than a fixed mission type.
+        RegisterJobAction<JobMission, int>("setTimer", "Set Timer (seconds)", "Seconds",
+            (m, seconds) => { if (m.TryGetComponent(out JobMissionTimer t)) t.jobTimerInSeconds = (ulong)seconds; });
+        RegisterJobAction<JobMission, bool, bool>("setTimerRunning", "Set Timer Running", "Running", "Reset",
+            (m, running, reset) => { if (m.TryGetComponent(out JobMissionTimer t)) t.ServerSetRunning(running, reset); });
+    }
+
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        var timeLIB = ui.CreateLIBTrio("Set Current Job Timer", "timeLIB", "60");
-        timeLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        timeLIB.Button.OnClick = () => SetTimerInSeconds(ulong.Parse(timeLIB.Input.Text));
-        objects.Add(timeLIB.Root);
+            new HStack("timer",
+                new DragInt("##Timer (seconds)").WithValue(timerSeconds),
+                WithMacroMenu(new Button("Set Timer (seconds)", () => SetTimerInSeconds((ulong)timerSeconds.Value)).WithContentWidth(), "setTimer", "Set Timer (seconds)")
+            ).WithContentWidth(),
 
-        objects.Add(ui.AddSpacer(5));
-
-        var bRunningToggle = ui.CreateToggle(label: "Is Running", defaultState: true, onValueChanged: (b) => { });
-        objects.Add(bRunningToggle.gameObject);
-
-        var bResetTimerToggle = ui.CreateToggle(label: "Reset Timer", onValueChanged: (b) => { });
-        objects.Add(bResetTimerToggle.gameObject);
-
-        var setRunningBtn = ui.CreateLBDuo("Set Running", "SetRunning", () => SetTimerRunning(bRunningToggle.isOn, bResetTimerToggle.isOn), "Apply", "SetIsRunningButton");
-        objects.Add(setRunningBtn.Root);
+            new Checkbox("Enable Timer").WithValue(isRunning),
+            new Checkbox("Reset Timer").WithValue(resetTimer),
+            WithMacroMenu(new Button("Set Timer Running", () => SetTimerRunning(isRunning.Value, resetTimer.Value)), "setTimerRunning", "Set Timer Running")
+        );
     }
 
-    public override void RefreshUI()
-    {
-        bool b = Mission && Mission.TryGetComponent(out timer);
+    public override bool ShouldShow() => Mission != null && Mission.TryGetComponent(out timer);
 
-        if (b)
-        {
-            reflect = new(timer, BindingFlags.Instance | BindingFlags.NonPublic);
-        }
-
-        root.SetActive(b);
-    }
+    public override void RefreshUI() { }
 
     public void SetTimerInSeconds(ulong seconds)
     {
         if (timer != null)
-        {
-            reflect.SetField("jobTimerInSeconds", seconds);
-        }
+            timer.jobTimerInSeconds = seconds;
     }
 
     public void SetTimerRunning(bool bRunning, bool bResetTimer)
     {
         if (timer != null)
-        {
             timer.ServerSetRunning(bRunning, bResetTimer);
-        }
     }
 }

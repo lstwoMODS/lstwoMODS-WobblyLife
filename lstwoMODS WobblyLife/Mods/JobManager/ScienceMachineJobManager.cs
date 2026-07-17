@@ -1,53 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class ScienceMachineJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<ScienceMachineJobMission> reflect;
+    private Ref<int> moneyPerDelivered = new(10);
 
     public override Type missionType => typeof(ScienceMachineJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<ScienceMachineJobMission, int>("setMoney", "Set Money per Delivered Pipe", "Money", (m, v) => m.moneyPerDelivered = v);
+    }
 
-        var title = ui.CreateLabel("Science Machine Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        var moneyPerDeliveredLIB = ui.CreateLIBTrio("Set Money Per Delivered Pipe", "moneyPerDeliveredLIB", "10");
-        moneyPerDeliveredLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyPerDeliveredLIB.Button.OnClick = () => SetMoney(int.Parse(moneyPerDeliveredLIB.Input.Text));
-        objects.Add(moneyPerDeliveredLIB.Root);
+            new HStack("money",
+                new DragInt("##Money Per Delivered Pipe").WithValue(moneyPerDelivered),
+                WithMacroMenu(new Button("Set Money per Delivered Pipe", () => SetMoney(moneyPerDelivered.Value)).WithContentWidth(), "setMoney", "Set Money per Delivered Pipe")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((ScienceMachineJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("moneyPerDelivered")).ToString();
-        }
+            moneyPerDelivered.Value = (int)((ScienceMachineJobMission)Mission).moneyPerDelivered;
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerDelivered", money);
-        }
+            ((ScienceMachineJobMission)Mission).moneyPerDelivered = money;
     }
 }

@@ -1,158 +1,66 @@
-﻿using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using UnityExplorer.UI;
+﻿using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 using UnityExplorer;
+using Button = lstwoMODS_Core.UI.Elements.Button;
+using UIManager = UnityExplorer.UI.UIManager;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
 public class ActionEnterExitInteractModifier : PlayerBasedMod
 {
     public override string Name => "Enter Exit Interact Modifier";
     public override string Description => "";
-    public override HacksTab HacksTab => Plugin.VehicleHacksTab;
+    public override ModsWindow ModsWindow => Plugin.VehicleModsWindow;
 
+    [ModSetting(Order = 10)]
     public bool ShouldKnockoutIfGoingFast
     {
-        get
-        {
-            if (action)
-            {
-                var type = typeof(global::ActionEnterExitInteract);
-                var field = type.GetField("bKnockoutPlayerIfGoingFast", Plugin.Flags);
-
-                return (bool)field.GetValue(action);
-            }
-
-            return false;
-        }
-        set
-        {
-            if (action)
-            {
-                action.SetShouldKnockoutbPlayerIfGoingFast(value);
-            }
-        }
+        get => Action?.bKnockoutPlayerIfGoingFast ?? false;
+        set => Action?.SetShouldKnockoutbPlayerIfGoingFast(value);
     }
 
+    [ModSetting(Order = 20)]
     public bool Locked
     {
-        get
-        {
-            if (action && Player != null)
-            {
-                return action.IsLocked(Player.Controller);
-            }
-
-            return false;
-        }
-        set
-        {
-            if (action)
-            {
-                action.SetLocked(value);
-            }
-        }
+        get => Action?.IsLocked(Player?.Controller) ?? false;
+        set => Action?.SetLocked(value);
     }
 
+    [ModSetting(Order = 30)]
     public bool Interactable
     {
-        get
-        {
-            if (action)
-            {
-                var type = typeof(global::ActionEnterExitInteract);
-                var field = type.GetField("bInteractable", Plugin.Flags);
-
-                return (bool)field.GetValue(action);
-            }
-
-            return false;
-        }
-        set
-        {
-            if (action)
-            {
-                action.SetInteractable(value);
-            }
-        }
+        get => Action?.bInteractable ?? false;
+        set => Action?.SetInteractable(value);
     }
 
+    public ActionEnterExitInteract Action => (ActionEnterExitInteract) Player?.Controller?.GetPlayerControllerInteractor()?.GetEnteredAction();
 
-    private global::ActionEnterExitInteract action;
+    private Ref<bool> disableOptions = new();
 
-    private GameObject root;
-
-    private Toggle knockoutToggle;
-    private Toggle lockToggle;
-    private Toggle interactableToggle;
-
-    public override void ConstructUI(GameObject root)
+    public override Container BuildPanel(string id)
     {
-        this.root = root;
-        var ui = new HacksUIHelper(root);
+        return new Container(id,
 
-        ui.AddSpacer(6);
-
-        knockoutToggle = ui.CreateToggle("lstwo.ActionEnterExitInteract.KnockoutIfGoingFast", "Should knockout if going fast", (b) => ShouldKnockoutIfGoingFast = b, true);
-
-        ui.AddSpacer(6);
-
-        ui.CreateLBBTrio("Evacuate Players", "lstwo.ActionEnterExitInteract.EvacuatePlayers", () => action.EvacuateAll(), "Evacuate All Players", "lstwo.ActionEnterExitInteract.EvacuateAll",
-            () => action.EvacuateAllExceptDriver(), "Evacuate All Except Driver", "lstwo.ActionEnterExitInteract.EvacuateAllExceptDriver");
-
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Evacuate Selected Player", "lstwo.ActionEnterExitInteract.EvacuateSelectedPlayer", () => action.EvacuatePlayer(Player.Controller), "Evacuate");
-
-        ui.AddSpacer(6);
-
-        lockToggle = ui.CreateToggle("lstwo.ActionEnterExitInteract.IsVehicleLocked", "Is vehicle locked", (b) => Locked = b);
-        interactableToggle = ui.CreateToggle("lstwo.ActionEnterExitInteract.IsVehicleInteractable", "Is vehicle interactable", (b) => Interactable = b);
-
-        ui.AddSpacer(6);
-
-        ui.CreateButton("Inspect \"Action Enter Exit Interact\" Component", () =>
-        {
-            if (action)
+            new UIText("No Action Info", "Player has no entered Action Enter Exit Interact").WithVisible(disableOptions),
+            base.BuildPanel(id).WithDisabled(disableOptions),
+            
+            new Button("Inspect \"Action Enter Exit Interact\" Component", () =>
             {
-                InspectorManager.Inspect(action);
-                UIManager.ShowMenu = true;
-            }
-        }, "lstwo.ActionEnterExitInteract.Inspect", null, 256 * 3 + 32 * 2, 32);
-
-        ui.AddSpacer(6);
+                if (Action)
+                {
+                    InspectorManager.Inspect(Action);
+                    UIManager.ShowMenu = true;
+                }
+                
+            }).WithContentWidth().WithDisabled(disableOptions)
+        );
     }
 
     public override void RefreshUI()
     {
-        if (Player == null || !Player.Controller || !Player.Controller.GetPlayerControllerInteractor()) return;
-
-        var action = Player.Controller.GetPlayerControllerInteractor().GetEnteredAction();
-        if (action != null)
-        {
-            if (action is global::ActionEnterExitInteract actionInteract)
-            {
-                this.action = actionInteract;
-            }
-
-            knockoutToggle.isOn = ShouldKnockoutIfGoingFast;
-            lockToggle.isOn = Locked;
-            interactableToggle.isOn = Interactable;
-
-            root.SetActive(true);
-        }
-        else
-        {
-            root.SetActive(false);
-        }
+        disableOptions.Value = Action == null;
+        base.RefreshUI();
     }
-
-    public override void Update() { }
 }

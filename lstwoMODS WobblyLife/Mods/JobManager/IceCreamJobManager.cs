@@ -1,53 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class IceCreamJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<DeliveryJobMission> reflect;
+    private Ref<int> moneyPerOrder = new(5);
 
-    public override Type missionType => typeof(DeliveryJobMission);
+    public override Type missionType => typeof(IceCreamJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<IceCreamJobMission, int>("setMoneyPerOrder", "Set Money per Order", "Money", (m, v) => m.moneyPerOrder = v);
+    }
 
-        var title = ui.CreateLabel("Ice Cream Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        var moneyLIB = ui.CreateLIBTrio("Set Money Per Order", "moneyLIB", "5");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoneyPerOrder(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+            new HStack("money",
+                new DragInt("##Money Per Order").WithValue(moneyPerOrder),
+                WithMacroMenu(new Button("Set Money per Order", () => SetMoneyPerOrder(moneyPerOrder.Value)).WithContentWidth(), "setMoneyPerOrder", "Set Money per Order")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((DeliveryJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("moneyPerOrder")).ToString();
-        }
+            moneyPerOrder.Value = (int)((IceCreamJobMission)Mission).moneyPerOrder;
     }
 
     public void SetMoneyPerOrder(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerOrder", money);
-        }
+            ((IceCreamJobMission)Mission).moneyPerOrder = money;
     }
 }

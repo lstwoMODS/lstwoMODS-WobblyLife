@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace lstwoMODS_WobblyLife.Hacks.ESP;
+namespace lstwoMODS_WobblyLife.Mods.ESP;
 
 public class ESPDrawer : MonoBehaviour
 {

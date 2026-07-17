@@ -1,108 +1,209 @@
-﻿using lstwoMODS_WobblyLife.UI.TabMenus;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib.UI.Models;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
+﻿using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
-using UnityEngine.Rendering.PostProcessing;
-using UnityExplorer.UI;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 using UnityExplorer;
+using Button = lstwoMODS_Core.UI.Elements.Button;
+using UIManager = UnityExplorer.UI.UIManager;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class SetTime : BaseHack
+public class SetTime : BaseMod
 {
     public override string Name => "Set Time of Day";
 
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ServerModsWindow;
 
-    public override HacksTab HacksTab => Plugin.ServerHacksTab;
+    // The game's DayNightCycle stores time as "degrees" (0-360). CalculateTimeString maps
+    // those degrees linearly onto a 24h clock: 0deg = 06:00, 90deg = 12:00, 180deg = 18:00,
+    // 270deg = 00:00 (midnight), 360deg = 06:00. So hours24 = (6 + degrees/15) mod 24, and
+    // the reverse (used for the HH:MM field below) is degrees = ((hours24 - 6 + 24) mod 24) * 15.
+    private const float DegreesPerHour = 15f; // 360 degrees / 24 hours
+    private const float SunriseHour = 6f;     // 0 degrees == 06:00
 
-    private InputFieldRef timeSpeedInput;
-    private Text dayNumLabel;
+    private Ref<float> timeSpeed = new();
+    private Ref<string> timeText = new("");
+    private Ref<float> timeDegrees = new();
+    private Ref<string> timeHhmm = new("");
 
-    public override void ConstructUI(GameObject root)
+    public override Container BuildPanel(string id)
     {
-        var ui = new HacksUIHelper(root);
+        return new Container(id,
+            new DragFloat("Set Time Speed", 0, .05f, onValueChanged: SetTimeOfDaySpeed).WithValue(timeSpeed),
+            new TextWrapped("TimeText", "").WithText(timeText),
 
-        ui.AddSpacer(6);
+            new DragFloat("Set Time (Degrees)", 0, .5f, 0, 360, "%.1f", onValueChanged: SetTimeDegrees).WithValue(timeDegrees),
 
-        var timeCatLabel = ui.CreateLabel("<b>Time of Day Settings (Might NOT fully work in Multiplayer)</b>");
-        dayNumLabel = ui.CreateLabel("");
+            new InputText("##hhmm", hint: "e.g. 14:30").WithValue(timeHhmm),
+            new SameLine("sl-hhmm-2"),
+            ActionMenu(new Button("Set Time (HH:MM)##hhmm", ApplyHhmm), nameof(ApplyHhmm)),
 
-        ui.AddSpacer(6);
-
-        var timeSpeedLib = ui.CreateLIBTrio("Set Time Speed", "lstwo.SetTime.speed", "1", () => SetTimeOfDaySpeed(float.Parse(timeSpeedInput.Text)));
-        timeSpeedInput = timeSpeedLib.Input;
-
-        ui.AddSpacer(6);
-
-        var setMorningBtn = ui.CreateButton("Set Time to Morning", SetTimeMorning, "lstwo.SetTime.Morning");
-        ui.AddSpacer(6);
-        var setMiddayBtn = ui.CreateButton("Set Time to Midday", SetTimeMidday, "lstwo.SetTime.Midday");
-        ui.AddSpacer(6);
-        var setEveningBtn = ui.CreateButton("Set Time to Evening", SetTimeEvening, "lstwo.SetTime.Evening");
-        ui.AddSpacer(6);
-        var setMidnightBtn = ui.CreateButton("Set Time to Midnight", SetTimeMidnight, "lstwo.SetTime.Midnight");
-
-        ui.AddSpacer(6);
-
-        ui.CreateButton("Inspect \"Day Night Cycle\" Component", () =>
-        {
-            if (DayNightCycle.InstanceExists)
+            new UIText("SetTimeTo", "Set Time to "),
+            new SameLine("sl-1"),
+            ActionMenu(new Button("Morning", SetTimeMorning), nameof(SetTimeMorning)),
+            new SameLine("sl-2"),
+            ActionMenu(new Button("Midday", SetTimeMidday), nameof(SetTimeMidday)),
+            new SameLine("sl-3"),
+            ActionMenu(new Button("Evening", SetTimeEvening), nameof(SetTimeEvening)),
+            new SameLine("sl-4"),
+            ActionMenu(new Button("Midnight", SetTimeMidnight), nameof(SetTimeMidnight)),
+            
+            new Button("Inspect \"Day Night Cycle\" Component", () =>
             {
-                InspectorManager.Inspect(DayNightCycle.Instance);
-                UIManager.ShowMenu = true;
-            }
-        }, "lstwo.SetTime.inspect", null, 256 * 3 + 32 * 2, 32);
-
-        ui.AddSpacer(6);
+                if(DayNightCycle.InstanceExists)
+                {
+                    InspectorManager.Inspect(DayNightCycle.Instance);
+                    UIManager.ShowMenu = true;
+                }
+            }).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
+        var dnc = DayNightCycle.Instance;
+        timeSpeed.Value = dnc?.GetSpeed() ?? 0;
+
+        // Prefill the input fields with the current time when the panel opens.
+        var degrees = dnc?.GetTimeOfDay() ?? 0f;
+        timeDegrees.Value = degrees;
+        timeHhmm.Value = DegreesToHhmm(degrees);
     }
 
     public override void Update()
     {
         var dnc = DayNightCycle.Instance;
 
-        if (dnc != null && dayNumLabel != null && dayNumLabel.gameObject.activeInHierarchy)
+        if (dnc == null)
         {
-            var time = dnc.GetTimeString();
-            var day = dnc.GetDayNum();
-
-            dayNumLabel.text = $"Time: {time}, Day: {day}";
+            return;
         }
+
+        var time = dnc.GetTimeString();
+        var day = dnc.GetDayNum();
+        var degrees = dnc.GetTimeOfDay();
+
+        timeText.Value = $"Time: {time} ({degrees:0.#}deg), Day: {day}";
     }
 
-    public void SetTimeOfDaySpeed(float speed)
+    [ModAction(ShowInUI = false)]
+    public void SetTimeDegrees(float degrees)
+    {
+        DayNightCycle.Instance?.SetTimeOfDay(NormalizeDegrees(degrees));
+    }
+
+    // Hidden getters for macros: expose the current time of day so expressions/steps can read it.
+    // Each returns a value, so the macro system projects it as a "Get" step with a named output.
+    [ModAction(ShowInUI = false, Label = "Get Time (Degrees)",
+        Description = "Current time of day in degrees (0-360). 0 = 06:00, 90 = 12:00, 180 = 18:00, 270 = 00:00.")]
+    public float GetTimeDegrees()
+    {
+        return DayNightCycle.Instance?.GetTimeOfDay() ?? 0f;
+    }
+
+    [ModAction(ShowInUI = false, Label = "Get Time (String)",
+        Description = "Current in-game time as the game's formatted clock string (e.g. \"14:30\").")]
+    public string GetTimeText()
+    {
+        return DayNightCycle.Instance?.GetTimeString() ?? "";
+    }
+
+    [ModAction(ShowInUI = false)]
+    public void ApplyHhmm()
+    {
+        if (!TryParseHhmm(timeHhmm.Value, out var degrees))
+        {
+            return;
+        }
+
+        timeDegrees.Value = degrees;
+        DayNightCycle.Instance?.SetTimeOfDay(degrees);
+    }
+
+    private static float NormalizeDegrees(float degrees)
+    {
+        return (degrees % 360f + 360f) % 360f;
+    }
+
+    // Inverse of the game's degrees -> clock mapping: degrees = ((hours24 - 6 + 24) mod 24) * 15.
+    private static float HoursToDegrees(float hours24)
+    {
+        return ((hours24 - SunriseHour) % 24f + 24f) % 24f * DegreesPerHour;
+    }
+
+    private static float DegreesToHours(float degrees)
+    {
+        return (NormalizeDegrees(degrees) / DegreesPerHour + SunriseHour) % 24f;
+    }
+
+    private static string DegreesToHhmm(float degrees)
+    {
+        var hours = DegreesToHours(degrees);
+        var h = (int)hours;
+        var m = (int)((hours - h) * 60f + 0.5f);
+        if (m >= 60)
+        {
+            m -= 60;
+            h = (h + 1) % 24;
+        }
+        return $"{h:00}:{m:00}";
+    }
+
+    private static bool TryParseHhmm(string text, out float degrees)
+    {
+        degrees = 0f;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var parts = text.Trim().Split(':');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(parts[0].Trim(), out var h) || !int.TryParse(parts[1].Trim(), out var m))
+        {
+            return false;
+        }
+
+        if (h < 0 || h > 23 || m < 0 || m > 59)
+        {
+            return false;
+        }
+
+        degrees = HoursToDegrees(h + m / 60f);
+        return true;
+    }
+
+    [ModAction(ShowInUI = false)]
+    public static void SetTimeOfDaySpeed(float speed)
     {
         DayNightCycle.Instance.SetSpeed(speed);
     }
 
-    public void SetTimeMorning()
+    [ModAction(ShowInUI = false)]
+    public static void SetTimeMorning()
     {
         DayNightCycle.Instance.SetMorning();
     }
 
-    public void SetTimeMidday()
+    [ModAction(ShowInUI = false)]
+    public static void SetTimeMidday()
     {
         DayNightCycle.Instance.SetMidday();
     }
 
-    public void SetTimeEvening()
+    [ModAction(ShowInUI = false)]
+    public static void SetTimeEvening()
     {
         DayNightCycle.Instance.SetEvening();
     }
 
-    public void SetTimeMidnight()
+    [ModAction(ShowInUI = false)]
+    public static void SetTimeMidnight()
     {
         DayNightCycle.Instance.SetMidnight();
     }

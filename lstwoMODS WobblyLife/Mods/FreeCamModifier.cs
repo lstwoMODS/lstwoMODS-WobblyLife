@@ -1,99 +1,38 @@
 using HarmonyLib;
-using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
-using UnityEngine.UI;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class FreeCamModifier : BaseHack
+public class FreeCamModifier : BaseMod
 {
-    public override void ConstructUI(GameObject root)
-    {
-        new Harmony("lstwo.lstwoMODS_WobblyLife.FreeCamModifier").PatchAll(typeof(Patches));
-
-        var ui = new HacksUIHelper(root);
-        
-        ui.AddSpacer(6);
-
-        moveSpeedLIB = ui.CreateLIBTrio("Move Speed", "lstwo.FreeCamModifier.MoveSpeed", "5.0");
-        moveSpeedLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        moveSpeedLIB.Button.OnClick = () =>
-        {
-	        moveSpeed = float.Parse(moveSpeedLIB.Input.Text);
-        };
-        
-        ui.AddSpacer(6);
-
-        upMoveSpeedLIB = ui.CreateLIBTrio("Upwards Move Speed", "lstwo.FreeCamModifier.UpMoveSpeed", "5.0");
-        upMoveSpeedLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        upMoveSpeedLIB.Button.OnClick = () =>
-        {
-	        upMoveSpeed = float.Parse(upMoveSpeedLIB.Input.Text);
-        };
-        
-        ui.AddSpacer(6);
-
-        boostMultiplierLIB = ui.CreateLIBTrio("Boost Multiplier", "lstwo.FreeCamModifier.BoostMultiplier", "3.0");
-        boostMultiplierLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        boostMultiplierLIB.Button.OnClick = () =>
-        {
-			boostMultiplier = float.Parse(boostMultiplierLIB.Input.Text);
-        };
-        
-        ui.AddSpacer(6);
-        
-        lockDistanceLIB = ui.CreateLIBTrio("Lock Distance", "lstwo.FreeCamModifier.LockDistance", "10.0");
-        lockDistanceLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        lockDistanceLIB.Button.OnClick = () =>
-        {
-	        lockDistance = float.Parse(lockDistanceLIB.Input.Text);
-        };
-        
-        ui.AddSpacer(6);
-
-        infiniteDistanceToggle = ui.CreateToggle("lstwo.FreeCamModifier.InfiniteDistance", "Infinite Distance", b => infiniteDistance = b);
-        
-        ui.AddSpacer(6);
-
-        ignoreCollisionToggle = ui.CreateToggle("lstwo.FreeCamModifier.IgnoreCollision", "Ignore Collision", b => ignoreCollision = b);
-
-        ui.AddSpacer(6);
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void RefreshUI()
-    {
-	    moveSpeedLIB.Input.Text = moveSpeed.ToString();
-	    upMoveSpeedLIB.Input.Text = upMoveSpeed.ToString();
-	    boostMultiplierLIB.Input.Text = boostMultiplier.ToString();
-	    lockDistanceLIB.Input.Text = lockDistance.ToString();
-
-	    infiniteDistanceToggle.isOn = infiniteDistance;
-	    ignoreCollisionToggle.isOn = ignoreCollision;
-    }
-
     public override string Name => "Free Cam Modifier";
     public override string Description => "";
-    public override HacksTab HacksTab => Plugin.ClientHacksTab;
+    public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
 
+    [ModSetting(Order = 10)]
     public static float moveSpeed = 5f;
-    public static float upMoveSpeed = 5f;
-    public static float boostMultiplier = 3f;
-    public static float lockDistance = 10f;
-    public static bool infiniteDistance;
-    public static bool ignoreCollision;
     
-    private HacksUIHelper.LIBTrio moveSpeedLIB;
-    private HacksUIHelper.LIBTrio upMoveSpeedLIB;
-    private HacksUIHelper.LIBTrio boostMultiplierLIB;
-    private HacksUIHelper.LIBTrio lockDistanceLIB;
-	private Toggle infiniteDistanceToggle;
-	private Toggle ignoreCollisionToggle;
+    [ModSetting(Order = 20)]
+    public static float upMoveSpeed = 5f;
+    
+    [ModSetting(Order = 30)]
+    public static float boostMultiplier = 3f;
+    
+    [ModSetting(Order = 40, Min = 0)]
+    public static float lockDistance = 10f;
+    
+    [ModSetting(Order = 50)]
+    public static bool infiniteDistance;
+    
+    [ModSetting(Order = 60)]
+    public static bool ignoreCollision;
+
+    protected override void OnStaticInit()
+    {
+        new Harmony("lstwo.lstwoMODS_WobblyLife.FreeCamModifier").PatchAll(typeof(Patches));
+    }
     
     public class Patches
     {

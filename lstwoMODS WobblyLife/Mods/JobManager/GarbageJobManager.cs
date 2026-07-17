@@ -1,72 +1,58 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class GarbageJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private InputFieldRef moneyPerBagInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<GarbageJobMission> reflect;
+    private Ref<int> moneyEarned = new(0);
+    private Ref<int> moneyPerBag = new(5);
 
     public override Type missionType => typeof(GarbageJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<GarbageJobMission, int>("setMoneyEarned", "Set Money Earned", "Money", (m, v) => m.moneyEarnt = v);
+        RegisterJobAction<GarbageJobMission, int>("setMoneyPerBag", "Set Money per Bag", "Money", (m, v) => m.moneyPerBagDisposed = v);
+    }
 
-        var title = ui.CreateLabel("Garbage Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        var moneyLIB = ui.CreateLIBTrio("Set Money Earned", "moneyLIB", "0");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoneyEarned(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+            new HStack("money-earned",
+                new DragInt("##Money Earned").WithValue(moneyEarned),
+                WithMacroMenu(new Button("Set Money Earned", () => SetMoneyEarned(moneyEarned.Value)).WithContentWidth(), "setMoneyEarned", "Set Money Earned")
+            ).WithContentWidth(),
 
-        objects.Add(ui.AddSpacer(5));
-            
-        var moneyPerBagLIB = ui.CreateLIBTrio("Set Money Per Bag", "moneyPerBagLIB", "5");
-        moneyPerBagLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyPerBagLIB.Button.OnClick = () => SetMoneyPerBag(int.Parse(moneyPerBagLIB.Input.Text));
-        objects.Add(moneyPerBagLIB.Root);
+            new HStack("money-per-bag",
+                new DragInt("##Money Per Bag").WithValue(moneyPerBag),
+                WithMacroMenu(new Button("Set", () => SetMoneyPerBag(moneyPerBag.Value)).WithContentWidth(), "setMoneyPerBag", "Set Money per Bag")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
         {
-            reflect = new((GarbageJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("moneyEarnt")).ToString();
-            moneyPerBagInput.Text = ((int)reflect.GetField("moneyPerBagDisposed")).ToString();
+            var m = (GarbageJobMission)Mission;
+            moneyEarned.Value = (int)m.moneyEarnt;
+            moneyPerBag.Value = (int)m.moneyPerBagDisposed;
         }
     }
 
     public void SetMoneyEarned(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyBagReward", money);
-        }
+            ((GarbageJobMission)Mission).moneyEarnt = money;
     }
 
     public void SetMoneyPerBag(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerBagDisposed", money);
-        }
+            ((GarbageJobMission)Mission).moneyPerBagDisposed = money;
     }
 }

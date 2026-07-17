@@ -1,11 +1,20 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace lstwoMODS_WobblyLife.Hacks.ESP;
+namespace lstwoMODS_WobblyLife.Mods.ESP;
 
 public class ESPManager : MonoBehaviour
 {
-    public static ESPManager Instance { get; private set; }
+    public static ESPManager Instance
+    {
+        get
+        {
+            if (field != null) return field;
+            
+            field = new GameObject("ESP Behavior").AddComponent<ESPManager>();
+            return field;
+        }
+    }
     
     public static bool draw = true;
     
@@ -31,6 +40,8 @@ public class ESPManager : MonoBehaviour
 
     public static void Refresh()
     {
+        _ = Instance;
+        
         if (!Camera.main?.GetComponent<ESPDrawer>())
         {
             Camera.main?.gameObject.AddComponent<ESPDrawer>();
@@ -40,10 +51,5 @@ public class ESPManager : MonoBehaviour
         {
             tracker.RefreshCache();
         }
-    }
-    
-    private void Awake()
-    {
-        Instance = this;
     }
 }

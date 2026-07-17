@@ -1,87 +1,91 @@
-﻿using HarmonyLib;
 using System;
-using TMPro;
-using UnityEngine;
-using UnityEngine.UI;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
+using HarmonyLib;
+using HawkNetworking;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
+using lstwoMODS_Core.UI.TabMenus;
+using UnityEngine.SceneManagement;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class BuyUnlimitedHouses : BaseHack
+public class BuyUnlimitedHouses : BaseMod
 {
-    public static bool enabled = false;
-
     public override string Name => "Buy Unlimited Houses";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
 
-    public override HacksTab HacksTab => Plugin.ClientHacksTab;
+    [ModSetting]
+    public static readonly Ref<bool> Enabled = new();
 
-    public override void ConstructUI(GameObject root)
+    protected override void OnStaticInit()
     {
-        new Harmony("lstwo.NotAzza.BuyUnlimitedHouses").PatchAll(typeof(Patches));
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.BuyUnlimitedHouses.EnableBuyUnlimitedHouses", "Enable Unlimited Houses (Only for you)", (b) => enabled = b);
-
-        ui.AddSpacer(6);
-    }
-
-    public override void RefreshUI()
-    {
-    }
-
-    public override void Update()
-    {
+        new Harmony("lstwo.lstwoMODS_WobblyLife.BuyUnlimitedHouses").PatchAll(typeof(Patches));
     }
 
     public static class Patches
     {
-        [HarmonyPatch(typeof(UIPlayerBasedHouseBuyHouse), "Show", new Type[] { typeof(BuyHouseSign) })]
+        [HarmonyPatch(typeof(UIPlayerBasedHouseBuyHouse), "TryPurchaseHouse_Internal")]
         [HarmonyPrefix]
-        public static bool Show(ref UIPlayerBasedHouseBuyHouse __instance, ref BuyHouseSign houseSign)
+        public static bool TryPurchaseHouse_Internal_Prefix(UIPlayerBasedHouseBuyHouse __instance)
         {
-            var r = new QuickReflection<UIPlayerBasedHouseBuyHouse>(__instance, Plugin.Flags);
+            if (!Enabled.Value) return true;
 
-            r.SetField("houseSign", houseSign);
-            __instance.Show();
-            BuyableHouse buyableHouse = houseSign.GetBuyableHouse();
-            if (!buyableHouse)
+            if (!__instance.playerController || !__instance.houseSign) return false;
+
+            var buyableHouse = __instance.houseSign.GetBuyableHouse();
+            if (!buyableHouse) return false;
+
+            var unlocker = __instance.playerController.GetPlayerControllerUnlocker();
+            if (!unlocker) return false;
+
+            if (unlocker.IsHouseUnlocked(buyableHouse)) return false;
+
+            var money = __instance.playerController.GetPlayerControllerEmployment()?.GetLocalMoney() ?? 0;
+
+            if (!buyableHouse.IsEnoughMoney(money))
             {
+                if (__instance.playerBasedUI)
+                    __instance.playerBasedUI.GetUIPromptCanvas().ShowPrompt_NotEnoughMoney();
                 return false;
             }
-            int num = 0;
-            if (__instance.GetPlayerController())
+
+            __instance.houseSign.Buy(__instance.playerController);
+
+            if (__instance.buyButton)
+                __instance.buyButton.interactable = false;
+
+            return false;
+        }
+
+        [HarmonyPatch(typeof(PlayerControllerUnlocker), nameof(PlayerControllerUnlocker.UnlockHouse), typeof(Scene), typeof(Guid))] [HarmonyPrefix]
+        public static bool UnlockHouse_Prefix(PlayerControllerUnlocker __instance, Scene scene, Guid houseGUID,
+            ref bool __result)
+        {
+            if (!Enabled.Value) return true;
+
+            if (!__instance.playerController)
             {
-                PlayerControllerEmployment playerControllerEmployment = __instance.GetPlayerController().GetPlayerControllerEmployment();
-                if (playerControllerEmployment)
-                {
-                    num = playerControllerEmployment.GetLocalMoney();
-                }
+                __result = false;
+                return false;
             }
-            PlayerControllerUnlocker playerControllerUnlocker = __instance.GetPlayerController().GetPlayerControllerUnlocker();
-            bool flag = playerControllerUnlocker && playerControllerUnlocker.IsHouseUnlocked(buyableHouse);
-            bool flag2 = playerControllerUnlocker && playerControllerUnlocker.GetHousesUnlockedCount() >= 1 && !enabled;
-            if ((Button)r.GetField("buyButton"))
+
+            var flag = false;
+            var data = __instance.playerController.GetPlayerPersistentData();
+            if (data != null)
+                flag = data.HousesData.AddHouse(scene, houseGUID);
+
+            if (flag)
             {
-                ((Button)r.GetField("buyButton")).interactable = buyableHouse && buyableHouse.IsEnoughMoney(num) && !flag && !flag2;
+                __instance.OnHouseUnlocked(scene, houseGUID);
+                if (__instance.networkObject.IsOwner())
+                    __instance.networkObject.SendRPC(__instance.RPC_SERVER_HOUSE_UNLOCK, RPCRecievers.Server, houseGUID);
             }
-            if ((Button)r.GetField("cancelButton"))
-            {
-                ((Button)r.GetField("cancelButton")).interactable = true;
-            }
-            if ((TextMeshProUGUI)r.GetField("moneyText"))
-            {
-                ((TextMeshProUGUI)r.GetField("moneyText")).text = "$" + buyableHouse.GetHousePrice().ToString();
-            }
-            if ((Button)r.GetField("sellButton"))
-            {
-                ((Button)r.GetField("sellButton")).interactable = flag;
-            }
+
+            if (flag && __instance.networkObject.IsServer() && !__instance.networkObject.IsOwner())
+                __instance.networkObject.SendRPC(__instance.RPC_CLIENT_HOUSE_UNLOCK, RPCRecievers.Owner, houseGUID);
+
+            __result = flag;
             return false;
         }
     }

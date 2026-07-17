@@ -1,194 +1,178 @@
-﻿using lstwoMODS_WobblyLife.UI.TabMenus;
-using System;
-using System.Linq;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib.UI;
-using UniverseLib.UI.Models;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
+﻿using System.Linq;
+using HarmonyLib;
+using HawkNetworking;
 using lstwoMODS_Core.Hacks;
-using UnityEngine.Rendering.PostProcessing;
-using UnityExplorer.UI;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
+using lstwoMODS_Core.UI.TabMenus;
+using UnityEngine;
 using UnityExplorer;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class WeatherEditor : BaseHack
+public class WeatherEditor : BaseMod
 {
     public override string Name => "Weather Editor";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ServerModsWindow;
 
-    public override HacksTab HacksTab => Plugin.ServerHacksTab;
-
-    private HacksUIHelper.LDBTrio setWeatherLDB;
     private WeatherData[] weatherDatas;
+    private Ref<string[]> weatherComboItems = new();
+    private Ref<int> weatherComboSelection = new();
 
-    private InputFieldRef weatherTitleInput;
-    private InputFieldRef fogDistanceInput;
-    private InputFieldRef pickWeightInput;
-    private Dropdown rainStateDropdown;
-    private InputFieldRef transitionTimeInput;
-    private Toggle isStormToggle;
+    private Ref<string> weatherTitleInput = new("");
+    private Ref<float> fogDistanceInput = new();
+    private Ref<float> pickWeightInput = new();
+    private Ref<float> transitionTimeInput = new();
+    private Ref<bool> isStormToggle = new();
 
-    private InputFieldRef minLightingStrikeFrequency;
-    private InputFieldRef maxLightingStrikeFrequency;
-    private InputFieldRef minLightingSkyFrequency;
-    private InputFieldRef maxLightingSkyFrequency;
-    private InputFieldRef chanceToGetHit;
+    private Ref<string[]> rainStates = new();
+    private Ref<int> rainStateDropdown = new();
+
+    private Ref<Vector2> lightningStrikeFrequency = new();
+    private Ref<Vector2> lightningSkyFrequency = new();
+    private Ref<float> chanceToGetHit = new();
+    
+    private static Ref<bool> lockWeather = new();
+
+    private Ref<float> minWeatherTimeInput = new();
+    private Ref<float> maxWeatherTimeInput = new();
 
     private WeatherData customWeather;
 
-    public override void ConstructUI(GameObject root)
+    protected override void OnStaticInit()
     {
-        var ui = new HacksUIHelper(root);
+        base.OnStaticInit();
+        
+        new Harmony(Id).PatchAll(typeof(Patches));
+    }
 
-        ui.AddSpacer(6);
-
-        setWeatherLDB = ui.CreateLDBTrio("Set Current Weather", "lstwo.WeatherEditor.SetWeather", "- Select Weather -", onValueChanged: (index) =>
-        {
-            var data = weatherDatas[index];
-
-            RefreshInputs(data);
-        });
-
-        setWeatherLDB.Button.OnClick = () =>
-        {
-            if (setWeatherLDB.Dropdown.value >= weatherDatas.Length) return;
-
-            WeatherSystem.Instance.SetWeather(weatherDatas[setWeatherLDB.Dropdown.value]);
-        };
-
-        ui.AddSpacer(6);
-
-        ui.CreateLabel("<b>Create new Weather!</b>");
-
-        ui.CreateLabel("<b>Base Weather Information</b>");
-
-        weatherTitleInput = ui.CreateLIDuo("Weather Title", "lstwo.WeatherEditor.Title", "lstwo.WeatherEditor.TitleInput", "Weather Title").Input;
-
-        ui.AddSpacer(6);
-
-        pickWeightInput = ui.CreateLIDuo("Pick Chance", "lstwo.WeatherEditor.PickChance", "lstwo.WeatherEditor.PickChanceInput", "0 (0%) - 1 (100%)").Input;
-        pickWeightInput.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-        ui.AddSpacer(6);
-
-        transitionTimeInput = ui.CreateLIDuo("Transition Time", "lstwo.WeatherEditor.transitionTimeInput", "lstwo.WeatherEditor.TransitionTimeInput", "e.g. 1").Input;
-
-        ui.AddSpacer(6);
-
-        fogDistanceInput = ui.CreateLIDuo("Fog Distance", "lstwo.WeatherEditor.FogDistance", "lstwo.WeatherEditor.FogDistanceInput", "Fog Distance").Input;
-        fogDistanceInput.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-        ui.AddSpacer(6);
-
-        ui.CreateLabel("<b>Rain Information</b>");
-
-        var rainStateGroup = ui.CreateHorizontalGroup("rainStateGroup", true, true, true, true);
-
-        UIFactory.SetLayoutElement(UIFactory.CreateLabel(rainStateGroup, "label", " Rain Intensity").gameObject, 256, 32, 0, 0);
-
-        UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", rainStateGroup), 32, 32);
-
-        var rainStateDropdownObj = UIFactory.CreateDropdown(rainStateGroup, "lstwo.WeatherEditor.RainStateDropdown", out rainStateDropdown, "", 16, null, Enum.GetNames(typeof(WeatherIntensity)));
-        rainStateDropdown.image.sprite = HacksUIHelper.RoundedRect;
-        UIFactory.SetLayoutElement(rainStateDropdownObj, 256, 32, 0, 0);
-
-        ui.AddSpacer(6);
-
-        isStormToggle = ui.CreateToggle("isStormToggle", "Is Storm", (b) => { });
-
-        ui.AddSpacer(6);
-
-        ui.CreateLabel("<b>Thunder Information</b>");
-
-        ConstructThunderDataUI(root);
-
-        ui.AddSpacer(6);
-
-        var group = ui.CreateHorizontalGroup("applyGroup", true, true, true, true);
-
-        var setCustomWeatherButton = UIFactory.CreateButton(group, "lstwo.WeatherEditor.SetWeather", "Set Weather", HacksUIHelper.ButtonColor);
-        UIFactory.SetLayoutElement(setCustomWeatherButton.GameObject, 256, 32, 0, 0);
-        setCustomWeatherButton.Component.image = setCustomWeatherButton.GameObject.GetComponent<Image>();
-        setCustomWeatherButton.Component.image.sprite = HacksUIHelper.RoundedRect;
-        setCustomWeatherButton.OnClick = () =>
-        {
-            if (customWeather == null)
+    public override Container BuildPanel(string id)
+    {
+        return new Container(id,
+            
+            new SeparatorText("Change Weather", "Change Weather"),
+            
+            new Combo("Select Weather", [], 0, index =>
             {
-                customWeather = MakeWeatherData();
-                customWeather.data.title = "Custom";
-                AddNewWeather(customWeather);
-                RefreshWeatherDatas();
-            }
-
-            else
+                if (index >= weatherDatas.Length) return;
+                
+                var data = weatherDatas[index];
+                RefreshInputs(data);
+                
+            }).WithItems(weatherComboItems).WithSelectedIndex(weatherComboSelection),
+            
+            new Button("Change Weather", () =>
             {
-                weatherTitleInput.Text = "Custom";
-                customWeather = SetWeather(weatherDatas.ToList().IndexOf(customWeather));
-                RefreshWeatherDatas();
-            }
+                if (weatherComboSelection.Value >= weatherDatas.Length) return;
+                WeatherSystem.Instance.SetWeather(weatherDatas[weatherComboSelection.Value]);
+                
+            }).WithContentWidth(),
+            
+            new Checkbox("Lock Weather").WithValue(lockWeather),
 
-            WeatherSystem.Instance.SetWeather(customWeather);
-        };
+            new TreeNode("Weather Change Speed", "Weather Change Speed",
 
-        UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", group), 32);
+                new DragFloat("Min Seconds Between Changes", 240, 1, 1, float.MaxValue, onValueChanged: SetMinWeatherTime)
+                    .WithTooltip("Shortest time a weather can last before the game randomly picks a new one (server only).")
+                    .WithValue(minWeatherTimeInput),
+                new DragFloat("Max Seconds Between Changes", 600, 1, 1, float.MaxValue, onValueChanged: SetMaxWeatherTime)
+                    .WithTooltip("Longest time a weather can last before the game randomly picks a new one (server only).")
+                    .WithValue(maxWeatherTimeInput)
+            ),
 
-        var addCustomWeatherButton = UIFactory.CreateButton(group, "lstwo.WeatherEditor.AddToList", "Add Weather to List", HacksUIHelper.ButtonColor);
-        UIFactory.SetLayoutElement(addCustomWeatherButton.GameObject, 256, 32, 0, 0);
-        addCustomWeatherButton.Component.image = addCustomWeatherButton.GameObject.GetComponent<Image>();
-        addCustomWeatherButton.Component.image.sprite = HacksUIHelper.RoundedRect;
-        addCustomWeatherButton.OnClick = () =>
-        {
-            AddNewWeather(MakeWeatherData());
-            RefreshWeatherDatas();
-            RefreshDropdownValues();
-        };
+            new SeparatorText("Edit / Create Weather", "Edit / Create Weather"),
+            new TreeNode("Base Weather Info", "Base Weather Info",
+                
+                new InputText("Weather Title").WithValue(weatherTitleInput),
+                new DragFloat("Pick Chance", 0, 0.001f, 0, 1, "%.4f").WithValue(pickWeightInput),
+                new DragFloat("Transition Time", 0, 0.01f, 1).WithValue(transitionTimeInput),
+                new DragFloat("Fog Distance", 0, .1f).WithValue(fogDistanceInput)
+            ),
+            
+            new TreeNode("Rain Info", "Rain Info",
+                
+                new Combo("Rain State", []).WithItems(rainStates).WithSelectedIndex(rainStateDropdown),
+                new Checkbox("Is Storm?").WithValue(isStormToggle)
+            ),
+            
+            new TreeNode("Thunder Info (may be broken)", "Thunder Info (may be broken)",
+                
+                new DragFloat2("Lightning Strike Frequency", default, 0.01f, 0, float.MaxValue).WithTooltip("Min / max seconds in between lightning strikes.").WithValue(lightningStrikeFrequency),
+                new DragFloat2("Lightning Sky Frequency", default, 0.01f, 0, float.MaxValue).WithTooltip("Min / max seconds in between lightning strikes in the sky.").WithValue(lightningSkyFrequency),
+                new DragFloat("Chance to Get Hit", 0, .001f, 0, 1).WithValue(chanceToGetHit)
+            ),
+            
+            new HStack("Apply Buttons",
+                
+                new Button("Apply Custom Weather", () =>
+                {
+                    if (customWeather == null)
+                    {
+                        customWeather = MakeWeatherData();
+                        customWeather.data.title = "Custom";
+                        AddNewWeather(customWeather);
+                    }
+                    else
+                    {
+                        weatherTitleInput.Value = "Custom";
+                        customWeather = SetWeather(weatherDatas.ToList().IndexOf(customWeather));
+                    }
 
-        UIFactory.SetLayoutElement(UIFactory.CreateUIObject("spacer", group), 32);
+                    RefreshWeatherDatas();
 
-        var overrideSelectedWeatherButton = UIFactory.CreateButton(group, "lstwo.WeatherEditor.Override", "Override Selected Weather", HacksUIHelper.ButtonColor);
-        UIFactory.SetLayoutElement(overrideSelectedWeatherButton.GameObject, 256, 32, 0, 0);
-        overrideSelectedWeatherButton.Component.image = overrideSelectedWeatherButton.GameObject.GetComponent<Image>();
-        overrideSelectedWeatherButton.Component.image.sprite = HacksUIHelper.RoundedRect;
-        overrideSelectedWeatherButton.OnClick = () =>
-        {
-            SetWeather(setWeatherLDB.Dropdown.value);
-            RefreshWeatherDatas();
-            RefreshDropdownValues();
-        };
-
-        ui.AddSpacer(6);
-
-        ui.CreateButton("Inspect \"Weather System\" Component", () =>
-        {
-            if (WeatherSystem.InstanceExists)
+                    WeatherSystem.Instance.SetWeather(customWeather);
+                }),
+                
+                new Button("Add Weather to List", () =>
+                {
+                    AddNewWeather(MakeWeatherData());
+                    RefreshWeatherDatas();
+                }),
+                
+                new Button("Overwrite Selected Weather", () =>
+                {
+                    SetWeather(weatherComboSelection.Value);
+                    RefreshWeatherDatas();
+                })
+                
+            ).WithContentWidth(),
+            
+            new SeparatorText("Separator", ""),
+            
+            new Button("Inspect \"Weather System\" Component", () =>
             {
-                InspectorManager.Inspect(WeatherSystem.Instance);
-                UIManager.ShowMenu = true;
-            }
-        }, "lstwo.WeatherEditor.inspect", null, 256 * 3 + 32 * 2, 32);
+                if(WeatherSystem.InstanceExists)
+                {
+                    InspectorManager.Inspect(WeatherSystem.Instance);
+                    UnityExplorer.UI.UIManager.ShowMenu = true;
+                }
+                
+            }).WithContentWidth()
+        );
+    }
 
-        ui.AddSpacer(6);
+    [ModAction(Label = "Set Weather", Description = "Set the current weather to the chosen preset.", ShowInUI = false)]
+    public static void SetCurrentWeather(WeatherData weather)
+    {
+        if (weather != null && WeatherSystem.InstanceExists)
+            WeatherSystem.Instance.SetWeather(weather);
     }
 
     private WeatherData SetWeather(int index)
     {
         var datas = WeatherSystem.Instance.GetAllWeatherData();
         datas[index] = MakeWeatherData();
-        typeof(WeatherSystem).GetField("weatherDatas", Plugin.Flags).SetValue(WeatherSystem.Instance, datas);
+        WeatherSystem.Instance.weatherDatas = datas;
         return datas[index];
     }
 
     private void AddNewWeather(WeatherData data)
     {
         var datas = WeatherSystem.Instance.GetAllWeatherData();
-
         var newDatas = new WeatherData[datas.Length + 1];
 
-        for (int i = 0; i < datas.Length; i++)
+        for (var i = 0; i < datas.Length; i++)
         {
             if (i < datas.Length)
             {
@@ -198,30 +182,30 @@ public class WeatherEditor : BaseHack
 
         newDatas[datas.Length] = data;
 
-        typeof(WeatherSystem).GetField("weatherDatas", Plugin.Flags).SetValue(WeatherSystem.Instance, newDatas);
+        WeatherSystem.Instance.weatherDatas = newDatas;
     }
 
     private WeatherData MakeWeatherData()
     {
         var data = new WeatherData
         {
-            pickWeight = TryParseFloat(pickWeightInput.Text, 0),
+            pickWeight = pickWeightInput.Value,
             data = ScriptableObject.CreateInstance<WeatherDataScriptableObject>()
         };
 
-        data.data.title = weatherTitleInput.Text;
-        data.data.fogEndDistance = TryParseFloat(fogDistanceInput.Text, 200);
-        data.data.rainState = (WeatherIntensity)rainStateDropdown.value;
-        float transitionTime = TryParseFloat(transitionTimeInput.Text, 1);
-        data.data.transitionTime = transitionTime < 1 ? 1 : transitionTime;
-        data.data.bIsStorm = isStormToggle.isOn;
+        data.data.title = weatherTitleInput.Value;
+        data.data.fogEndDistance = fogDistanceInput.Value;
+        data.data.rainState = (WeatherIntensity)rainStateDropdown.Value;
+        var transitionTime = transitionTimeInput;
+        data.data.transitionTime = transitionTime.Value < 1 ? 1 : transitionTime.Value;
+        data.data.bIsStorm = isStormToggle.Value;
         data.data.thunderData = new ThunderData
         {
-            minLightingStrikeFrequency = TryParseFloat(minLightingStrikeFrequency.Text, 0),
-            maxLightingStrikeFrequency = TryParseFloat(maxLightingStrikeFrequency.Text, 0),
-            minLightingSkyFrequency = TryParseFloat(minLightingSkyFrequency.Text, 0),
-            maxLightingSkyFrequency = TryParseFloat(maxLightingSkyFrequency.Text, 0),
-            chanceToGetHit = TryParseFloat(chanceToGetHit.Text, 0),
+            minLightingStrikeFrequency = lightningStrikeFrequency.Value.x,
+            maxLightingStrikeFrequency = lightningStrikeFrequency.Value.y,
+            minLightingSkyFrequency = lightningSkyFrequency.Value.x,
+            maxLightingSkyFrequency = lightningSkyFrequency.Value.y,
+            chanceToGetHit = chanceToGetHit.Value,
             groundLightingParticles = GetGroundParticles()
         };
 
@@ -241,108 +225,107 @@ public class WeatherEditor : BaseHack
         return null;
     }
 
-    private float TryParseFloat(string text, float defaultValue)
-    {
-        try
-        {
-            return float.Parse(text);
-        }
-
-        catch
-        {
-            return defaultValue;
-        }
-    }
-
-    private void ConstructThunderDataUI(GameObject root)
-    {
-        var ui = new HacksUIHelper(root);
-
-        minLightingStrikeFrequency = ui.CreateLIDuo("Min. Lighting Strike Frequency", inputPlaceholder: "").Input;
-        minLightingStrikeFrequency.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-        ui.AddSpacer(6);
-
-        maxLightingStrikeFrequency = ui.CreateLIDuo("Max. Lighting Strike Frequency", inputPlaceholder: "").Input;
-        maxLightingStrikeFrequency.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-        ui.AddSpacer(6);
-
-        minLightingSkyFrequency = ui.CreateLIDuo("Min. Lighting Sky Frequency", inputPlaceholder: "").Input;
-        minLightingSkyFrequency.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-        ui.AddSpacer(6);
-
-        maxLightingSkyFrequency = ui.CreateLIDuo("Max. Lighting Sky Frequency", inputPlaceholder: "").Input;
-        maxLightingSkyFrequency.Component.characterValidation = InputField.CharacterValidation.Decimal;
-
-        ui.AddSpacer(6);
-
-        chanceToGetHit = ui.CreateLIDuo("Chance to Get Hit", inputPlaceholder: "e.g. 0.5 => 50%").Input;
-        chanceToGetHit.Component.characterValidation = InputField.CharacterValidation.Decimal;
-    }
-
     public override void RefreshUI()
     {
         RefreshWeatherDatas();
         RefreshDropdown();
 
-        var index = setWeatherLDB.Dropdown.value;
+        if (WeatherSystem.InstanceExists)
+        {
+            minWeatherTimeInput.Value = WeatherSystem.Instance.minWeatherTime;
+            maxWeatherTimeInput.Value = WeatherSystem.Instance.maxWeatherTime;
+        }
+
+        var index = weatherComboSelection.Value;
         var data = index < weatherDatas.Length && index != -1 ? weatherDatas[index] : null;
 
         RefreshInputs(data);
+    }
+
+    private void SetMinWeatherTime(float value)
+    {
+        if (!WeatherSystem.InstanceExists) return;
+        WeatherSystem.Instance.minWeatherTime = value;
+        ReRollWeatherExpire();
+    }
+
+    private void SetMaxWeatherTime(float value)
+    {
+        if (!WeatherSystem.InstanceExists) return;
+        WeatherSystem.Instance.maxWeatherTime = value;
+        ReRollWeatherExpire();
+    }
+
+    // Apply the new timing to the current weather period so the change is felt now instead of
+    // only from the next weather onwards. Harmless while locked: the Update prefix re-pins
+    // weatherExpire out of reach every frame, so the lock still holds.
+    private void ReRollWeatherExpire()
+    {
+        var ws = WeatherSystem.Instance;
+        var min = Mathf.Min(ws.minWeatherTime, ws.maxWeatherTime);
+        var max = Mathf.Max(ws.minWeatherTime, ws.maxWeatherTime);
+        ws.weatherExpire = Random.Range(min, max);
     }
 
     private void RefreshWeatherDatas()
     {
         if (!WeatherSystem.Instance)
         {
-            weatherDatas = new WeatherData[0];
+            weatherDatas = [];
+            weatherComboItems.Value = [];
             return;
         }
 
         weatherDatas = WeatherSystem.Instance.GetAllWeatherData();
-    }
-
-    private void RefreshDropdownValues()
-    {
-        setWeatherLDB.Dropdown.ClearOptions();
-        foreach (var weatherData in weatherDatas)
-        {
-            setWeatherLDB.Dropdown.options.Add(new(weatherData.data.title));
-        }
-        setWeatherLDB.Dropdown.RefreshShownValue();
+        weatherComboItems.Value = weatherDatas.Select(x => x.data.title).ToArray();
     }
 
     private void RefreshDropdown()
     {
-        RefreshDropdownValues();
-
         if (!WeatherSystem.InstanceExists) return;
 
-        setWeatherLDB.Dropdown.value = weatherDatas.ToList().IndexOf(WeatherSystem.Instance.GetCurrentWeatherData());
-        setWeatherLDB.Dropdown.RefreshShownValue();
+        weatherComboSelection.Value = weatherDatas.ToList().IndexOf(WeatherSystem.Instance.GetCurrentWeatherData());
     }
 
     private void RefreshInputs(WeatherData data)
     {
         if (data == null) return;
 
-        weatherTitleInput.Text = data.data.title;
-        fogDistanceInput.Text = "" + data.data.fogEndDistance;
-        transitionTimeInput.Text = "" + data.data.transitionTime;
+        weatherTitleInput.Value = data.data.title;
+        fogDistanceInput.Value = data.data.fogEndDistance;
+        transitionTimeInput.Value = data.data.transitionTime;
 
-        minLightingStrikeFrequency.Text = "" + data.data.thunderData.minLightingStrikeFrequency;
-        maxLightingStrikeFrequency.Text = "" + data.data.thunderData.maxLightingStrikeFrequency;
-        minLightingSkyFrequency.Text = "" + data.data.thunderData.minLightingSkyFrequency;
-        maxLightingSkyFrequency.Text = "" + data.data.thunderData.maxLightingSkyFrequency;
-        chanceToGetHit.Text = "" + data.data.thunderData.chanceToGetHit;
+        lightningStrikeFrequency.Value = new(data.data.thunderData.minLightingStrikeFrequency, data.data.thunderData.maxLightingStrikeFrequency);
+        lightningSkyFrequency.Value = new(data.data.thunderData.minLightingSkyFrequency, data.data.thunderData.maxLightingSkyFrequency);
+        chanceToGetHit.Value = data.data.thunderData.chanceToGetHit;
 
-        rainStateDropdown.value = (int)data.data.rainState;
-        isStormToggle.isOn = data.data.bIsStorm;
+        rainStateDropdown.Value = (int)data.data.rainState;
+        isStormToggle.Value = data.data.bIsStorm;
     }
 
-    public override void Update()
+    private static bool wasLocked;
+
+    public static class Patches
     {
+        // Let the game's own Update run (lerp, fog, thunder, networking all stay vanilla) and
+        // only neutralise the auto-transition: while locked, push weatherExpire out of reach so
+        // the server never rolls a new random weather. On unlock, restart the timer so the huge
+        // elapsed time that built up while locked doesn't instantly expire and swap the weather.
+        [HarmonyPatch(typeof(WeatherSystem), nameof(WeatherSystem.Update))]
+        [HarmonyPrefix]
+        public static void Prefix_WeatherSystem_Update(ref WeatherSystem __instance)
+        {
+            if (lockWeather.Value)
+            {
+                __instance.weatherExpire = float.MaxValue;
+                wasLocked = true;
+            }
+            else if (wasLocked)
+            {
+                wasLocked = false;
+                __instance.changedTime = HawkNetworkManager.DefaultInstance.GetTimestep();
+                __instance.weatherExpire = Random.Range(__instance.minWeatherTime, __instance.maxWeatherTime);
+            }
+        }
     }
 }

@@ -1,61 +1,46 @@
-﻿using HarmonyLib;
-using lstwoMODS_WobblyLife.UI.TabMenus;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
+using Object = UnityEngine.Object;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class MuseumManager : BaseHack
+public class MuseumManager : BaseMod
 {
-    private static bool forceFinishMuseum = false;
-
     public override string Name => "Museum Manager";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.SaveModsWindow;
 
-    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+    private static Ref<string[]> museumCollectionDropdownItems = new();
+    private static Ref<int> museumCollectionDropdownSelection = new();
+    
+    public static List<MissionMuseumCollectionData> MuseumCollections => MuseumMission?.collectionDatas?.ToList();
+    public static WorldMissionMuseum MuseumMission => Object.FindObjectOfType<WorldMissionMuseum>();
 
-    public override void ConstructUI(GameObject root)
+    public override Container BuildPanel(string id)
     {
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.MuseumManager.forceFinishMuseumToggle", "Force Finish all Museum Collections", (b) => forceFinishMuseum = b);
-
-        ui.AddSpacer(6);
+        return new Container(id,
+            
+            new SeparatorText("Museum Collection", "Museum Collection"),
+            new Combo("Collection", []).WithItems(museumCollectionDropdownItems).WithSelectedIndex(museumCollectionDropdownSelection),
+            new Button("Unlock All Artifacts", () => MuseumCollections[museumCollectionDropdownSelection.Value].Unlock(MuseumMission.museumData)).WithContentWidth(),
+            
+            new SeparatorText("All Collections", "All Collections"),
+            new Button("Finish All Collections", () => MuseumCollections.ForEach(x => x.Unlock(MuseumMission.museumData))).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-    }
-
-    public override void Update()
-    {
-    }
-
-    public class WorldMissionMuseumPatch
-    {
-        [HarmonyPatch(typeof(WorldMissionMuseum), "HasCompletedAllCollections")]
-        [HarmonyPrefix]
-        public static bool Prefix(ref bool __result)
+        if (MuseumMission == null)
         {
-            if (forceFinishMuseum)
-            {
-                __result = true;
-                return false;
-            }
-            else
-            {
-                return true;
-            }
+            museumCollectionDropdownItems.Value = [];
+            return;
         }
+        
+        museumCollectionDropdownItems.Value = MuseumCollections.Select(x => x.name).ToArray();
     }
 }

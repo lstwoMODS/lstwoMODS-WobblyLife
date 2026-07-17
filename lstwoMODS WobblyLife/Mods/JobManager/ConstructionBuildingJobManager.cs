@@ -1,90 +1,71 @@
-﻿using System;
+using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class ConstructionBuildingJobManager : BaseJobManager
 {
+    private Ref<int> money = new(0);
+    private Ref<int> moneyPerPiece = new(2);
+
     public override Type missionType => typeof(ConstructionBuildingJobMission);
 
-    private List<GameObject> objects = new List<GameObject>();
-    private QuickReflection<ConstructionBuildingJobMission> reflect;
-
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<ConstructionBuildingJobMission, int>("setMoney", "Set Job Money", "Money", (m, v) => m.money = v);
+        RegisterJobAction<ConstructionBuildingJobMission, int>("setMoneyPerPiece", "Set Money per Building Piece", "Money", (m, v) => m.moneyPerBuildingPiece = v);
+        RegisterJobAction<ConstructionBuildingJobMission>("spawnResources", "Spawn Resources", m => Plugin._StartCoroutine(m.ServerSpawnResources()));
+        RegisterJobAction<ConstructionBuildingJobMission>("spawnHammers", "Spawn Hammers", m => Plugin._StartCoroutine(m.ServerSpawnHammers()));
+    }
 
-        var title = ui.CreateLabel("Construction Building Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
-
-        var moneyLIB = ui.CreateLIBTrio("Set Current Job Money", "SetMoney", "0");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
-
-        objects.Add(ui.AddSpacer(12));
-
-        var spawnResourcesBtn = ui.CreateLBDuo("Spawn Resources", "SpawnResources", SpawnResources, "Spawn", "SpawnResourcesButton");
-        objects.Add(spawnResourcesBtn.Root);
-
-        objects.Add(ui.AddSpacer(6));
-
-        var spawnHammersBtn = ui.CreateLBDuo("Spawn Hammers", "SpawnHammers", SpawnHammers, "Spawn", "SpawnHammersButton");
-        objects.Add(spawnHammersBtn.Root);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        objects.Add(ui.AddSpacer(6));
-            
-        var moneyPerPieceLIB = ui.CreateLIBTrio("Set Current Job Money Per Building Piece", "moneyPerPieceLIB", "2");
-        moneyPerPieceLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyPerPieceLIB.Button.OnClick = () => SetMoneyPerBuildingPiece(int.Parse(moneyPerPieceLIB.Input.Text));
-        objects.Add(moneyPerPieceLIB.Root);
+            new HStack("money",
+                new DragInt("##Job Money").WithValue(money),
+                WithMacroMenu(new Button("Set Job Money", () => SetMoney(money.Value)).WithContentWidth(), "setMoney", "Set Job Money")
+            ).WithContentWidth(),
+
+            new HStack("money-per-piece",
+                new DragInt("##Money Per Building Piece").WithValue(moneyPerPiece),
+                WithMacroMenu(new Button("Set Money per Building Piece", () => SetMoneyPerBuildingPiece(moneyPerPiece.Value)).WithContentWidth(), "setMoneyPerPiece", "Set Money per Building Piece")
+            ).WithContentWidth(),
+
+            new HStack("spawns",
+                WithMacroMenu(new Button("Spawn Resources", SpawnResources), "spawnResources", "Spawn Resources"),
+                WithMacroMenu(new Button("Spawn Hammers", SpawnHammers), "spawnHammers", "Spawn Hammers")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
-        if (b)
-        {
-            reflect = new((ConstructionBuildingJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-        }
     }
 
     public void SpawnResources()
     {
         if (CheckMission())
-        {
-            Plugin._StartCoroutine((IEnumerator)reflect.GetMethod("ServerSpawnResources"));
-        }
+            Plugin._StartCoroutine(((ConstructionBuildingJobMission)Mission).ServerSpawnResources());
     }
 
     public void SpawnHammers()
     {
         if (CheckMission())
-        {
-            Plugin._StartCoroutine((IEnumerator)reflect.GetMethod("ServerSpawnHammers"));
-        }
+            Plugin._StartCoroutine(((ConstructionBuildingJobMission)Mission).ServerSpawnHammers());
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("money", money);
-        }
+            ((ConstructionBuildingJobMission)Mission).money = money;
     }
 
     public void SetMoneyPerBuildingPiece(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerBuildingPiece", money);
-        }
+            ((ConstructionBuildingJobMission)Mission).moneyPerBuildingPiece = money;
     }
 }

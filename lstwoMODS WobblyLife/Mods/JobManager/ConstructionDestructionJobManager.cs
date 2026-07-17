@@ -1,75 +1,58 @@
-﻿using System;
+using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class ConstructionDestructionJobManager : BaseJobManager
 {
+    private Ref<int> money = new(0);
+
     public override Type missionType => typeof(ConstructionDestructionJobMission);
 
-    private List<GameObject> objects = new List<GameObject>();
-    private QuickReflection<ConstructionDestructionJobMission> reflect;
-
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<ConstructionDestructionJobMission, int>("setMoney", "Set Job Money", "Money", (m, v) => m.money = v);
+        RegisterJobAction<ConstructionDestructionJobMission>("spawnTools", "Spawn Tools", m => Plugin._StartCoroutine(m.SpawnTools()));
+        RegisterJobAction<ConstructionDestructionJobMission>("destroyTools", "Destroy Tools", m => m.DestroyAllTools());
+    }
 
-        var title = ui.CreateLabel("Construction Destruction Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
+            
+            new HStack("money",
+                new DragInt("##Job Money").WithValue(money),
+                WithMacroMenu(new Button("Set Job Money", () => SetMoney(money.Value)).WithContentWidth(), "setMoney", "Set Job Money")
+            ).WithContentWidth(),
 
-        var moneyLIB = ui.CreateLIBTrio("Set Current Job Money", "moneyLIB", "0");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
-
-        objects.Add(ui.AddSpacer(10));
-
-        var spawnTools = ui.CreateLBDuo("Spawn Tools", "SpawnTools", SpawnTools, "Spawn", "SpawnToolsButton");
-        objects.Add(spawnTools.Root);
-
-        objects.Add(ui.AddSpacer(5));
-
-        var destroyTools = ui.CreateLBDuo("Destroy Tools", "DestroyTools", DestroyTools, "Destroy", "DestroyToolsButton");
-        objects.Add(destroyTools.Root);
+            new HStack("tools",
+                WithMacroMenu(new Button("Spawn Tools", SpawnTools), "spawnTools", "Spawn Tools"),
+                WithMacroMenu(new Button("Destroy Tools", DestroyTools), "destroyTools", "Destroy Tools")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
-        if (b)
-        {
-            reflect = new((ConstructionDestructionJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-        }
     }
 
     public void SpawnTools()
     {
         if (CheckMission())
-        {
-            Plugin._StartCoroutine((IEnumerator)reflect.GetMethod("SpawnTools"));
-        }
+            Plugin._StartCoroutine(((ConstructionDestructionJobMission)Mission).SpawnTools());
     }
 
     public void DestroyTools()
     {
         if (CheckMission())
-        {
-            reflect.GetMethod("DestroyAllTools");
-        }
+            ((ConstructionDestructionJobMission)Mission).DestroyAllTools();
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("money", money);
-        }
+            ((ConstructionDestructionJobMission)Mission).money = money;
     }
 }

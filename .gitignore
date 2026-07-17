@@ -176,6 +176,9 @@ DocProject/Help/*.hhp
 DocProject/Help/Html2
 DocProject/Help/html
 
+.claude
+CLAUDE.md
+
 # Click-Once directory
 publish/
 
@@ -251,7 +254,7 @@ orleans.codegen.cs
 # RIA/Silverlight projects
 Generated_Code/
 
-# Backup & report files from converting an old project file
+# Backup & report files from converting an old project file 
 # to a newer Visual Studio version. Backup files are not needed,
 # because we have git ;-)
 _UpgradeReport_Files/
@@ -396,3 +399,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Local absolute paths config (machine-specific, do not commit)
+paths.ps1
+/docs/

@@ -1,54 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using lstwoMODS_Core;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class WeatherResearcherJobManager : BaseJobManager
 {
-    private HacksUIHelper.LIBTrio moneyPerBalloon;
-    private List<GameObject> objects = new();
-    private QuickReflection<WeatherResearchJobMission> reflect;
+    private Ref<int> moneyPerBalloon = new(10);
 
     public override Type missionType => typeof(WeatherResearchJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<WeatherResearchJobMission, int>("setMoney", "Set Money per Balloon", "Money", (m, v) => m.moneyPerBalloon = v);
+    }
 
-        var title = ui.CreateLabel("Weather Researcher Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        moneyPerBalloon = ui.CreateLIBTrio("Set Money Per Balloon", "moneyPerDeliveredLIB", "10");
-        moneyPerBalloon.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyPerBalloon.Button.OnClick = () => SetMoney(int.Parse(moneyPerBalloon.Input.Text));
-        objects.Add(moneyPerBalloon.Root);
+            new HStack("money",
+                new DragInt("##Money Per Balloon").WithValue(moneyPerBalloon),
+                WithMacroMenu(new Button("Set Money per Balloon", () => SetMoney(moneyPerBalloon.Value)).WithContentWidth(), "setMoney", "Set Money per Balloon")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((WeatherResearchJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyPerBalloon.Input.Text = ((int)reflect.GetField("moneyPerBalloon")).ToString();
-        }
+            moneyPerBalloon.Value = (int)((WeatherResearchJobMission)Mission).moneyPerBalloon;
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerBalloon", money);
-        }
+            ((WeatherResearchJobMission)Mission).moneyPerBalloon = money;
     }
 }

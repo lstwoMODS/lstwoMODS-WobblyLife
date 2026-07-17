@@ -1,208 +1,241 @@
 using System.Collections.Generic;
 using System.Linq;
-using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib.Utility;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class WaterCustomizer : BaseHack
+public class WaterCustomizer : BaseMod
 {
-    public override void ConstructUI(GameObject root)
+    public override string Name => "Water Customizer";
+    public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
+
+    private static List<WaterMaterialOverride> waterMaterials = new();
+
+    [ModSetting(Order = 10)]
+    public bool OverrideWaterMaterials
     {
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.WaterCustomizer.OverrideWater", "Override Water Material", b =>
+        get;
+        set
         {
-            foreach (var materialOverride in waterMaterials)
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
             {
-                materialOverride.ShouldOverride = b;
-                materialOverride.RefreshOverride();
+                waterOverride.ShouldOverride = value;
+                waterOverride.RefreshOverride();
             }
-        });
-
-        ui.AddSpacer(12);
-
-        waterColorLIB = ui.CreateLIBTrio("Water Color", "lstwo.WaterCustomizer.WaterColor");
-        waterColorLIB.Button.OnClick = () =>
-        {
-            var hex = waterColorLIB.Input.Text;
-
-            if (!hex.StartsWith("#"))
-            {
-                hex = $"#{hex}";
-            }
-
-            if (!ColorUtility.TryParseHtmlString(hex, out var color))
-            {
-                return;
-            }
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.Color = color;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        foamColorLIB = ui.CreateLIBTrio("Water Foam Color", "lstwo.WaterCustomizer.FoamColor");
-        foamColorLIB.Button.OnClick = () =>
-        {
-            var hex = foamColorLIB.Input.Text;
-
-            if (!hex.StartsWith("#"))
-            {
-                hex = $"#{hex}";
-            }
-
-            if (!ColorUtility.TryParseHtmlString(hex, out var color))
-            {
-                return;
-            }
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.FoamColor = color;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        edgeColorLIB = ui.CreateLIBTrio("Water Edge Color", "lstwo.WaterCustomizer.EdgeColor");
-        edgeColorLIB.Button.OnClick = () =>
-        {
-            var hex = edgeColorLIB.Input.Text;
-
-            if (!hex.StartsWith("#"))
-            {
-                hex = $"#{hex}";
-            }
-
-            if (!ColorUtility.TryParseHtmlString(hex, out var color))
-            {
-                return;
-            }
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.EdgeColor = color;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        deepWaterColorLIB = ui.CreateLIBTrio("Deep Water Color", "lstwo.WaterCustomizer.DeepWaterColor");
-        deepWaterColorLIB.Button.OnClick = () =>
-        {
-            var hex = deepWaterColorLIB.Input.Text;
-
-            if (!hex.StartsWith("#"))
-            {
-                hex = $"#{hex}";
-            }
-
-            if (!ColorUtility.TryParseHtmlString(hex, out var color))
-            {
-                return;
-            }
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.DeepColor = color;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        foamDistanceLIB = ui.CreateLIBTrio("Foam Distance", "lstwo.WaterCustomizer.FoamDistance");
-        foamDistanceLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        foamDistanceLIB.Button.OnClick = () =>
-        {
-            var value = float.Parse(foamDistanceLIB.Input.Text);
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.FoamDistance = value;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        waveMovementLIB = ui.CreateLIBTrio("Wave Movement", "lstwo.WaterCustomizer.WaveMovement");
-        waveMovementLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        waveMovementLIB.Button.OnClick = () =>
-        {
-            var value = float.Parse(waveMovementLIB.Input.Text);
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.WaveMovement = value;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        noiseCutoffLIB = 
-            ui.CreateLIBTrio("Water Surface Noise Cutoff", "lstwo.WaterCustomizer.WaterSurfaceNoiseCutoff");
-        noiseCutoffLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        noiseCutoffLIB.Button.OnClick = () =>
-        {
-            var value = float.Parse(noiseCutoffLIB.Input.Text);
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.NoiseCutoff = value;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        depthLIB = ui.CreateLIBTrio("Water Depth", "lstwo.WaterCustomizer.WaterDepth");
-        depthLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        depthLIB.Button.OnClick = () =>
-        {
-            var value = float.Parse(depthLIB.Input.Text);
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.WaterDepth = value;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
-
-        deepDepthLIB = ui.CreateLIBTrio("Water Deep Depth", "lstwo.WaterCustomizer.WaterDeepDepth");
-        deepDepthLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        deepDepthLIB.Button.OnClick = () =>
-        {
-            var value = float.Parse(deepDepthLIB.Input.Text);
-
-            foreach (var materialOverride in waterMaterials)
-            {
-                materialOverride.OverrideValues.WaterDeepDepth = value;
-                materialOverride.RefreshOverride();
-            }
-        };
-
-        ui.AddSpacer(6);
+        }
     }
 
-    public override void Update()
+    [ModSetting(Order = 20)]
+    public Color WaterColor
     {
+        get;
+        set
+        {
+            field = value;
+            
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.Color = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Order = 30)]
+    public Color FoamColor
+    {
+        get;
+        set
+        {
+            field = value;
+            
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.FoamColor = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Order = 40)]
+    public Color EdgeColor
+    {
+        get;
+        set
+        {
+            field = value;
+            
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.EdgeColor = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Order = 50)]
+    public Color DeepWaterColor
+    {
+        get;
+        set
+        {
+            field = value;
+            
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.DeepColor = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 60)]
+    public float FoamDistance
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.FoamDistance = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 70)]
+    public float WaveMovement
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.WaveMovement = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 80)]
+    public float NoiseCutoff
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.NoiseCutoff = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 90)]
+    public float WaterDepth
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.WaterDepth = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 100)]
+    public float WaterDeepDepth
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.WaterDeepDepth = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 110)]
+    public float ReflectionMultiplier
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.ReflectionMultiplier = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 120)]
+    public float ReflectionNoiseScale
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.ReflectionNoiseScale = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 130)]
+    public float ReflectionNoisePan
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.ReflectionNoisePan = value;
+                waterOverride.RefreshOverride();
+            }
+        }
+    }
+
+    [ModSetting(Speed = 0.05f, Order = 140)]
+    public float ReflectionNoiseStrength
+    {
+        get;
+        set
+        {
+            field = value;
+
+            foreach (var waterOverride in waterMaterials)
+            {
+                waterOverride.OverrideValues.ReflectionNoiseStrength = value;
+                waterOverride.RefreshOverride();
+            }
+        }
     }
 
     public override void RefreshUI()
@@ -222,35 +255,31 @@ public class WaterCustomizer : BaseHack
             }
         }
 
+        if (waterMaterials.Count == 0)
+        {
+            base.RefreshUI();
+            return;
+        }
+
         var waterMaterial = waterMaterials[0];
 
-        waterColorLIB.Input.Text = waterMaterial.OverrideValues.Color.ToHex();
-        foamColorLIB.Input.Text = waterMaterial.OverrideValues.FoamColor.ToHex();
-        edgeColorLIB.Input.Text = waterMaterial.OverrideValues.EdgeColor.ToHex();
-        deepWaterColorLIB.Input.Text = waterMaterial.OverrideValues.DeepColor.ToHex();
-        foamDistanceLIB.Input.Text = waterMaterial.OverrideValues.FoamDistance.ToString();
-        waveMovementLIB.Input.Text = waterMaterial.OverrideValues.WaveMovement.ToString();
-        noiseCutoffLIB.Input.Text = waterMaterial.OverrideValues.NoiseCutoff.ToString();
-        depthLIB.Input.Text = waterMaterial.OverrideValues.WaterDepth.ToString();
-        deepDepthLIB.Input.Text = waterMaterial.OverrideValues.WaterDeepDepth.ToString();
+        WaterColor = waterMaterial.OverrideValues.Color;
+        FoamColor = waterMaterial.OverrideValues.FoamColor;
+        EdgeColor = waterMaterial.OverrideValues.EdgeColor;
+        DeepWaterColor = waterMaterial.OverrideValues.DeepColor;
+        FoamDistance = waterMaterial.OverrideValues.FoamDistance;
+        WaveMovement = waterMaterial.OverrideValues.WaveMovement;
+        NoiseCutoff = waterMaterial.OverrideValues.NoiseCutoff;
+        WaterDepth = waterMaterial.OverrideValues.WaterDepth;
+        WaterDeepDepth = waterMaterial.OverrideValues.WaterDeepDepth;
+        ReflectionMultiplier = waterMaterial.OverrideValues.ReflectionMultiplier;
+        ReflectionNoiseScale = waterMaterial.OverrideValues.ReflectionNoiseScale;
+        ReflectionNoisePan = waterMaterial.OverrideValues.ReflectionNoisePan;
+        ReflectionNoiseStrength = waterMaterial.OverrideValues.ReflectionNoiseStrength;
+        
+        base.RefreshUI();
     }
-
-    public override string Name => "Water Customizer";
-    public override string Description => "";
-    public override HacksTab HacksTab => Plugin.ClientHacksTab;
-
-    private static List<WaterMaterialOverride> waterMaterials = new();
-
-    private HacksUIHelper.LIBTrio waterColorLIB;
-    private HacksUIHelper.LIBTrio foamColorLIB;
-    private HacksUIHelper.LIBTrio edgeColorLIB;
-    private HacksUIHelper.LIBTrio deepWaterColorLIB;
-    private HacksUIHelper.LIBTrio foamDistanceLIB;
-    private HacksUIHelper.LIBTrio waveMovementLIB;
-    private HacksUIHelper.LIBTrio noiseCutoffLIB;
-    private HacksUIHelper.LIBTrio depthLIB;
-    private HacksUIHelper.LIBTrio deepDepthLIB;
-
+    
     private class WaterMaterialOverride
     {
         public Material Material;
@@ -296,6 +325,10 @@ public class WaterCustomizer : BaseHack
         public float NoiseCutoff;
         public float WaterDepth;
         public float WaterDeepDepth;
+        public float ReflectionMultiplier;
+        public float ReflectionNoiseScale;
+        public float ReflectionNoisePan;
+        public float ReflectionNoiseStrength;
 
         public WaterMaterialValues(Material material)
         {
@@ -308,6 +341,10 @@ public class WaterCustomizer : BaseHack
             NoiseCutoff = material.GetFloat("_SurfaceNoiseCutoff");
             WaterDepth = material.GetFloat("_WaterDepth");
             WaterDeepDepth = material.GetFloat("_WaterDeepDepth");
+            ReflectionMultiplier = material.GetFloat("_ReflectionMul");
+            ReflectionNoiseScale = material.GetFloat("_ReflectionNoiseScale");
+            ReflectionNoisePan = material.GetFloat("_ReflectionNoisePan");
+            ReflectionNoiseStrength = material.GetFloat("_ReflectionNoiseStrength");
         }
 
         public void ApplyValues(Material material)
@@ -321,6 +358,10 @@ public class WaterCustomizer : BaseHack
             material.SetFloat("_SurfaceNoiseCutoff", NoiseCutoff);
             material.SetFloat("_WaterDepth", WaterDepth);
             material.SetFloat("_WaterDeepDepth", WaterDeepDepth);
+            material.SetFloat("_ReflectionMul", ReflectionMultiplier);
+            material.SetFloat("_ReflectionNoiseScale", ReflectionNoiseScale);
+            material.SetFloat("_ReflectionNoisePan", ReflectionNoisePan);
+            material.SetFloat("_ReflectionNoiseStrength", ReflectionNoiseStrength);
         }
     }
 }

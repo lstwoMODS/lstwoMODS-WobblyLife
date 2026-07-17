@@ -1,95 +1,50 @@
-﻿using IngameDebugConsole;
-using lstwoMODS_WobblyLife.UI.TabMenus;
+﻿using lstwoMODS_WobblyLife.UI.TabMenus;
 using System;
-using System.Collections.Generic;
-using ImGuiNET;
-using UnityEngine;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
-using lstwoMODS_Core.Hacks.ModActions;
+using lstwoMODS_Core.UI.TabMenus;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
 internal class PresentUnlocker : BaseMod
 {
     public override string Name => "Present Manager";
     public override string Description => "Manages your Presents.";
-    public override ModsTab ModsTab => Plugin.SaveModsTab;
+    public override ModsWindow ModsWindow => Plugin.SaveModsWindow;
 
-    private bool showPresentsOnMap;
-
-    [ModAction(Name = "Unlock All Presents")]
-    public static void UnlockAll()
+    [ModAction(Order = 10)]
+    public static void UnlockAllPresents()
     {
-        var Player = new PlayerRef();
-        Player.SetPlayerController(GameInstance.Instance.GetFirstLocalPlayerController());
+        var player = new PlayerRef();
+        player.SetPlayerController(GameInstance.Instance.GetFirstLocalPlayerController());
 
-        if (Player == null) return;
-        if (!Player.Controller.networkObject.IsOwner()) return;
+        if (player.Controller == null || !player.Controller.networkObject.IsOwner() || !PresentManager.InstanceExists) return;
 
-        foreach (string gUID in (List<string>)typeof(PresentManager).GetField("presentsGUIDs", Plugin.Flags)
-                     .GetValue(PresentManager.Instance))
+        foreach (var guid in PresentManager.Instance.presentsGUIDs)
         {
-            Player.Controller.GetPlayerPersistentData().MiscData.UnlockPresent(Guid.Parse(gUID));
+            player.Controller.GetPlayerPersistentData().MiscData.UnlockPresent(Guid.Parse(guid));
         }
 
-        Player.ControllerUnlocker.ShowCounter(PromptCounterType.Present);
-        typeof(PlayerControllerUnlocker).GetMethod("OnPresentUnlockedChanged", Plugin.Flags)
-            .Invoke(Player.ControllerUnlocker, null);
+        player.ControllerUnlocker.ShowCounter(PromptCounterType.Present);
+        player.ControllerUnlocker.OnPresentUnlockedChanged();
     }
 
-    [ModAction(Name = "Lock All Presents")]
-    public void LockAll()
+    [ModAction(Order = 20)]
+    public static void LockAllPresents()
     {
-        var Player = new PlayerRef();
-        Player.SetPlayerController(GameInstance.Instance.GetFirstLocalPlayerController());
+        var player = new PlayerRef();
+        player.SetPlayerController(GameInstance.Instance.GetFirstLocalPlayerController());
 
-        if (Player == null) return;
-        if (!Player.Controller.networkObject.IsOwner()) return;
+        if (player.Controller == null || !player.Controller.networkObject.IsOwner() || !PresentManager.InstanceExists) return;
 
-        Player.Controller.GetPlayerControllerUnlocker().LockAllPresents();
-
-        Player.Controller.GetPlayerControllerUnlocker().ShowCounter(PromptCounterType.Present);
-        typeof(PlayerControllerUnlocker).GetMethod("OnPresentUnlockedChanged", Plugin.Flags)
-            .Invoke(Player.Controller.GetPlayerControllerUnlocker(), null);
+        player.Controller.GetPlayerControllerUnlocker().LockAllPresents();
+        player.Controller.GetPlayerControllerUnlocker().ShowCounter(PromptCounterType.Present);
+        player.ControllerUnlocker.OnPresentUnlockedChanged();
     }
 
-    [ModAction(Name = "Show Presents on Map")]
-    public static void ShowPresentsOnMap(bool b)
+    [ModSetting(Order = 30)]
+    public static bool ShowPresentsOnMap
     {
-        PresentManager.Instance.SetShowAllPresentsOnMinimap(b);
-    }
-
-    public override void RenderUI()
-    {
-        ImGui.Text("Present Unlocker");
-        ImGui.SameLine();
-        
-        if (ImGui.Button("Unlock All"))
-        {
-            UnlockAll();
-        }
-        
-        ImGui.SameLine();
-
-        if (ImGui.Button("Lock All"))
-        {
-            LockAll();
-        }
-
-        if (ImGui.Checkbox("Show Presents on Map", ref showPresentsOnMap))
-        {
-            ShowPresentsOnMap(showPresentsOnMap);
-        }
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void RefreshUI()
-    {
-        showPresentsOnMap = PresentManager.Instance?.IsShowingAllPresentsOnMinimap() ?? false;
+        get => PresentManager.Instance?.IsShowingAllPresentsOnMinimap() ?? false;
+        set => PresentManager.Instance?.SetShowAllPresentsOnMinimap(value);
     }
 }

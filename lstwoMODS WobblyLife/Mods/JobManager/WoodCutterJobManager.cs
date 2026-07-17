@@ -1,54 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using lstwoMODS_Core;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class WoodCutterJobManager : BaseJobManager
 {
-    private HacksUIHelper.LIBTrio moneyLIB;
-    private List<GameObject> objects = new();
-    private QuickReflection<WoodCutterJobMission> reflect;
+    private Ref<int> moneyPerPlank = new(5);
 
     public override Type missionType => typeof(WoodCutterJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<WoodCutterJobMission, int>("setMoney", "Set Money per Plank", "Money", (m, v) => m.moneyPerPlank = v);
+    }
 
-        var title = ui.CreateLabel("Woodcutter Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        moneyLIB = ui.CreateLIBTrio("Set Money Per Plank", "moneyPerDeliveredLIB", "5");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+            new HStack("money",
+                new DragInt("##Money Per Plank").WithValue(moneyPerPlank),
+                WithMacroMenu(new Button("Set Money per Plank", () => SetMoney(moneyPerPlank.Value)).WithContentWidth(), "setMoney", "Set Money per Plank")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((WoodCutterJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyLIB.Input.Text = ((int)reflect.GetField("moneyPerPlank")).ToString();
-        }
+            moneyPerPlank.Value = (int)((WoodCutterJobMission)Mission).moneyPerPlank;
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerPlank", money);
-        }
+            ((WoodCutterJobMission)Mission).moneyPerPlank = money;
     }
 }

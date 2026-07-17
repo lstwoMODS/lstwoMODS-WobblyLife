@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AddressableAssets;
 
-namespace lstwoMODS_WobblyLife.Hacks.ESP;
+namespace lstwoMODS_WobblyLife.Mods.ESP;
 
 public class GameObjectTracker
 {
@@ -13,15 +14,31 @@ public class GameObjectTracker
     public List<GameObject> trackedObjects = new();
     
     protected Dictionary<GameObject, Bounds> objectBoundsCache = new();
-    protected Camera mainCamera;
-    protected Rigidbody playerHipRb;
+
+    protected Camera mainCamera
+    {
+        get
+        {
+            if (field != null) return field;
+            field = Camera.main;
+            return field;
+        }
+    }
+
+    protected Rigidbody playerHipRb
+    {
+        get
+        {
+            if (field != null) return field;
+            field = GameInstance.Instance?.GetFirstLocalPlayerController()?.GetPlayerCharacter()?.GetHipRigidbody();
+            return field;
+        }
+    }
     
-    protected Material lineMaterial = new(Shader.Find("Unlit/Color"));
+    protected Material lineMaterial = new(Addressables.LoadAssetAsync<Shader>("Assets/Content/Game/Shader/Amplify/Custom/UnlitColour.shader").WaitForCompletion());
 
     public virtual void RefreshCache()
     {
-        playerHipRb = GameInstance.Instance.GetFirstLocalPlayerController().GetPlayerCharacter().GetHipRigidbody();
-        mainCamera = Camera.main;
         objectBoundsCache.Clear();
         
         foreach (var obj in trackedObjects)
@@ -165,16 +182,42 @@ public class GameObjectTracker
         {
             return;
         }
-        
+
         var normalizedStart = new Vector2(screenStart.x / Screen.width, screenStart.y / Screen.height);
         var normalizedEnd = new Vector2(screenEnd.x / Screen.width, screenEnd.y / Screen.height);
 
         GL.PushMatrix();
         GL.LoadOrtho();
-        
+
         lineMaterial.SetColor("_Color", color);
         lineMaterial.SetPass(0);
-        
+
+        GL.Begin(GL.LINES);
+
+        GL.Vertex(normalizedStart);
+        GL.Vertex(normalizedEnd);
+
+        GL.End();
+        GL.PopMatrix();
+    }
+
+    protected virtual void DrawLine(Vector2 normalizedStart, Vector3 worldEnd, Color color)
+    {
+        var screenEnd = mainCamera.WorldToScreenPoint(worldEnd);
+
+        if (screenEnd.z < 0)
+        {
+            return;
+        }
+
+        var normalizedEnd = new Vector2(screenEnd.x / Screen.width, screenEnd.y / Screen.height);
+
+        GL.PushMatrix();
+        GL.LoadOrtho();
+
+        lineMaterial.SetColor("_Color", color);
+        lineMaterial.SetPass(0);
+
         GL.Begin(GL.LINES);
 
         GL.Vertex(normalizedStart);

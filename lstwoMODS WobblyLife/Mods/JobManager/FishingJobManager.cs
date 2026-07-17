@@ -1,53 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class FishingJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<FishingJobMission> reflect;
+    private Ref<int> baseMoney = new(20);
 
     public override Type missionType => typeof(FishingJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<FishingJobMission, int>("setMoney", "Set Base Job Money", "Money", (m, v) => m.baseMoney = v);
+    }
 
-        var title = ui.CreateLabel("Delivery Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
-            
-        var moneyLIB = ui.CreateLIBTrio("Set Base Job Money", "moneyLIB", "20");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
+            new HStack("money",
+                new DragInt("##Base Job Money").WithValue(baseMoney),
+                WithMacroMenu(new Button("Set Base Job Money", () => SetMoney(baseMoney.Value)).WithContentWidth(), "setMoney", "Set Base Job Money")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((FishingJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("baseMoney")).ToString();
-        }
+            baseMoney.Value = (int)((FishingJobMission)Mission).baseMoney;
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("baseMoney", money);
-        }
+            ((FishingJobMission)Mission).baseMoney = money;
     }
 }

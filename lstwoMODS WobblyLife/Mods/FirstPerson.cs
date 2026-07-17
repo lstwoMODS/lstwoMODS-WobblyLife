@@ -1,52 +1,35 @@
-﻿using System;
-using HarmonyLib;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
-using UnityEngine;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
+using HarmonyLib;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.TabMenus;
+using UnityEngine;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class FirstPerson : BaseHack
+public class FirstPerson : BaseMod
 {
-    public static bool firstPersonEnabledPlayer1 = false;
-    public static bool firstPersonEnabled = false;
-    public static bool enableCutoff = true;
+    [ModSetting(Label = "Enable First Person")] public static Ref<bool> firstPersonEnabled = new();
+    [ModSetting(Label = "Enable First Person for Player 1 only")] public static Ref<bool> firstPersonEnabledPlayer1 = new();
+    [ModSetting(Label = "Enable Character Cutoff when in First Person")] public static Ref<bool> enableCutoff = new(true);
 
-    public static List<GameplayCamera> gameplayCameras = new List<GameplayCamera>();
+    public static List<GameplayCamera> gameplayCameras => GameInstance.Instance?.GetPlayerControllers()?.Select(x => x.GetGameplayCamera()).ToList();
+
+    public static GameplayCamera firstGameplayCamera => GameInstance.Instance?.GetFirstLocalPlayerController()?.GetGameplayCamera();
 
     public override string Name => "First Person";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
 
-    public override HacksTab HacksTab => Plugin.ClientHacksTab;
-
-    public override void ConstructUI(GameObject root)
+    protected override void OnStaticInit()
     {
         Harmony harmony = new("lstwo.NotAzza.FirstPerson");
-        harmony.PatchAll();
-
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.FirstPerson.Enable", "Enable First Person", (b) => firstPersonEnabled = b);
-        ui.CreateToggle("lstwo.FirstPerson.PlayerOneOnly", "Enable First Person for Player 1 only", (b) => firstPersonEnabledPlayer1 = b);
-        ui.CreateToggle("lstwo.FirstPerson.EnableCutoff", "Enable Character Cutoff when in First Person", (b) => enableCutoff = b, true);
-
-        ui.AddSpacer(6);
+        harmony.PatchAll(typeof(FirstPerson));
+        harmony.PatchAll(typeof(FirstPersonCameraPatch));
+        harmony.PatchAll(typeof(FirstPersonVehicleCameraPatch));
     }
-
-    public override void RefreshUI()
-    {
-    }
-
-    public override void Update()
-    {
-    }
-
 
     [HarmonyPatch(typeof(CameraFocusPlayerCharacter))]
     public static class FirstPersonCameraPatch
@@ -55,13 +38,13 @@ public class FirstPerson : BaseHack
         [HarmonyPrefix]
         static bool PrefixUpdateCamera(CameraFocusPlayerCharacter __instance, GameplayCamera camera)
         {
-            if (firstPersonEnabled || firstPersonEnabledPlayer1 && gameplayCameras.Count > 1 && gameplayCameras[0] == camera)
+            if (firstPersonEnabled.Value || firstPersonEnabledPlayer1.Value && gameplayCameras.Count > 1 && gameplayCameras[0] == camera)
             {
-                __instance.SetUsingCharacterCutoff(enableCutoff);
+                __instance.SetUsingCharacterCutoff(enableCutoff.Value);
                 return false;
             }
 
-            if (firstPersonEnabled)
+            if (firstPersonEnabled.Value)
             {
                 __instance.SetUsingCharacterCutoff(true);
                 return true;
@@ -75,24 +58,17 @@ public class FirstPerson : BaseHack
         [HarmonyPriority(90)]
         static void PostfixUpdateCamera(CameraFocusPlayerCharacter __instance, GameplayCamera camera)
         {
-            if (firstPersonEnabled)
+            if (firstPersonEnabled.Value)
             {
                 __instance.UpdateFirstPersonCamera(camera);
-                __instance.SetUsingCharacterCutoff(enableCutoff);
+                __instance.SetUsingCharacterCutoff(enableCutoff.Value);
             }
 
-            if (firstPersonEnabledPlayer1 && gameplayCameras.Count > 1 && gameplayCameras[0] == camera)
+            if (firstPersonEnabledPlayer1.Value && gameplayCameras.Count >= 1 && firstGameplayCamera == camera)
             {
                 __instance.UpdateFirstPersonCamera(camera);
-                __instance.SetUsingCharacterCutoff(enableCutoff);
+                __instance.SetUsingCharacterCutoff(enableCutoff.Value);
             }
-        }
-
-        [HarmonyPatch("OnFocus")]
-        [HarmonyPostfix]
-        static void PostfixOnFocus(CameraFocusVehicle __instance, GameplayCamera gameplayCamera)
-        {
-            if (!gameplayCameras.Contains(gameplayCamera)) gameplayCameras.Add(gameplayCamera);
         }
     }
 
@@ -103,13 +79,13 @@ public class FirstPerson : BaseHack
         [HarmonyPrefix]
         static bool PrefixUpdateCamera(CameraFocusVehicle __instance, GameplayCamera camera)
         {
-            if (firstPersonEnabled || firstPersonEnabledPlayer1 && gameplayCameras.Count > 1 && gameplayCameras[0] == camera)
+            if (firstPersonEnabled.Value || (firstPersonEnabledPlayer1.Value && gameplayCameras.Count >= 1 && firstGameplayCamera == camera))
             {
-                __instance.SetUsingCharacterCutoff(enableCutoff);
+                __instance.SetUsingCharacterCutoff(enableCutoff.Value);
                 return false;
             }
 
-            if (firstPersonEnabled)
+            if (firstPersonEnabled.Value)
             {
                 __instance.SetUsingCharacterCutoff(true);
                 return true;
@@ -122,16 +98,16 @@ public class FirstPerson : BaseHack
         [HarmonyPostfix]
         static void PostfixUpdateCamera(CameraFocusVehicle __instance, GameplayCamera camera)
         {
-            if (firstPersonEnabled)
+            if (firstPersonEnabled.Value)
             {
                 __instance.UpdateFirstPersonCamera(camera);
-                __instance.SetUsingCharacterCutoff(enableCutoff);
+                __instance.SetUsingCharacterCutoff(enableCutoff.Value);
             }
 
-            if (firstPersonEnabledPlayer1 && gameplayCameras.Count > 1 && gameplayCameras[0] == camera)
+            if (firstPersonEnabledPlayer1.Value && gameplayCameras.Count >= 1 && gameplayCameras[0] == camera)
             {
                 __instance.UpdateFirstPersonCamera(camera);
-                __instance.SetUsingCharacterCutoff(enableCutoff);
+                __instance.SetUsingCharacterCutoff(enableCutoff.Value);
             }
         }
 
@@ -139,7 +115,7 @@ public class FirstPerson : BaseHack
         [HarmonyPostfix]
         static void PostfixOnFocus(CameraFocusVehicle __instance, GameplayCamera camera)
         {
-            if (firstPersonEnabled)
+            if (firstPersonEnabled.Value)
                 __instance.ResetRotation();
         }
     }
@@ -185,10 +161,10 @@ public static class FirstPersonCameraExtension
 
             Vector3 combinedRotation = new(mouseRotation.x, mouseRotation.y, mouseRotation.z);
             rotationAxisField.SetValue(instance, mouseRotation);
-            camera.transform.SetPositionAndRotation(playerCameraTransform.position + Vector3.up * .3f, Quaternion.Euler(combinedRotation));
+            camera.transform.SetPositionAndRotation(playerCameraTransform.position + playerCameraTransform.up * .15f + Vector3.up * .15f, Quaternion.Euler(combinedRotation));
             
-            // set to avoid seeing your own head
-            camera.GetCamera().nearClipPlane = 0.002f * Mathf.Abs(combinedRotation.x);
+            // set to avoid seeing your own head; clamp to avoid nearClipPlane=0 when looking straight ahead
+            camera.GetCamera().nearClipPlane = Mathf.Max(0.001f, 0.00175f * Mathf.Abs(combinedRotation.x));
         }
         else
         {

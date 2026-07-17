@@ -9,104 +9,177 @@ using UnityEngine;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 using ModWobblyLife;
+using UMod.Settings;
+using UnityEngine.AddressableAssets;
 using UnityEngine.Localization;
+using UnityEngine.SceneManagement;
+using VisualDesignCafe.Threading;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class VehicleUnlocker : BaseHack
+public class VehicleUnlocker : BaseMod
 {
     public override string Name => "Vehicle Unlocker";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.SaveModsWindow;
 
-    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+    public static AllVehiclesAssetReferences AllGameVehicleAssetReferences => VehicleManager.Instance.allVehiclesAssetReferences[0];
+    public static AllVehiclesAssetReferences AllSpaceVehicleAssetReferences => VehicleManager.Instance.allVehiclesAssetReferences[1];
+    
+    private Ref<string[]> gameVehicleDropdownItems = new([]);
+    private Ref<int> gameVehicleDropdownIndex = new();
+    
+    private Ref<string[]> spaceVehicleDropdownItems = new([]); 
+    private Ref<int> spaceVehicleDropdownIndex = new();
 
-    private List<RewardVehicleData> vehicleRewards = new();
-    private HacksUIHelper.LDBTrio unlockVehicleLDB;
-    private HacksUIHelper.LDBTrio lockVehicleLDB;
+    private int vehicleLoadCounter;
 
-    public void UnlockAllVehicles()
+    [ModAction(ShowInUI = false)]
+    public static void UnlockVehicle(VehicleAssetReference vehicleAssetReference)
     {
-        var playerController = GameInstance.Instance.GetFirstLocalPlayerController();
+        var player = (PlayerRef) GameInstance.Instance?.GetFirstLocalPlayerController();
+        player?.ControllerUnlocker?.UnlockVehicle(vehicleAssetReference);
+    }
 
-        if (!playerController)
-        {
-            return;
-        }
+    [ModAction(ShowInUI = false)]
+    public static void LockVehicle(VehicleAssetReference vehicleAssetReference)
+    {
+        var player = (PlayerRef) GameInstance.Instance?.GetFirstLocalPlayerController();
+        player?.ControllerUnlocker?.LockVehicle(vehicleAssetReference);
+    }
 
-        foreach (var vehicleReward in vehicleRewards)
+    [ModAction(ShowInUI = false)]
+    public static void UnlockAllGameVehicles()
+    {
+        foreach (var vehicle in AllGameVehicleAssetReferences.vehicleAssetReferences)
         {
-            vehicleReward.Reward([playerController]);
+            UnlockVehicle(vehicle);
         }
     }
 
-    public void UnlockVehicle(RewardData vehicle)
+    [ModAction(ShowInUI = false)]
+    public static void LockAllGameVehicles()
     {
-        var playerController = GameInstance.Instance.GetFirstLocalPlayerController();
-            
-        if (!playerController)
+        foreach (var vehicle in AllGameVehicleAssetReferences.vehicleAssetReferences)
         {
-            return;
+            LockVehicle(vehicle);
         }
-            
-        vehicle.Reward([playerController]);
     }
 
-    public override void ConstructUI(GameObject root)
+    [ModAction(ShowInUI = false)]
+    public static void UnlockAllSpaceVehicles()
     {
-        var ui = new HacksUIHelper(root);
+        foreach (var vehicle in AllSpaceVehicleAssetReferences.vehicleAssetReferences)
+        {
+            UnlockVehicle(vehicle);
+        }
+    }
 
-        ui.AddSpacer(6);
+    [ModAction(ShowInUI = false)]
+    public static void LockAllSpaceVehicles()
+    {
+        foreach (var vehicle in AllSpaceVehicleAssetReferences.vehicleAssetReferences)
+        {
+            LockVehicle(vehicle);
+        }
+    }
 
-        ui.CreateLabel("NOTE: This does NOT include purchasable vehicles");
+    public override Container BuildPanel(string id)
+    {
+        return new Container(id,
+        
+            new Group("WobblyIsland",
+                
+                new SeparatorText("Wobbly Island Vehicles", "Wobbly Island Vehicles"),
+        
+                new SearchableCombo("Select Vehicle", []).WithItems(gameVehicleDropdownItems).WithSelectedIndex(gameVehicleDropdownIndex),
             
-        ui.AddSpacer(6);
+                new HStack("Actions",
+                    ActionMenu(new Button("Unlock Vehicle", () => UnlockVehicle(AllGameVehicleAssetReferences.vehicleAssetReferences[gameVehicleDropdownIndex.Value])), nameof(UnlockVehicle)),
+                    ActionMenu(new Button("Lock Vehicle", () => LockVehicle(AllGameVehicleAssetReferences.vehicleAssetReferences[gameVehicleDropdownIndex.Value])), nameof(LockVehicle))
+                ).WithContentWidth(),
 
-        unlockVehicleLDB = ui.CreateLDBTrio("Unlock Vehicle", "unlockVehicle", onClick: () =>
+                new HStack("All Vehicle Actions",
+                    ActionMenu(new Button("Unlock All Vehicles", UnlockAllGameVehicles).WithTooltip("May cause lag spike"), nameof(UnlockAllGameVehicles)),
+                    ActionMenu(new Button("Lock All Vehicles", LockAllGameVehicles), nameof(LockAllGameVehicles))
+                ).WithContentWidth()
+                
+            ).WithId("WobblyIsland"),
+        
+            
+            new Group("Space",
+                
+                new SeparatorText("Space Vehicles", "Space Vehicles"),
+        
+                new SearchableCombo("Select Vehicle", []).WithItems(spaceVehicleDropdownItems).WithSelectedIndex(spaceVehicleDropdownIndex),
+            
+                new HStack("Actions",
+                    ActionMenu(new Button("Unlock Vehicle", () => UnlockVehicle(AllSpaceVehicleAssetReferences.vehicleAssetReferences[spaceVehicleDropdownIndex.Value])), nameof(UnlockVehicle)),
+                    ActionMenu(new Button("Lock Vehicle", () => LockVehicle(AllSpaceVehicleAssetReferences.vehicleAssetReferences[spaceVehicleDropdownIndex.Value])), nameof(LockVehicle))
+                ).WithContentWidth(),
+
+                new HStack("All Vehicle Actions",
+                    ActionMenu(new Button("Unlock All Vehicles", UnlockAllSpaceVehicles).WithTooltip("May cause lag spike"), nameof(UnlockAllSpaceVehicles)),
+                    ActionMenu(new Button("Lock All Vehicles", LockAllSpaceVehicles), nameof(LockAllSpaceVehicles))
+                ).WithContentWidth()
+                
+            ).WithId("Space")
+        );
+    }
+
+    protected override void OnStaticInit()
+    {
+        SceneManager.sceneLoaded += (scene, mode) =>
+        {
+            if (vehicleLoadCounter > 0 || mode != LoadSceneMode.Single || scene.name != "MainMenu") return;
+
+            void AddGameVehicle(GameObject vehicle)
             {
-                if (vehicleRewards == null || unlockVehicleLDB.Dropdown.value >= vehicleRewards.Count)
+                var temp = gameVehicleDropdownItems.Value.ToList();
+                temp.Add(vehicle.name);
+                gameVehicleDropdownItems.Value = temp.ToArray();
+                vehicleLoadCounter++;
+            }
+
+            foreach (var vehicleAssetReference in AllGameVehicleAssetReferences.vehicleAssetReferences)
+            {
+                if (vehicleAssetReference.prefab.Asset)
                 {
-                    return;
+                    AddGameVehicle(vehicleAssetReference.prefab.Asset as GameObject);
+                    continue;
                 }
 
-                UnlockVehicle(vehicleRewards[unlockVehicleLDB.Dropdown.value]);
-            },
-            buttonText: "Unlock");
-            
-        ui.AddSpacer(6);
+                vehicleAssetReference.prefab.LoadAssetAsync<GameObject>().Completed += handle =>
+                {
+                    AddGameVehicle(handle.Result);
+                };
+            }
 
-        ui.CreateLBDuo("Vehicle Unlocker", "lstwo.VehicleUnlocker.Vehicle Unlocker", UnlockAllVehicles, "Unlock All Vehicles", "lstwo.VehicleUnlocker.UnlockAll");
 
-        ui.AddSpacer(6);
-    }
+            void AddSpaceVehicle(GameObject vehicle)
+            {
+                var temp = spaceVehicleDropdownItems.Value.ToList();
+                temp.Add(vehicle.name);
+                spaceVehicleDropdownItems.Value = temp.ToArray();
+                vehicleLoadCounter++;
+            }
 
-    public override void RefreshUI()
-    {
-        var rewardManager = RewardManagerInstance.Instance;
-        var rewardDatabase = typeof(RewardManager).GetField("managerDatabase", lstwoMODS_Core.Plugin.Flags)?.GetValue(rewardManager);
-        var rewardDataDict = (Dictionary<Guid, RewardData>)typeof(RewardManagerDatabase).GetField("registeredRewardsHashMap", lstwoMODS_Core.Plugin.Flags)?.GetValue(rewardDatabase);
-        var vehicleRewards = rewardDataDict?.Where(x => x.Value is RewardVehicleData).Select(x => x.Value as RewardVehicleData).ToList();
+            foreach (var vehicleAssetReference in AllSpaceVehicleAssetReferences.vehicleAssetReferences)
+            {
+                if (vehicleAssetReference.prefab.Asset)
+                {
+                    AddSpaceVehicle(vehicleAssetReference.prefab.Asset as GameObject);
+                    continue;
+                }
 
-        if (vehicleRewards == null)
-        {
-            return;
-        }
-
-        this.vehicleRewards = vehicleRewards;
-        
-        unlockVehicleLDB.Dropdown.ClearOptions();
-        var nameField = typeof(RewardVehicleData).GetField("textLocalized", lstwoMODS_Core.Plugin.Flags);
-
-        foreach (var vehicleOption in this.vehicleRewards.Select(vehicle => (LocalizedString)nameField.GetValue(vehicle)))
-        {
-            unlockVehicleLDB.Dropdown.options.Add(new(vehicleOption.GetLocalizedString()));
-        }
-
-        unlockVehicleLDB.Dropdown.RefreshShownValue();
-    }
-
-    public override void Update()
-    {
+                vehicleAssetReference.prefab.LoadAssetAsync<GameObject>().Completed += handle =>
+                {
+                    AddSpaceVehicle(handle.Result);
+                };
+            }
+        };
     }
 }

@@ -1,10 +1,10 @@
 # lstwoMODS-WobblyLife
 
-A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
+A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods / ProjectMods while adding a lot of original mods on top.
 
 # Installation Requirements
 
-Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
+Requires [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core/releases).
 
 # Links
 
@@ -12,24 +12,15 @@ Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
 
 # Compatibility Chart
 
-| **Mod**           | **Wobbly Server Util** | **Wobbly's Fav**       |
-| ----------------: | :--------------------: | :--------------------: |
-| **Compatibility** | ✅Fully compatible    | 🟨 Most Functions Work |
-
-# Quick Install Link
-
-https://mods.lstwo.net/download.php?game=rubber_band_games.wobbly_life
-
-This will download a zip file after a few seconds. Extract it and drag the `Wobbly Life.exe` onto the `DRAG GAME EXE HERE.bat` file.
-
-# Automatic Installation
-
-lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDIOS/lstwoMODSInstaller/). If you scroll down to the ReadMe it should tell you how to set it up.
+|    **Mod**             | **Compatibility**       |
+|-----------------------:|:------------------------|
+| **Wobbly Server Util** | 🟨 Most Functions Work  |
+|       **Wobbly's Fav** | 🟨 Most Functions Work  |
 
 # Manual Installation
 
 Follow the instructions [here](https://github.com/lstwoMODS/lstwoMODS-Core/blob/main/README.md#manual-installation) with this mod being your modpack.
-  
+
 # Mod List
 
 - **Player Mods (can apply to any player)**

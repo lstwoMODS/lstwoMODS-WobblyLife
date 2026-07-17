@@ -1,10 +1,7 @@
-﻿using Steamworks;
-using System.Reflection;
+﻿using System.Reflection;
 using TMPro;
 using UnityEngine;
 using System.Linq;
-using System;
-using UnityEngine.Serialization;
 
 namespace lstwoMODS_WobblyLife;
 
@@ -29,7 +26,10 @@ internal class NameEasterEgg : MonoBehaviour
     {
         try
         {
-            var steamConnection = (SteamConnection)playerParent.networkObject.GetOwner();
+            // Owner is only a SteamConnection under the Steam transport; under a LAN transport it
+            // is a LiteConnection, so short-circuit instead of throwing (per-frame, per-nametag).
+            if (playerParent.networkObject.GetOwner() is not SteamConnection steamConnection)
+                return;
             var textMeshPro = (TextMeshPro)textMeshProField.GetValue(GetComponent<CharacterNameTag>());
 
             if (rainbowSteamIDs.Contains(steamConnection.steamId))

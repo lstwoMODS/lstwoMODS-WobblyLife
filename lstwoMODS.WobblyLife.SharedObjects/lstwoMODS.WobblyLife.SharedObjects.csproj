@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net472</TargetFramework>
+        <AssemblyName>lstwoMODS.WobblyLife.SharedObjects</AssemblyName>
+        <RootNamespace>lstwoMODS.WobblyLife.SharedObjects</RootNamespace>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="lstwoMODS.ImGui.Shared">
+            <HintPath>..\lstwoMODS WobblyLife\lib\lstwoMODS.ImGui.Shared.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    </ItemGroup>
+
+</Project>

@@ -1,53 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class PowerPlantJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<PowerPlantJobMission> reflect;
+    private Ref<int> moneyPerBarrel = new(10);
 
     public override Type missionType => typeof(PowerPlantJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<PowerPlantJobMission, int>("setMoneyPerBarrel", "Set Money per Barrel", "Money", (m, v) => m.perBarrelMoney = v);
+    }
 
-        var title = ui.CreateLabel("Power Plant Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        var moneyLIB = ui.CreateLIBTrio("Set Money Per Barrel", "moneyLIB", "10");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoneyPerBarrel(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+            new HStack("money",
+                new DragInt("##Money Per Barrel").WithValue(moneyPerBarrel),
+                WithMacroMenu(new Button("Set Money per Barrel", () => SetMoneyPerBarrel(moneyPerBarrel.Value)).WithContentWidth(), "setMoneyPerBarrel", "Set Money per Barrel")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((PowerPlantJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("perBarrelMoney")).ToString();
-        }
+            moneyPerBarrel.Value = (int)((PowerPlantJobMission)Mission).perBarrelMoney;
     }
 
     public void SetMoneyPerBarrel(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("perBarrelMoney", money);
-        }
+            ((PowerPlantJobMission)Mission).perBarrelMoney = money;
     }
 }

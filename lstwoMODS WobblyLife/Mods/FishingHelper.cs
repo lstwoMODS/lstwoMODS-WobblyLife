@@ -3,16 +3,86 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using HarmonyLib;
-using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class FishingHelper : BaseHack
+public class FishingHelper : BaseMod
 {
+    public override string Name => "Fishing Helper";
+    public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.SaveModsWindow;
+
+    [ModSetting(ShowInUI = false)] public static readonly Ref<bool> EnableInstantFishBite = new();
+    [ModSetting(ShowInUI = false)] public static readonly Ref<bool> ForceFishArea = new();
+    [ModSetting(ShowInUI = false)] public static FishAreaScriptableObject ForcedFishArea;
+    [ModSetting(ShowInUI = false)] public static readonly Ref<bool> ForceFishRarity = new();
+    [ModSetting(ShowInUI = false)] public static FishCatchableRarity ForcedFishRarity;
+
+    private static readonly Ref<int> ForcedFishAreaIndex = new();
+    private static readonly Ref<int> ForcedFishRarityIndex = new();
+    private static readonly Ref<int> UnlockFishIndex = new();
+
+    public static List<FishAreaScriptableObject> FishAreas;
+    public static List<FishCatchableRarity> FishRarities;
+    public static List<FishCatchableScriptableObject> AllFishCatchables;
+
+    private static readonly Ref<string[]> FishAreaDropdownItems = new();
+    private static readonly Ref<string[]> FishRarityDropdownItems = new();
+    private static readonly Ref<string[]> AllFishCatchableDropdownItems = new();
+    
+    protected override void OnStaticInit()
+    {
+        new Harmony("lstwo.lstwoMODS_WobblyLife.FishingHelper").PatchAll(typeof(Patches));
+    }
+
+    public override Container BuildPanel(string id)
+    {
+        return new Container(id,
+
+            new SeparatorText("Fishing Help", "Fishing Help"),
+        
+            SettingMenu(new Checkbox("Instant Fish Bite").WithValue(EnableInstantFishBite), nameof(EnableInstantFishBite)),
+
+            SettingMenu(new Checkbox("Force Fish Area").WithValue(ForceFishArea), nameof(ForceFishArea)),
+            new Combo("Fish Area", [], 0, index => ForcedFishArea = FishAreas[index]).WithItems(FishAreaDropdownItems).WithSelectedIndex(ForcedFishAreaIndex),
+
+            SettingMenu(new Checkbox("Force Fish Rarity").WithValue(ForceFishRarity), nameof(ForceFishRarity)),
+            new Combo("Fish Rarity", [], 0, index => ForcedFishRarity = FishRarities[index]).WithItems(FishRarityDropdownItems).WithSelectedIndex(ForcedFishRarityIndex),
+
+            new SeparatorText("Unlock Fish", "Unlock Fish"),
+
+            new Combo("Fish to Unlock", []).WithItems(AllFishCatchableDropdownItems).WithSelectedIndex(UnlockFishIndex),
+            ActionMenu(new Button("Unlock", () => UnlockFishCatchable(AllFishCatchables[UnlockFishIndex.Value])).WithContentWidth(), nameof(UnlockFishCatchable)),
+            
+            new Button("Unlock All Fish", () => AllFishCatchables.ForEach(UnlockFishCatchable)).WithContentWidth()
+        );
+    }
+
+    public override void RefreshUI()
+    {
+        if (!FishingSystem.InstanceExists) return;
+        
+        FishAreas = FishingSystem.Instance.GetAllFishingArea().ToList();
+        FishRarities = (Enum.GetValues(typeof(FishCatchableRarity)) as FishCatchableRarity[])?.ToList();
+        AllFishCatchables = new();
+        
+        foreach (var fish in from area in FishAreas from fish in area.GetAllCatchables() where !AllFishCatchables.Contains(fish) select fish)
+        {
+            AllFishCatchables.Add(fish);
+        }
+
+        FishAreaDropdownItems.Value = FishAreas.Select(x => x.GetTitleText()).ToArray();
+        FishRarityDropdownItems.Value = FishRarities.Select(x => x.ToString()).ToArray();
+        AllFishCatchableDropdownItems.Value = AllFishCatchables.Select(x => x.GetFishTitle()).ToArray();
+    }
+    
+    [ModAction(ShowInUI = false)]
     public static void UnlockFishCatchable(FishCatchableScriptableObject fishCatchable)
     {
         if (!fishCatchable)
@@ -33,7 +103,7 @@ public class FishingHelper : BaseHack
         {
             playerControllerUnlocker.PromptFishCaught(fishCatchable);
         }
-            
+        
         var firstActiveMissionByType = UnitySingleton<WorldMissionManager>.Instance.GetFirstActiveMissionByType<WorldMissionFishing>();
             
         if (firstActiveMissionByType)
@@ -41,136 +111,6 @@ public class FishingHelper : BaseHack
             firstActiveMissionByType.IncrementCaughtCount(fishCatchable.GetAssetid(), controller);
         }
     }
-    
-    public override void ConstructUI(GameObject root)
-    {
-        new Harmony("lstwo.lstwoMODS_WobblyLife.FishingHelper").PatchAll(typeof(Patches));
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.FishingHelper.InstantFishBite", "Instant Fish Bite", (b) => bInstantFishBite = b);
-        
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.FishingHelper.ForceFishArea", "Force Fish Area", (b) => bForceFishArea = b);
-
-        ui.AddSpacer(6);
-
-        forcedFishAreaLDB = ui.CreateLDBTrio("Forced Fish Area", "lstwo.FishingHelper.ForcedFishArea");
-        forcedFishAreaLDB.Button.OnClick = () =>
-        {
-            var selectedIndex = forcedFishAreaLDB.Dropdown.value;
-            
-            if (selectedIndex < fishAreas?.Count)
-            {
-                forcedFishArea = fishAreas[selectedIndex];
-            }
-        };
-        
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.FishingHelper.ForceFishRarity", "Force Fish Rarity", (b) => bForceFishRarity = b);
-
-        ui.AddSpacer(6);
-
-        forcedFishRarityLDB = ui.CreateLDBTrio("Forced Fish Rarity", "lstwo.FishingHelper.ForcedFishRarity");
-        forcedFishRarityLDB.Button.OnClick = () =>
-        {
-            var selectedIndex = forcedFishRarityLDB.Dropdown.value;
-            
-            if (selectedIndex < fishRarities?.Count)
-            {
-                forcedFishRarity = fishRarities[selectedIndex];
-            }
-        };
-        
-        ui.AddSpacer(6);
-
-        unlockFishLDB = ui.CreateLDBTrio("Unlock Fish", "lstwo.FishingHelper.UnlockFish");
-        unlockFishLDB.Button.OnClick = () =>
-        {
-            var selectedIndex = unlockFishLDB.Dropdown.value;
-
-            if (selectedIndex < allFishCatchables?.Count)
-            {
-                UnlockFishCatchable(allFishCatchables[selectedIndex]);
-            }
-        };
-        
-        ui.AddSpacer(6);
-        
-        ui.CreateLBDuo("Unlock All Fish", "lstwo.FishingHelper.UnlockAllFish", () =>
-        {
-            foreach (var fishCatchable in allFishCatchables)
-            {
-                UnlockFishCatchable(fishCatchable);
-            }
-        }, "Unlock", "lstwo.FishingHelper.UnlockAllFishButton");
-        
-        ui.AddSpacer(6);
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void RefreshUI()
-    {
-        fishAreas = FishingSystem.Instance.GetAllFishingArea().ToList();
-        fishRarities = (Enum.GetValues(typeof(FishCatchableRarity)) as FishCatchableRarity[])?.ToList();
-        allFishCatchables = new();
-        
-        forcedFishAreaLDB.Dropdown.ClearOptions();
-        forcedFishRarityLDB.Dropdown.ClearOptions();
-        unlockFishLDB.Dropdown.ClearOptions();
-
-        foreach (var area in fishAreas)
-        {
-            forcedFishAreaLDB.Dropdown.options.Add(new(area.GetTitleText()));
-
-            foreach (var fish in area.GetAllCatchables())
-            {
-                if (allFishCatchables.Contains(fish))
-                {
-                    continue;
-                }
-                
-                allFishCatchables.Add(fish);
-                unlockFishLDB.Dropdown.options.Add(new(fish.GetFishTitle()));
-            }
-        }
-
-        if (fishRarities != null)
-        {
-            foreach (var fishRarity in fishRarities)
-            {
-                forcedFishRarityLDB.Dropdown.options.Add(new(fishRarity.ToString()));
-            }
-        }
-
-        forcedFishAreaLDB.Dropdown.RefreshShownValue();
-        forcedFishRarityLDB.Dropdown.RefreshShownValue();
-        unlockFishLDB.Dropdown.RefreshShownValue();
-    }
-
-    public override string Name => "Fishing Helper";
-    public override string Description => "";
-    public override HacksTab HacksTab => Plugin.SaveHacksTab;
-
-    private static bool bInstantFishBite;
-    private static bool bForceFishArea;
-    private static FishAreaScriptableObject forcedFishArea;
-    private static bool bForceFishRarity;
-    private static FishCatchableRarity forcedFishRarity;
-    
-    private HacksUIHelper.LDBTrio forcedFishAreaLDB;
-    private HacksUIHelper.LDBTrio forcedFishRarityLDB;
-    private HacksUIHelper.LDBTrio unlockFishLDB;
-
-    private List<FishAreaScriptableObject> fishAreas;
-    private List<FishCatchableRarity> fishRarities;
-    private List<FishCatchableScriptableObject> allFishCatchables;
 
     public class Patches
     {
@@ -193,7 +133,7 @@ public class FishingHelper : BaseHack
                 return false;
             }
 
-            if (!(currentTime - catchable.timeSinceEvent >= catchable.secondsTillNextFind) && !bInstantFishBite)
+            if (!(currentTime - catchable.timeSinceEvent >= catchable.secondsTillNextFind) && !EnableInstantFishBite.Value)
             {
                 return false;
             }
@@ -237,23 +177,19 @@ public class FishingHelper : BaseHack
                     
                     var value = Random.value;
 
-                    Debug.Log(bForceFishRarity);
-                    Debug.Log(forcedFishRarity);
-                    Debug.Log(fishCatchableRarity);
-
-                    if (!bForceFishRarity && chance < value || (bForceFishRarity && forcedFishRarity != fishCatchableRarity))
+                    if (!ForceFishRarity.Value && chance < value || (ForceFishRarity.Value && ForcedFishRarity != fishCatchableRarity))
                     {
                         continue;
                     }
                     
-                    var randomFishCatchable_Internal = (FishCatchableScriptableObject) r.GetMethod("GetRandomFishCatchable_Internal", fishCatchableRarity);
+                    var randomFishCatchableInternal = (FishCatchableScriptableObject) r.GetMethod("GetRandomFishCatchable_Internal", fishCatchableRarity);
 
-                    if (!randomFishCatchable_Internal)
+                    if (!randomFishCatchableInternal)
                     {
                         continue;
                     }
                     
-                    __result = randomFishCatchable_Internal;
+                    __result = randomFishCatchableInternal;
                     return false;
                 }
 
@@ -268,9 +204,9 @@ public class FishingHelper : BaseHack
         [HarmonyPrefix]
         public static bool SampleAreaPrefix(ref FishAreaScriptableObject __result)
         {
-            if (bForceFishArea)
+            if (ForceFishArea.Value)
             {
-                __result = forcedFishArea;
+                __result = ForcedFishArea;
                 return false;
             }
 

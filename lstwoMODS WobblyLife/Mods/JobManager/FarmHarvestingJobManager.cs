@@ -1,51 +1,38 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class FarmHarvestingJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<FarmHarvestingJobMission> reflect;
+    private Ref<int> money = new(5);
 
     public override Type missionType => typeof(FarmHarvestingJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<FarmHarvestingJobMission, int>("setMoneyPerDelivery", "Set Money per Delivery", "Money", (m, v) => m.moneyPerDelivery = v);
+    }
 
-        var title = ui.CreateLabel("Farm Harvesting Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
             
-        var moneyLIB = ui.CreateLIBTrio("Set Money Per Delivery", "moneyLIB", "5");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoneyPerDelivery(int.Parse(moneyInput.Text));
-        objects.Add(moneyLIB.Root);
+            new HStack("money",
+                new DragInt("##Money Per Delivery").WithValue(money),
+                WithMacroMenu(new Button("Set Money per Delivery", () => SetMoneyPerDelivery(money.Value)).WithContentWidth(), "setMoneyPerDelivery", "Set Money per Delivery")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
-        if (b)
-        {
-            reflect = new((FarmHarvestingJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-        }
     }
 
     public void SetMoneyPerDelivery(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("moneyPerDelivery", money);
-        }
+            ((FarmHarvestingJobMission)Mission).moneyPerDelivery = money;
     }
 }

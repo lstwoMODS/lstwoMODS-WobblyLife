@@ -1,50 +1,49 @@
 using HarmonyLib;
-using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
-using lstwoMODS_WobblyLife.Hacks.ESP;
-using UnityEngine;
+using lstwoMODS_WobblyLife.Mods.ESP;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class PlayerESPMod : BaseHack
+public class PlayerESPMod : BaseMod
 {
-    public override void ConstructUI(GameObject root)
-    {
-        new Harmony("lstwo.lstwoMODS_WobblyLife.PlayerESPMod").PatchAll(typeof(Patches));
-        var ui = new HacksUIHelper(root);
-        
-        ui.AddSpacer(6);
-        
-        ui.CreateToggle("lstwo.PlayerESP.Enabled", "Enable Player ESP", b => ESPManager.playerTracker.draw = b);
-        
-        ui.AddSpacer(6);
-        
-        ui.CreateToggle("lstwo.PlayerESP.DrawLines", "Draw Lines", b => ESPManager.playerTracker.drawLines = b);
-        
-        ui.AddSpacer(6);
-        
-        ui.CreateToggle("lstwo.PlayerESP.DrawBoxes", "Draw Boxes", b => ESPManager.playerTracker.drawBoxes = b);
-        
-        ui.AddSpacer(6);
-        
-        ui.CreateToggle("lstwo.PlayerESP.DrawText", "Draw Text", b => ESPManager.playerTracker.drawText = b);
-        
-        ui.AddSpacer(6);
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void RefreshUI()
-    {
-    }
-
     public override string Name => "Player ESP";
     public override string Description => "";
-    public override HacksTab HacksTab => Plugin.ClientHacksTab;
-    
+    public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
+
+    [ModSetting(Order = 10)]
+    public bool EnablePlayerESP
+    {
+        get => ESPManager.playerTracker.draw;
+        set => ESPManager.playerTracker.draw = value;
+    }
+
+    [ModSetting(Order = 20)]
+    public bool DrawLines
+    {
+        get => ESPManager.playerTracker.drawLines;
+        set => ESPManager.playerTracker.drawLines = value;
+    }
+
+    [ModSetting(Order = 30)]
+    public bool DrawBoxes
+    {
+        get => ESPManager.playerTracker.drawBoxes;
+        set => ESPManager.playerTracker.drawBoxes = value;
+    }
+
+    [ModSetting(Order = 40)]
+    public bool DrawText
+    {
+        get => ESPManager.playerTracker.drawText;
+        set => ESPManager.playerTracker.drawText = value;
+    }
+
+    protected override void OnStaticInit()
+    {
+        new Harmony("lstwo.lstwoMODS_WobblyLife.PlayerESPMod").PatchAll(typeof(Patches));
+    }
+
     public class Patches
     {
         [HarmonyPatch(typeof(PlayerBody), "Awake")]

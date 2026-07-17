@@ -1,53 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class FarmSeedingJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<FarmSeedingJobMission> reflect;
+    private Ref<int> money = new(20);
 
     public override Type missionType => typeof(FarmSeedingJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<FarmSeedingJobMission, int>("setMoney", "Set Job Money", "Money", (m, v) => m.money = v);
+    }
 
-        var title = ui.CreateLabel("Farm Seeding Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
-            
-        var moneyLIB = ui.CreateLIBTrio("Set Job Money", "moneyLIB", "20");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
+            new HStack("money",
+                new DragInt("##Job Money").WithValue(money),
+                WithMacroMenu(new Button("Set Job Money", () => SetMoney(money.Value)).WithContentWidth(), "setMoney", "Set Job Money")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((FarmSeedingJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("money")).ToString();
-        }
+            money.Value = (int)((FarmSeedingJobMission)Mission).money;
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("money", money);
-        }
+            ((FarmSeedingJobMission)Mission).money = money;
     }
 }

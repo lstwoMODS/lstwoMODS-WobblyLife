@@ -1,112 +1,81 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using static Mono.Security.X509.X520;
-using UniverseLib.UI;
-using lstwoMODS_WobblyLife.UI.TabMenus;
-using lstwoMODS_Core;
-using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
+using lstwoMODS_Core.UI.TabMenus;
 using UnityExplorer;
-using UnityExplorer.UI;
+using Button = lstwoMODS_Core.UI.Elements.Button;
+using UIManager = UnityExplorer.UI.UIManager;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class AchievementManager : BaseHack
+public class AchievementManager : BaseMod
 {
     public override string Name => "Achievement Manager";
-
     public override string Description => "Unlock and Lock Achievements!";
+    public override ModsWindow ModsWindow => Plugin.SaveModsWindow;
 
-    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+    private Ref<int> selectedAchievementIndex = new();
+    private WobblyAchievement selectedAchievement => Enum.GetValues(typeof(WobblyAchievement)).Cast<WobblyAchievement>().ToArray()[selectedAchievementIndex.Value];
 
-    private Dropdown achievementDropdown;
-
-    private WobblyAchievement selectedAchievement;
-    private WobblyAchievement[] achievements;
-
-    public override void ConstructUI(GameObject root)
+    [ModAction(ShowInUI = false)]
+    public static void UnlockAchievement(WobblyAchievement achievement)
     {
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        var selector = UIFactory.CreateHorizontalGroup(root, "AchievementSelector", true, true, true, true);
-        UIFactory.SetLayoutElement(selector);
-
-        var selectorLabel = UIFactory.CreateLabel(selector, "SelectorLabel", " Select Achievement");
-        UIFactory.SetLayoutElement(selectorLabel.gameObject, 256, 32);
-
-        var spacer1 = UIFactory.CreateUIObject("spacer1", selector);
-        UIFactory.SetLayoutElement(spacer1, 32);
-
-        var dropdown = UIFactory.CreateDropdown(selector, "AchievementDropdon", out achievementDropdown, "- Select Achievement -", 16, (i) =>
-        {
-            if (i >= achievements.Length) return;
-            selectedAchievement = achievements[i];
-        });
-        achievementDropdown.image.sprite = HacksUIHelper.RoundedRect;
-        UIFactory.SetLayoutElement(dropdown, 256 * 2 + 32, 32, 0, 0);
-
-        ui.AddSpacer(6);
-
-        ui.CreateLBBTrio("Unlock / Lock Achievement", "AchievementControls", () =>
-        {
-            global::AchievementManager.Instance.UnlockAchievement(selectedAchievement, GameInstance.Instance.GetFirstLocalPlayerController());
-        }, "Unlock", "lstwo.AchievementManager.Unlock", () =>
-        {
-            global::AchievementManager.Instance.LockAchievement(selectedAchievement, GameInstance.Instance.GetFirstLocalPlayerController());
-        }, "Lock", "lstwo.AchievementManager.Lock");
-
-        ui.AddSpacer(6);
-
-        ui.CreateLBBTrio("Unlock / Lock ALL Achievements", "AllAchievementControls", () =>
-        {
-            foreach (var achievement in achievements)
-            {
-                global::AchievementManager.Instance.UnlockAchievement(achievement, GameInstance.Instance.GetFirstLocalPlayerController());
-            }
-        }, "Unlock All", "lstwo.AchievementManager.UnlockAll", () =>
-        {
-            foreach (var achievement in achievements)
-            {
-                global::AchievementManager.Instance.LockAchievement(achievement, GameInstance.Instance.GetFirstLocalPlayerController());
-            }
-        }, "Lock All", "lstwo.AchievementManager.LockAll");
-
-        ui.AddSpacer(6);
-
-        ui.CreateButton("Inspect \"Achievement Manager\" Component", () =>
-        {
-            if(global::AchievementManager.InstanceExists)
-            {
-                InspectorManager.Inspect(global::AchievementManager.Instance);
-                UIManager.ShowMenu = true;
-            }
-        }, "lstwo.AchievementManager.Inspect", null, 256 * 3 + 32 * 2, 32);
-
-        ui.AddSpacer(6);
+        global::AchievementManager.Instance.UnlockAchievement(achievement, GameInstance.Instance.GetFirstLocalPlayerController());
     }
 
-    public override void RefreshUI()
+    [ModAction(ShowInUI = false)]
+    public static void LockAchievement(WobblyAchievement achievement)
     {
-        achievements = (WobblyAchievement[])Enum.GetValues(typeof(WobblyAchievement));
+        global::AchievementManager.Instance.LockAchievement(achievement, GameInstance.Instance.GetFirstLocalPlayerController());
+    }
 
-        achievementDropdown.ClearOptions();
-
-        foreach (var achievement in achievements)
+    [ModAction(ShowInUI = false)]
+    public static void UnlockAllAchievements()
+    {
+        foreach (var achievement in Enum.GetValues(typeof(WobblyAchievement)).Cast<WobblyAchievement>())
         {
-            achievementDropdown.options.Add(new(Enum.GetName(typeof(WobblyAchievement), achievement)));
+            UnlockAchievement(achievement);
         }
-
-        achievementDropdown.RefreshShownValue();
     }
 
-    public override void Update()
+    [ModAction(ShowInUI = false)]
+    public static void LockAllAchievements()
     {
+        foreach (var achievement in Enum.GetValues(typeof(WobblyAchievement)).Cast<WobblyAchievement>())
+        {
+            UnlockAchievement(achievement);
+        }
+    }
+
+    public override Container BuildPanel(string id)
+    {
+        return new Container(id,
+            
+            new Combo("Select Achievement", Enum.GetNames(typeof(WobblyAchievement)).Select(x => ModRegistry.NicifyName(x)).ToArray()).WithSelectedIndex(selectedAchievementIndex),
+            
+            new HStack("Lock / Unlock",
+                ActionMenu(new Button("Unlock Achievement", () => UnlockAchievement(selectedAchievement)), nameof(UnlockAchievement)),
+                ActionMenu(new Button("Lock Achievement", () => LockAchievement(selectedAchievement)), nameof(LockAchievement))
+            ).WithContentWidth(),
+
+            new SeparatorText("Unlock / Lock All Achievements", "Unlock / Lock All Achievements"),
+
+            new HStack("Lock / Unlock All",
+                ActionMenu(new Button("Unlock All Achievements", UnlockAllAchievements), nameof(UnlockAllAchievements)),
+                ActionMenu(new Button("Lock All Achievements", LockAllAchievements), nameof(LockAllAchievements))
+            ).WithContentWidth(),
+            
+            new Button("Inspect \"Achievement Manager\" Component", () =>
+            {
+                if(global::AchievementManager.InstanceExists)
+                {
+                    InspectorManager.Inspect(global::AchievementManager.Instance);
+                    UIManager.ShowMenu = true;
+                }
+                
+            }).WithContentWidth()
+        );
     }
 }

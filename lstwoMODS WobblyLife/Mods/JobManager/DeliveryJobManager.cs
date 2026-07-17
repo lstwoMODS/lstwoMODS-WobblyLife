@@ -1,64 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using UnityEngine;
-using UnityEngine.UI;
-using UniverseLib;
-using UniverseLib.UI.Models;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class DeliveryJobManager : BaseJobManager
 {
-    private InputFieldRef moneyInput;
-    private List<GameObject> objects = new();
-    private QuickReflection<DeliveryJobMission> reflect;
+    private Ref<int> money = new(30);
 
     public override Type missionType => typeof(DeliveryJobMission);
 
-    public override void ConstructUI()
+    public override void RegisterMacros()
     {
-        base.ConstructUI();
+        RegisterJobAction<DeliveryJobMission, int>("setMoney", "Set Job Money", "Money", (m, v) => m.moneyBagReward = v);
+    }
 
-        var title = ui.CreateLabel("Delivery Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
-
-        var moneyLIB = ui.CreateLIBTrio("Set Job Money", "moneyLIB", "30");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+    public override Container BuildContent(string id)
+    {
+        return new Container(id,
+            
+            new HStack("money",
+                new DragInt("##Job Money").WithValue(money),
+                WithMacroMenu(new Button("Set Job Money", () => SetMoney(money.Value)).WithContentWidth(), "setMoney", "Set Job Money")
+            ).WithContentWidth()
+        );
     }
 
     public override void RefreshUI()
     {
-        bool b;
-
-        try
-        {
-            var delivery = (DeliveryJobMission)Mission;
-            b = delivery != null;
-        }
-        catch
-        {
-            b = false;
-        }
-
-        root.SetActive(b);
-
+        var b = CheckMission();
         if (b)
-        {
-            reflect = new((DeliveryJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-
-            moneyInput.Text = ((int)reflect.GetField("moneyBagReward")).ToString();
-        }
+            money.Value = (int)((DeliveryJobMission)Mission).moneyBagReward;
     }
 
     public void SetMoney(int money)
     {
-        try
-        {
-            reflect.SetField("moneyBagReward", money);
-        }
-        catch { }
+        if (CheckMission())
+            ((DeliveryJobMission)Mission).moneyBagReward = money;
     }
 }

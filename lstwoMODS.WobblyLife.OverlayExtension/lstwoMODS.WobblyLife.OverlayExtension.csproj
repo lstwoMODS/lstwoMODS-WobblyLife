@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net472</TargetFramework>
+        <AssemblyName>lstwoMODS.WobblyLife.OverlayExtension</AssemblyName>
+        <RootNamespace>lstwoMODS.WobblyLife.OverlayExtension</RootNamespace>
+        <LangVersion>latest</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Nullable>enable</Nullable>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- SharedObjects ships alongside this DLL in the overlay plugins/ folder -->
+        <ProjectReference Include="..\lstwoMODS.WobblyLife.SharedObjects\lstwoMODS.WobblyLife.SharedObjects.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--
+            Compile-only references — these DLLs/EXEs are already present in the overlay's
+            working directory at runtime; setting Private=false keeps them out of our output.
+        -->
+        <Reference Include="lstwoMODS_Overlay">
+            <HintPath>..\..\lstwoMODS Core\lstwoMODS_Overlay\bin\Debug\net472\lstwoMODS_Overlay.exe</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="lstwoMODS.ImGui.Shared">
+            <HintPath>..\lstwoMODS WobblyLife\lib\lstwoMODS.ImGui.Shared.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!--
+            ImGui managed wrapper — compile-only.
+            The overlay already loads Hexa.NET.ImGui.dll and cimgui.dll; we must NOT
+            ship duplicate copies into plugins/ or they will conflict.
+        -->
+        <PackageReference Include="Hexa.NET.ImGui" Version="2.2.9">
+            <ExcludeAssets>runtime;native;contentfiles</ExcludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Newtonsoft.Json" Version="13.*">
+            <ExcludeAssets>runtime;native;contentfiles</ExcludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+
+</Project>

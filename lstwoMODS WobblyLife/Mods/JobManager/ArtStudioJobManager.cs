@@ -1,66 +1,50 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using lstwoMODS_Core;
-using UnityEngine;
-using UnityEngine.UI;
+using System;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 
-namespace lstwoMODS_WobblyLife.Hacks.JobManager;
+namespace lstwoMODS_WobblyLife.Mods.JobManager;
 
 public class ArtStudioJobManager : BaseJobManager
 {
-    private HacksUIHelper.LIBTrio moneyLIB;
-    private List<GameObject> objects = new();
-    private QuickReflection<ArtStudioJobMission> reflect;
+    private Ref<int> money = new(30);
 
     public override Type missionType => typeof(ArtStudioJobMission);
 
-    public override void ConstructUI()
+    public override Container BuildContent(string id)
     {
-        base.ConstructUI();
+        return new Container(id,
 
-        var title = ui.CreateLabel("Art Studio Job", "title", fontSize: 18);
-        objects.Add(title.gameObject);
+            new HStack("money",
+                new DragInt("##Job Money").WithValue(money),
+                WithMacroMenu(new Button("Set Job Money", () => SetMoney(money.Value)).WithContentWidth(), "setMoney", "Set Job Money")
+            ).WithContentWidth(),
 
-        moneyLIB = ui.CreateLIBTrio("Set Art Studio Job Money", "lstwo.JobManager.ArtStudioJobManager.SetMoney", "30");
-        moneyLIB.Input.Component.characterValidation = InputField.CharacterValidation.Integer;
-        moneyLIB.Button.OnClick = () => SetMoney(int.Parse(moneyLIB.Input.Text));
-        objects.Add(moneyLIB.Root);
+            WithMacroMenu(new Button("Spawn All Tools", SpawnAllTools), "spawnAllTools", "Spawn All Tools")
+        );
+    }
 
-        objects.Add(ui.AddSpacer(6));
-
-        var spawnToolsLB = ui.CreateLBDuo("Spawn All Tools", "lstwo.JobManager.ArtStudioJobManager.SpawnTools", SpawnAllTools, "Spawn", "SpawnToolsButton");
-        objects.Add(spawnToolsLB.Root);
+    public override void RegisterMacros()
+    {
+        RegisterJobAction<ArtStudioJobMission, int>("setMoney", "Set Job Money", "Money", (m, money) => m.money = money);
+        RegisterJobAction<ArtStudioJobMission>("spawnAllTools", "Spawn All Tools", m => m.ServerSpawnAllTools());
     }
 
     public override void RefreshUI()
     {
-        bool b = CheckMission();
-
-        root.SetActive(b);
-
-        if (!b)
-        {
-            return;
-        }
-            
-        reflect = new((ArtStudioJobMission)Mission, BindingFlags.Instance | BindingFlags.NonPublic);
-        moneyLIB.Input.Text = ((int)reflect.GetField("money")).ToString();
+        var b = CheckMission();
+        if (b)
+            money.Value = (int)((ArtStudioJobMission)Mission).money;
     }
 
     public void SetMoney(int money)
     {
         if (CheckMission())
-        {
-            reflect.SetField("money", money);
-        }
+            ((ArtStudioJobMission)Mission).money = money;
     }
 
     public void SpawnAllTools()
     {
         if (CheckMission())
-        {
-            reflect.GetMethod("ServerSpawnAllTools");
-        }
+            ((ArtStudioJobMission)Mission).ServerSpawnAllTools();
     }
 }

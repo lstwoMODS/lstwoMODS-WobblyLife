@@ -1,46 +1,28 @@
 using System;
-using System.Reflection;
 using HarmonyLib;
-using HawkNetworking;
-using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class DayNightCycleSync : BaseHack
+public class DayNightCycleSync : BaseMod
 {
-    public override void ConstructUI(GameObject root)
-    {
-        var ui = new HacksUIHelper(root);
-        
-        ui.AddSpacer(6);
-        
-        
-
-        ui.AddSpacer(6);
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void RefreshUI()
-    {
-    }
-
     public override string Name => "Sync In-Game Time to Real Time";
     public override string Description => "";
-    public override HacksTab HacksTab { get; }
+    public override ModsWindow ModsWindow => Plugin.ServerModsWindow;
     
-    public static bool enabled = false;
+    [ModSetting]
+    public static bool Enabled = false;
+
+    protected override void OnStaticInit()
+    {
+        new Harmony(GetType().ToString()).PatchAll(typeof(Patches));
+    }
 
     private static void UpdateReplacement(ref DayNightCycle __instance)
     {
-        var qr = new QuickReflection<DayNightCycle>(__instance, Plugin.Flags);
-        
-        if (((HawkNetworkManager)qr.GetField("networkManager")).IsConnected() && (__instance.networkObject == null || !__instance.networkObject.IsServer()))
+        if (__instance.networkManager.IsConnected() && (__instance.networkObject == null || !__instance.networkObject.IsServer()))
         {
             return;
         }
@@ -55,31 +37,31 @@ public class DayNightCycleSync : BaseHack
             timeOfDayDegrees += 360f;
         }
 
-        qr.SetField("timeTickTok", timeOfDayDegrees);
+        __instance.timeTickTok = timeOfDayDegrees;
         
         if (Time.frameCount % 2 == 0)
         {
-            __instance.UpdateTimeOfDay((float)qr.GetField("timeTickTok"));
+            __instance.UpdateTimeOfDay(__instance.timeTickTok);
         }
         
-        if ((float)qr.GetField("timeOfDay") >= 360f)
+        if (__instance.timeOfDay >= 360f)
         {
-            qr.SetField("timeTickTok", 0f);
+            __instance.timeTickTok = 0f;
         }
         
-        if ((float)qr.GetField("timeOfDay") >= 270f)
+        if (__instance.timeOfDay >= 270f)
         {
-            if ((bool)qr.GetField("bNextDaySent"))
+            if (__instance.bNextDaySent)
             {
                 return;
             }
             
-            qr.SetField("bNextDaySent", true);
-            qr.GetMethod("ServerTriggerNextDay");
+            __instance.bNextDaySent = true;
+            __instance.ServerTriggerNextDay();
         }
         else
         {
-            qr.SetField("bNextDaySent", false);
+            __instance.bNextDaySent = false;
         }
     }
     
@@ -89,7 +71,7 @@ public class DayNightCycleSync : BaseHack
         [HarmonyPrefix]
         public static bool DayNightCycle_Update_Prefix(ref DayNightCycle __instance)
         {
-            if (!enabled)
+            if (!Enabled)
             {
                 return true;
             }

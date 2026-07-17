@@ -6,68 +6,50 @@ using UnityEngine.UI;
 using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
+using lstwoMODS_Core.UI;
+using lstwoMODS_WobblyLife.Mods;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class JetpackMultiplier : BaseHack
+public class JetpackMultiplier : PlayerBasedMod
 {
+    private class PlayerSettings
+    {
+        public bool FuelEnabled = true;
+        public float FuelTime = 3.5f;
+        public float Speed = 6f;
+    }
+    
     public override string Name => "Jetpack Multiplier";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.PlayerModsWindow;
+    
+    private PlayerSettings Current => GetPlayerSettings<PlayerSettings>(Player?.Controller);
 
-    public override HacksTab HacksTab => Plugin.ExtraHacksTab;
-
-    private static bool fuelEnabled = true;
-    private static bool allPlayers = true;
-    private static float fuelTime = 3.5f;
-    private static float speed = 6f;
-
-    private HacksUIHelper.LIBTrio fuelTimeLIB;
-    private HacksUIHelper.LIBTrio speedLIB;
-
-    public override void ConstructUI(GameObject root)
+    [ModSetting(Order = 10)]
+    public bool EnableFuel
     {
-        new Harmony("lstwo.lstwoMODS_WobblyLife.JetpackMultiplier").PatchAll(typeof(Patches));
-
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.JetpackMultiplier.EnableForAll", "Enable for All Players", (b) => allPlayers = b, true);
-
-        ui.AddSpacer(6);
-
-        fuelTimeLIB = ui.CreateLIBTrio("Jetpack Fuel Time", "lstwo.JetpackMultiplier.fuelTime", "Fuel Time in Seconds");
-        fuelTimeLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        fuelTimeLIB.Button.OnClick = () =>
-        {
-            fuelTime = float.Parse(fuelTimeLIB.Input.Text);
-        };
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.JetpackMultiplier.enableJetpackFuel", "Enable Jetpack Fuel (Toggle Off for Infinite Time)", (b) => fuelEnabled = b, true);
-
-        ui.AddSpacer(6);
-
-        speedLIB = ui.CreateLIBTrio("Jetpack Speed", "lstwo.JetpackMultiplier.speed");
-        speedLIB.Input.Component.characterValidation = InputField.CharacterValidation.Decimal;
-        speedLIB.Button.OnClick = () =>
-        {
-            speed = float.Parse(speedLIB.Input.Text);
-        };
-
-        ui.AddSpacer(6);
+        get => Current?.FuelEnabled ?? false;
+        set => Current?.FuelEnabled = value;
     }
 
-    public override void RefreshUI()
+    [ModSetting(Order = 20)]
+    public float FuelTime
     {
-        fuelTimeLIB.Input.Text = fuelTime.ToString();
-        speedLIB.Input.Text = speed.ToString();
+        get => Current?.FuelTime ?? 0f;
+        set => Current?.FuelTime = value;
     }
 
-    public override void Update()
+    [ModSetting(Order = 30)]
+    public float Speed
     {
+        get => Current?.Speed ?? 0f;
+        set => Current?.Speed = value;
+    }
+
+    protected override void OnStaticInit()
+    {
+        new Harmony(Id).PatchAll(typeof(Patches));
     }
 
     public class Patches
@@ -76,26 +58,13 @@ public class JetpackMultiplier : BaseHack
         [HarmonyPrefix]
         public static bool OnPostMovementPatch(ref ClothingJetpack __instance, ref PlayerCharacterMovement movement, Rigidbody rigidbody)
         {
-            var baseReflect = new QuickReflection<ClothingCustom>(__instance, Plugin.Flags);
-            var player = (PlayerController)baseReflect.GetField("playerController");
-
-            if (player && player.networkObject != null && !player.networkObject.IsOwner() && !allPlayers)
-            {
-                return true;
-            }
-
-            if (!__instance.IsAllowedCustom())
+            if (!__instance.IsAllowedCustom() || !__instance.GetCustomBit(0))
             {
                 return false;
             }
-            if (__instance.GetCustomBit(0))
-            {
-                PlayerBody playerBody = movement.GetPlayerBody();
-                if (playerBody)
-                {
-                    playerBody.SetRagdollVelocityLerpY(speed, Time.fixedDeltaTime * 5f);
-                }
-            }
+            
+            var settings = GetPlayerSettings<PlayerSettings>(typeof(JetpackMultiplier), __instance.playerController);
+            movement.GetPlayerBody()?.SetRagdollVelocityLerpY(settings.Speed, Time.fixedDeltaTime * 5f);
 
             return false;
         }
@@ -104,53 +73,32 @@ public class JetpackMultiplier : BaseHack
         [HarmonyPrefix]
         public static bool UpdatePatch(ref ClothingJetpack __instance)
         {
-            try
+            var settings = GetPlayerSettings<PlayerSettings>(typeof(JetpackMultiplier), __instance.playerController) ?? new();
+            var num = 0f;
+            
+            if (__instance.IsAllowedCustom())
             {
-                var i = 0;
-                var baseReflect = new QuickReflection<ClothingCustom>(__instance, Plugin.Flags);
-
-                var player = (PlayerController)baseReflect.GetField("playerController");
-
-                if (player && player.networkObject != null && !player.networkObject.IsOwner() && !allPlayers)
+                if (__instance.GetCustomBit(0) && settings.FuelEnabled)
                 {
-                    return true;
+                    __instance.fuelTime -= Time.deltaTime;
+                    __instance.bRefueling = false;
                 }
-
-                var reflect = new QuickReflection<ClothingJetpack>(__instance, Plugin.Flags);
-
-                float num = 0f;
-
-                if (__instance.IsAllowedCustom())
+                else
                 {
-                    if (__instance.GetCustomBit(0) && fuelEnabled)
-                    {
-                        reflect.SetField("fuelTime", (float)reflect.GetField("fuelTime") - Time.deltaTime);
-                        reflect.SetField("bRefueling", false);
-                    }
-
-                    else
-                    {
-                        reflect.SetField("fuelTime", (float)reflect.GetField("fuelTime") + Time.deltaTime * 1f);
-                        reflect.SetField("bRefueling", true);
-                    }
-
-                    reflect.SetField("fuelTime", Mathf.Clamp((float)reflect.GetField("fuelTime"), 0f, fuelTime));
-                    num = (float)reflect.GetField("fuelTime") / fuelTime;
+                    __instance.fuelTime += Time.deltaTime * 1f;
+                    __instance.bRefueling = true;
                 }
-
-                if ((Material)reflect.GetField("fuelIndicatorMaterial"))
-                {
-                    var fuelIndicatorMaterial = (Material)reflect.GetField("fuelIndicatorMaterial");
-                    fuelIndicatorMaterial.SetFloat((int)typeof(ClothingJetpack).GetField("Shader_Progress_ID", BindingFlags.Static | BindingFlags.NonPublic).GetValue(null), num);
-                }
-
-                return false;
+                
+                __instance.fuelTime = Mathf.Clamp(__instance.fuelTime, 0f, settings.FuelTime);
+                num = __instance.fuelTime / settings.FuelTime;
             }
-            catch (Exception e)
+            
+            if (__instance.fuelIndicatorMaterial)
             {
-                Plugin.LogSource.LogError(e.Message + e.StackTrace);
-                return true;
+                __instance.fuelIndicatorMaterial.SetFloat(ClothingJetpack.Shader_Progress_ID, num);
             }
+
+            return false;
         }
     }
 }

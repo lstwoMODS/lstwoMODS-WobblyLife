@@ -1,65 +1,52 @@
-using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
-using UnityEngine;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class JellyManBasementMissionManager : BaseHack
+public class JellyManBasementMissionManager : BaseMod
 {
-    public override void ConstructUI(GameObject root)
-    {
-        var ui = new HacksUIHelper(root);
-        
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Unlock Basement", "lstwo.JellyManBasementMissionManager.UnlockBasement", () => JellyManBasementMission?.UnlockBasement(), "Unlock", 
-            "lstwo.JellyManBasementMissionManager.UnlockBasementButton");
-        
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Place All Wheels", "lstwo.JellyManBasementMissionManager.PlaceWheels", () => JellyManBasementMission?.PlacedAllWheels(), "Place",  
-            "lstwo.JellyManBasementMissionManager.PlaceWheelsButton");
-        
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Place Engine", "lstwo.JellyManBasementMissionManager.PlaceEngine", () => JellyManBasementMission?.PlacedEngine(), "Place",  
-            "lstwo.JellyManBasementMissionManager.PlaceEngineButton");
-        
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Deliver All Jelly", "lstwo.JellyManBasementMissionManager.DeliverJelly", () =>
-        {
-            for (var i = 0; i < 5; i++)
-            {
-                JellyManBasementMission?.IncrementJellyDeliveredCount();
-            }
-        }, "Deliver", "lstwo.JellyManBasementMissionManager.DeliverJellyButton");
-        
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Place Steering Wheel", "lstwo.JellyManBasementMissionManager.PlaceSteeringWheel", () => JellyManBasementMission?.PlacedSteeringWheel(), "Place",  
-            "lstwo.JellyManBasementMissionManager.PlaceSteeringWheelButton");
-        
-        ui.AddSpacer(6);
-
-        ui.CreateLBDuo("Finish Jelly Car", "lstwo.JellyManBasementMissionManager.FinishJellyCar", () => JellyManBasementMission?.CompleteBuiltJellyCar(), "Finish",  
-            "lstwo.JellyManBasementMissionManager.FinishJellyCarButton");
-        
-        ui.AddSpacer(6);
-    }
-
-    public override void Update()
-    {
-    }
-
-    public override void RefreshUI()
-    {
-    }
-
     public override string Name => "Jelly Man Basement Mission Manager";
     public override string Description => "";
-    public override HacksTab HacksTab => Plugin.SaveHacksTab;
+    public override ModsWindow ModsWindow => Plugin.SaveModsWindow;
 
     public static WorldMissionWobblyIslandJellyManBasement JellyManBasementMission => WorldMissionManager.Instance?.GetFirstMissionByType<WorldMissionWobblyIslandJellyManBasement>();
+
+    [ModAction(Order = 10)]
+    public static void UnlockBasement()
+    {
+        JellyManBasementMission?.UnlockBasement();
+    }
+
+    [ModAction(Order = 20)]
+    public static void PlaceWheels()
+    {
+        JellyManBasementMission?.PlacedAllWheels();
+    }
+
+    [ModAction(Order = 30)]
+    public static void PlaceEngine()
+    {
+        JellyManBasementMission?.PlacedEngine();
+    }
+    
+    [ModAction(Order = 40)]
+    public static void DeliverAllJelly()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            JellyManBasementMission?.IncrementJellyDeliveredCount();
+        }
+    }
+
+    [ModAction(Order = 50)]
+    public static void PlaceSteeringWheel()
+    {
+        JellyManBasementMission?.PlacedSteeringWheel();
+    }
+
+    [ModAction(Order = 60)]
+    public static void CompleteJellyCar()
+    {
+        JellyManBasementMission?.CompleteBuiltJellyCar();
+    }
 }

@@ -1,6 +1,8 @@
 ﻿using BepInEx;
 using UnityEngine;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 //using lstwoMODS_WobblyLife.UI.TabMenus;
 using System.Reflection;
 using System.Collections;
@@ -8,25 +10,26 @@ using System;
 using BepInEx.Logging;
 using lstwoMODS_WobblyLife.CustomItems;
 using BepInEx.Configuration;
-using System.Linq;
-using System.Threading.Tasks;
 using HarmonyLib;
 using HawkNetworking;
-using ImGuiNET;
-using lstwoMODS_Core.UI;
+using lstwoMODS_Core;
 //using lstwoMODS_WobblyLife.Hacks.JobManager;
+using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 using lstwoMODS_Core.UI.TabMenus;
+using lstwoMODS.ImGui.Shared;
+using lstwoMODS.WobblyLife.SharedObjects;
+using lstwoMODS_WobblyLife.Mods;
+using lstwoMODS_WobblyLife.Mods.Chat;
 using lstwoMODS_WobblyLife.UI.TabMenus;
+using UnityEngine.AddressableAssets;
 using Steamworks;
-using UImGui;
-using UImGui.Assets;
-using UImGui.Texture;
-using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
 namespace lstwoMODS_WobblyLife;
 
 [BepInPlugin(PluginInfo.PLUGIN_GUID, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
+[BepInDependency("net.lstwo.lstwomods_core")]
 public class Plugin : BaseUnityPlugin
 {
     private static FieldInfo uImGuiCameraField;
@@ -34,165 +37,342 @@ public class Plugin : BaseUnityPlugin
     // QUICK ACCESS
     public const BindingFlags Flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
         
-    public static ManualLogSource LogSource { get => Instance.Logger; }
-    public static ConfigFile ConfigFile { get => Instance.Config; }
-    public static AssetBundle AssetBundle { get; private set; }
+    public static ManualLogSource LogSource => Instance.Logger;
+    public static ConfigFile ConfigFile => Instance.Config;
 
     // INSTANCES
     public static Plugin Instance { get; private set; }
 
     // TABS
-    public static PlayerBasedModsTab PlayerHacksTab { get; private set; }
-    public static PlayerBasedModsTab VehicleHacksTab { get; private set; }
-    public static ModsTab ServerModsTab { get; private set; }
-    public static ModsTab ClientModsTab { get; private set; }
-    public static ModsTab SaveModsTab { get; private set; }
-    public static ModsTab ExtraModsTab { get; private set; }
-    //public static PropSpawnerTab PropSpawnerTab { get; private set; }
-    //public static CustomItemsTab CustomItemsTab { get; private set; }
+    public static PlayerBasedModsWindow PlayerModsWindow { get; private set; }
+    public static PlayerBasedModsWindow VehicleModsWindow { get; private set; }
+    public static ModsWindow ServerModsWindow { get; private set; }
+    public static ModsWindow ClientModsWindow { get; private set; }
+    public static ModsWindow SaveModsWindow { get; private set; }
+    public static ModsWindow ExtraModsWindow { get; private set; }
+    public static PropSpawnerWindow PropSpawnerWindow { get; private set; }
 
     public static List<CustomItemPack> CustomItemPacks { get; private set; } = new();
+
+    internal static readonly Ref<bool> ScanWindowVisible  = new();
+    internal static readonly Ref<float> ScanProgressValue  = new();
+    internal static readonly Ref<string> ScanProgressText   = new("");
+
 
     private void Awake()
     {
         Instance = this;
 
-        GameInstance.onAssignedPlayerCharacter += (character) =>
-        {
-            if(!HawkNetworkManager.DefaultInstance.IsOffline())
-            {
-                StartCoroutine(NameEasterEggThingy(character));
-            }
-        };
+        // Must run before GameInstance.Awake creates the (DontDestroyOnLoad, never-rebuilt)
+        // network singletons: flips the transport selectors to LAN when the persistent flag is set.
+        Mods.LanMultiplayer.LanMultiplayerMod.ApplyBootTransport();
 
-        GameInstance.onSceneLoaded += (scene) =>
-        {
-            if (scene != LoadScene.MainMenu)
-            {
-                return;
-            }
-            
-            Window.Enabled = false;
-        };
+        UIManager.OnInitialized += OnIpcInitialized;
+        LstwoModsOverlay.OnConstructUI += OnConstructUI;
+        SettingsWindow.OnBuildUI += OnBuildSettingsUI;
+        GameInstance.onAssignedPlayerCharacter += OnAssignedPlayerCharacter;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        lstwoMODS_Core.Plugin.OnUIToggle += OnUIToggle;
+        LstwoModsOverlay.OnConstructUI += ChatMod.BuildChatUI;
 
-        GameInstance.onAssignedPlayerController += (controller) =>
-        {
-            if (!controller.IsLocal() || 
-                (lstwoMODS_Core.Plugin.ImGuiRenderer != null && 
-                 (Camera)uImGuiCameraField.GetValue(lstwoMODS_Core.Plugin.ImGuiRenderer) != null))
-            {
-                return;
-            }
-            
-            controller.onGameplayCameraCreated += (playerController, camera) =>
-            {
-                if (!lstwoMODS_Core.Plugin.ImGuiRenderer)
-                {
-                    try {InitUI();} catch(Exception e) {Debug.LogException(e);}
-                }
-
-                lstwoMODS_Core.Plugin.ImGuiRenderer.enabled = true;
-                lstwoMODS_Core.Plugin.ImGuiRenderer.SetCamera(camera.GetCamera());
-                lstwoMODS_Core.Plugin.ImGuiRenderer.enabled = true;
-                
-                lstwoMODS_Core.Plugin.OnUIInitialize?.Invoke();
-
-                camera.onDestroy += cam =>
-                {
-                    lstwoMODS_Core.Plugin.ImGuiRenderer.enabled = false;
-                };
-                
-                Cursor.visible = false;
-                Cursor.lockState = CursorLockMode.Locked;
-            };
-        };
-
-        SceneManager.sceneLoaded += (scene, loadMode) =>
-        {
-            if (scene.name is "LoadingScene" && loadMode != LoadSceneMode.Single)
-            {
-                return;
-            }
-
-            if (scene.name is "MainMenu")
-            {
-            }
-                
-            try
-            {
-                if (SteamClient.IsValid && !string.IsNullOrEmpty(SteamClient.SteamId.ToString()) &&
-                    SteamClient.AppId == 1211020)
-                {
-                    return;
-                }
-
-                var obj = AssetBundle.LoadAsset<GameObject>("PiracyScreenCanvas");
-                var newObj = Instantiate(obj);
-                DontDestroyOnLoad(newObj);
-
-                StartCoroutine(PiracyScreenRoutine());
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError(ex);
-                var obj = AssetBundle.LoadAsset<GameObject>("PiracyScreenCanvas");
-                var newObj = Instantiate(obj);
-                DontDestroyOnLoad(newObj);
-            }
-        };
-
-        lstwoMODS_Core.Plugin.OnUIToggle += (toggle) =>
-        {
-            print(toggle);
-            
-            var localPlayers = GameInstance.Instance.GetLocalPlayerControllers();
-
-            foreach (var inputManager in localPlayers.Select(localPlayer => localPlayer.GetPlayerControllerInputManager()))
-            {
-                if (toggle)
-                {
-                    inputManager.DisableGameplayCameraInput(this);
-                    inputManager.DisableGameplayInput(this);
-                    inputManager.DisableInteratorInput(this);
-                    inputManager.DisablePlayerTransformInput(this);
-                    inputManager.DisableUIInput(this);
-                    
-                    Cursor.visible = true;
-                    Cursor.lockState = CursorLockMode.None;
-
-                    return;
-                }
-                
-                inputManager.EnableGameplayCameraInput(this);
-                inputManager.EnableGameplayInput(this);
-                inputManager.EnableInteratorInput(this);
-                inputManager.EnablePlayerTransformInput(this);
-                inputManager.EnableUIInput(this);
-                
-                Cursor.visible = false;
-                Cursor.lockState = CursorLockMode.Locked;
-            }
-        };
-
-        lstwoMODS_Core.Plugin.UIConditions.Add(() => GameInstance.InstanceExists && GameInstance.Instance.GetGamemode());
-
-        //AssetBundle = AssetUtils.LoadFromEmbeddedResources("lstwoMODS_WobblyLife.Resources.lstwomods.wobblylife.bundle");
-
-        PlayerHacksTab = new("Player Mods");
-        VehicleHacksTab = new("Vehicle Mods");
-        ServerModsTab = new("Server Mods");
-        ClientModsTab = new("Client Mods");
-        SaveModsTab = new("Save File Mods");
-        ExtraModsTab = new("Extra Mods");
-        //PropSpawnerTab = new(AssetBundle.LoadAsset<Sprite>("PropSpawnerIcon"));
-        //CustomItemsTab = new(AssetBundle.LoadAsset<Sprite>("CustomItemsIcon"));
+        PlayerModsWindow = new("Player Mods", Lucide.User);
+        VehicleModsWindow = new("Vehicle Mods", Lucide.CarFront);
+        ServerModsWindow = new("Server Mods", Lucide.Earth);
+        ClientModsWindow = new("Client Mods", Lucide.Monitor);
+        SaveModsWindow = new("Save File Mods", Lucide.Save);
+        ExtraModsWindow = new("Extra Mods", Lucide.Grip);
+        PropSpawnerWindow = new ();
+        
+        QualityOfLifeMod.ApplyPatches(new Harmony("net.lstwo.lstwoMODS.WobblyLife.QoL"));
+        QualityOfLifeMod.EarlyLoadData();
 
         Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
     }
 
+    private void OnAssignedPlayerCharacter(PlayerCharacter character)
+    {
+        if (!HawkNetworkManager.DefaultInstance.IsOffline())
+        {
+            StartCoroutine(NameEasterEggThingy(character));
+        }
+    }
+
+    private void OnBuildSettingsUI(List<BaseUIElement> elements)
+    {
+        var confirmDialog = new ConfirmDialog("asset-db-rescan-confirm",
+            title:         "Rescan Asset Database",
+            message:       "This will delete the cached asset database and re-scan all game assets. This may take several minutes.",
+            confirmLabel:  "Rescan",
+            onConfirm:     () => _StartCoroutine(RunAssetDatabaseScan(true)));
+
+        elements.Add(new SeparatorText("asset-db-sep", "Wobbly Life"));
+        elements.Add(confirmDialog);
+        elements.Add(new Button("Rescan Asset Database", confirmDialog.Show).WithContentWidth());
+    }
+
+    private void OnConstructUI()
+    {
+        lstwoMODS_Core.Plugin.Window.AddElement(
+            new GuiWindow("asset-db-scan", "##asset-db-scan",
+                new UIText("scan-title", "Scanning Assets"),
+                new ProgressBar("scan-bar", sizeY: 22f)
+                    .WithValue(ScanProgressValue)
+                    .WithOverlay(ScanProgressText)
+                    .WithRequireInput(false)
+            )
+            .WithOpen(ScanWindowVisible)
+            .WithRequireInput(false)
+            .WithNoClose()
+            .WithFlags(
+                ImGuiWindowFlags.NoDecoration          |
+                ImGuiWindowFlags.NoMove                |
+                ImGuiWindowFlags.NoInputs              |
+                ImGuiWindowFlags.NoSavedSettings       |
+                ImGuiWindowFlags.NoBringToFrontOnFocus |
+                ImGuiWindowFlags.NoDocking
+            )
+            .WithSize(540f, 62f, ImGuiCond.Always)
+            .WithPosition(-1f, 20f, ImGuiCond.Always, 0.5f, 0f)
+        );
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode loadMode)
+    {
+        if (scene.name is "LoadingScene" || loadMode != LoadSceneMode.Single)
+        {
+            return;
+        }
+
+        if (scene.name is "MainMenu")
+        {
+            if (SteamClient.IsValid && SteamClient.AppId != 1211020)
+            {
+                AntiPiracy.Initialize();
+            }
+
+            lstwoMODS_Core.Plugin.Window.LstwoModsPanels.Enabled = false;
+            _StartCoroutine(RunAssetDatabaseScan());
+        }
+    }
+
+    private static readonly object UiPauseHandle = new();
+
+    private void OnUIToggle(bool enabled)
+    {
+        if (enabled)
+            GamePause.AddPauseHandle(UiPauseHandle);
+        else
+            GamePause.ReleasePauseHandle(UiPauseHandle);
+    }
+
+    private static int _nextSpawnId;
+    private static readonly Dictionary<int, GameObject> _spawnedProps = new();
+
+    private static void OnIpcInitialized()
+    {
+        UIManager.IpcChannel.MessageReceived += async msg =>
+        {
+            if (msg.Type != "_plugin") return;
+            try
+            {
+                var inner = Newtonsoft.Json.JsonConvert.DeserializeObject<IpcMessage>(msg.Payload);
+                if (inner?.Type == SpawnPropMessage.MessageType)
+                {
+                    var spawn = SpawnPropMessage.Deserialize(inner);
+                    MainThread.Enqueue(() => ExecuteSpawnProp(spawn));
+                }
+                else if (inner?.Type == SpawnedPropActionMessage.MessageType)
+                {
+                    var action = SpawnedPropActionMessage.Deserialize(inner);
+                    MainThread.Enqueue(() => ExecuteSpawnedPropAction(action));
+                }
+                else if (inner?.Type == SpawnCustomItemMessage.MessageType)
+                {
+                    var spawn = SpawnCustomItemMessage.Deserialize(inner);
+                    MainThread.Enqueue(() => ExecuteSpawnCustomItem(spawn));
+                }
+            }
+            catch { }
+        };
+    }
+
+    private static void ExecuteSpawnProp(SpawnPropMessage spawn)
+    {
+        var player = GameInstance.Instance?.GetFirstLocalPlayerController();
+        if (player == null) return;
+        var character = player.GetPlayerCharacter();
+        var pos        = character.GetPlayerPosition() + character.GetPlayerForward();
+        var candidates = AddressFallbacks(spawn.Address).ToList();
+        var spawnId    = ++_nextSpawnId;
+
+        if (spawn.Networked)
+            TrySpawnNetworkedAt(candidates, 0, pos, spawnId, spawn);
+        else
+            _StartCoroutine(TryInstantiateAsync(candidates, pos, spawnId, spawn));
+    }
+
+    private static void ExecuteSpawnCustomItem(SpawnCustomItemMessage spawn)
+    {
+        if (spawn.PackIndex < 0 || spawn.PackIndex >= CustomItemPacks.Count) return;
+        var pack = CustomItemPacks[spawn.PackIndex];
+        if (spawn.ItemIndex < 0 || spawn.ItemIndex >= pack.items.Count) return;
+        var item = pack.items[spawn.ItemIndex];
+
+        var player = GameInstance.Instance?.GetFirstLocalPlayerController();
+        if (player == null) return;
+        var character = player.GetPlayerCharacter();
+        var pos = item.spawnAtPos
+            ? item.customSpawnPos
+            : character.GetPlayerPosition() + character.GetPlayerForward();
+
+        NetworkPrefab.SpawnNetworkPrefab(item.gameObject, pos);
+    }
+
+    private static void TrySpawnNetworkedAt(List<string> candidates, int index, Vector3 pos, int spawnId, SpawnPropMessage spawn)
+    {
+        if (index >= candidates.Count)
+        {
+            LogSource.LogWarning("[PropSpawner] Networked spawn failed: no valid key found.");
+            return;
+        }
+        NetworkPrefab.SpawnNetworkPrefab(candidates[index], b =>
+        {
+            if (b == null) { TrySpawnNetworkedAt(candidates, index + 1, pos, spawnId, spawn); return; }
+            OnSpawnSuccess(spawnId, spawn, b.gameObject);
+        }, pos, bSendTransform: true);
+    }
+
+    private static IEnumerator TryInstantiateAsync(List<string> candidates, Vector3 pos,
+                                                    int spawnId, SpawnPropMessage spawn)
+    {
+        foreach (var key in candidates)
+        {
+            var handle = Addressables.InstantiateAsync(key, pos, Quaternion.identity);
+            yield return handle;
+            if (handle.Result != null)
+            {
+                OnSpawnSuccess(spawnId, spawn, handle.Result);
+                yield break;
+            }
+            if (handle.IsValid())
+                Addressables.Release(handle);
+        }
+        LogSource.LogWarning("[PropSpawner] Local spawn failed: no valid Addressables key found.");
+    }
+
+    private static void OnSpawnSuccess(int spawnId, SpawnPropMessage spawn, GameObject go)
+    {
+        _spawnedProps[spawnId] = go;
+
+        UIManager.IpcChannel.SendMessage(new PropSpawnedMessage
+        {
+            SpawnId   = spawnId,
+            Address   = spawn.Address,
+            Name      = go.name,
+            Networked = spawn.Networked
+        }.Serialize());
+    }
+
+    private static void ExecuteSpawnedPropAction(SpawnedPropActionMessage action)
+    {
+        // Prune stale entries (destroyed by other means)
+        var stale = _spawnedProps.Where(kvp => kvp.Value == null).Select(kvp => kvp.Key).ToList();
+        foreach (var k in stale) _spawnedProps.Remove(k);
+
+        if (!_spawnedProps.TryGetValue(action.SpawnId, out var go) || go == null)
+        {
+            _spawnedProps.Remove(action.SpawnId);
+            return;
+        }
+
+        switch (action.Action)
+        {
+            case "Delete":
+                var hawk = go.GetComponent<HawkNetworkBehaviour>();
+                if (hawk?.networkObject != null)
+                    hawk.networkObject.Destroy();
+                else
+                    Destroy(go);
+                _spawnedProps.Remove(action.SpawnId);
+                break;
+            case "Inspect":
+                TryInspectWithUnityExplorer(go);
+                break;
+        }
+    }
+
+    private static void TryInspectWithUnityExplorer(GameObject go)
+    {
+        try
+        {
+            UnityExplorer.InspectorManager.Inspect(go);
+            UnityExplorer.UI.UIManager.ShowMenu = true;
+        }
+        catch { }
+    }
+
+    // Yields: HawkNetworkBehaviour.assetID → as-is → stripped prefix → stripped prefix+ext → asset GUID
+    private static IEnumerable<string> AddressFallbacks(string address)
+    {
+        var entry = AssetDatabase.Get(address);
+
+        if (!string.IsNullOrEmpty(entry?.NetworkAssetId))
+            yield return entry.NetworkAssetId;
+
+        yield return address;
+
+        const string prefix = "Assets/Content/";
+        if (address.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var stripped = address.Substring(prefix.Length);
+            yield return stripped;
+            if (stripped.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase))
+                yield return stripped.Substring(0, stripped.Length - 7);
+        }
+        else if (address.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return address.Substring(0, address.Length - 7);
+        }
+
+        if (!string.IsNullOrEmpty(entry?.Guid))
+            yield return entry.Guid;
+    }
+
     private void Start()
     {
+        PlayerMacroType.Register();
+        WeatherMacroType.Register();
+        WaypointMacro.Register();
+        WLMacroTriggers.Register();
+        Mods.Chat.ChatMacroTrigger.Register();
         InitMods();
+    }
+
+    private static IEnumerator RunAssetDatabaseScan(bool forceRefresh = false)
+    {
+        if (!forceRefresh && AssetDatabase.IsInitialized && AssetDatabase.Entries.All(e => e.ComponentsLoaded) && AssetDatabase.SceneEntries.All(e => e.ComponentsLoaded))
+            yield break;
+
+        yield return AssetDatabase.InitializeAsync(forceRefresh);
+
+        if (!AssetDatabase.Entries.Any(e => !e.ComponentsLoaded) && !AssetDatabase.SceneEntries.Any(e => !e.ComponentsLoaded))
+            yield break;
+
+        ScanWindowVisible.Value = true;
+        ScanProgressValue.Value = 0f;
+        var total = AssetDatabase.Entries.Count + AssetDatabase.SceneEntries.Count;
+        ScanProgressText.Value = $"Scanning 0 / {total}";
+
+        yield return AssetDatabase.ScanAllComponentsAsync((done, t) =>
+        {
+            ScanProgressValue.Value = t > 0 ? (float)done / t : 1f;
+            ScanProgressText.Value  = $"Scanning {done} / {t}";
+        });
+
+        ScanProgressText.Value  = $"Done: {AssetDatabase.Entries.Count} assets, {AssetDatabase.SceneEntries.Count} scenes";
+        ScanProgressValue.Value = 1f;
+        yield return new WaitForSecondsRealtime(3f);
+        ScanWindowVisible.Value = false;
     }
 
     private static IEnumerator NameEasterEggThingy(PlayerCharacter character)
@@ -204,99 +384,55 @@ public class Plugin : BaseUnityPlugin
 
     public static void InitMods()
     {
-        //_StartCoroutine(CustomItemsTab.InitCustomItems());
-        WobblyServerUtilCompat.Init();
-
+        _StartCoroutine(InitModsRoutine());
         //InitChildClasses<BaseJobManager>();
     }
-    
-    public static void InitUI()
+
+    private static IEnumerator InitModsRoutine()
     {
-        var uImGuiBundle = lstwoMODS_Core.Plugin.UImGuiBundle;
-        var rendererPrefab = uImGuiBundle.LoadAsset<GameObject>("lstwoMODS uImGui Renderer");
-        var rendererObj = Instantiate(rendererPrefab);
-        DontDestroyOnLoad(rendererObj);
-        
-        var renderer = rendererObj.GetComponent<UImGui.UImGui>();
-        lstwoMODS_Core.Plugin.ImGuiRenderer = renderer;
+        yield return InitCustomItems();
+        SendCustomItemsReady();
+    }
 
-        var uImGuiType = renderer.GetType();
-        uImGuiCameraField = uImGuiType.GetField("_camera", Flags);
-        //var fontAtlasConfigAsset = (FontAtlasConfigAsset)uImGuiType.GetField("_fontAtlasConfiguration", Flags).GetValue(renderer);
-        var shadersAsset = (ShaderResourcesAsset)uImGuiType.GetField("_shaders", Flags).GetValue(renderer);
-        
-        /*var fontDefinition = new FontDefinition
+    private static IEnumerator InitCustomItems()
+    {
+        var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lstwoMODS", "CustomItems");
+
+        if (!Directory.Exists(path))
         {
-            Path = @"mods\net.lstwo.lstwoMODS\InterVariable.ttf",
-            Config =
+            Directory.CreateDirectory(path);
+            yield break;
+        }
+
+        foreach (var itemDirectory in Directory.GetDirectories(path))
+        {
+            try
             {
-                FontDataOwnedByAtlas = true,
-                FontNo = 0,
-                SizeInPixels = 18,
-                OversampleH = 2,
-                OversampleV = 1,
-                PixelSnapH = true,
-                GlyphExtraSpacing = new Vector2(0,0),
-                GlyphOffset = new Vector2(0,0),
-                GlyphRanges = ScriptGlyphRanges.Default,
-                GlyphMinAdvanceX = 0,
-                GlyphMaxAdvanceX = float.MaxValue,
-                MergeMode = false,
-                FontBuilderFlags = 0,
-                RasterizerMultiply = 1,
-                EllipsisChar = '\uffff',
-                CustomGlyphRanges = []
+                CustomItemPacks.Add(new(itemDirectory));
             }
-        };*/
-            
-        //fontAtlasConfigAsset.Fonts = [fontDefinition];
-
-        var shaderProperties = new ShaderProperties
-        {
-            BaseVertex = "_BaseVertex",
-            Vertices = "_Vertices",
-            Texture = "_Texture"
-        };
-
-        var meshShader = uImGuiBundle.LoadAsset<Shader>("assets/uimgui-4.1.0/resources/shaders/dearimgui-mesh.shader");
-        var proceduralShader = uImGuiBundle.LoadAsset<Shader>("assets/uimgui-4.1.0/resources/shaders/dearimgui-procedural.shader");
-
-        var shaderData = new ShaderData
-        {
-            Mesh = meshShader,
-            Procedural = proceduralShader,
-        };
-        
-        shadersAsset.Shader = shaderData;
-        shadersAsset.PropertyNames = shaderProperties;
-        
-        /*UImGuiUtility.SetCurrentContext((Context)uImGuiType.GetField("_context", Flags).GetValue(renderer));
-        var io = ImGui.GetIO();
-        Window.Font = io.Fonts.AddFontFromFileTTF($@"{Application.streamingAssetsPath}\mods\net.lstwo.lstwoMODS\InterVariable.ttf", 18, null, io.Fonts.GetGlyphRangesDefault());
-        io.Fonts.Build();*/
-
-        ((UnityEvent<ImGuiIOPtr>)uImGuiType.GetField("_fontCustomInitializer", Flags).GetValue(renderer)).AddListener(io =>
-        {
-            /*var fontPath = System.IO.Path.Combine(Application.streamingAssetsPath, "mods/net.lstwo.lstwoMODS/InterVariable.ttf");
-            io.Fonts.AddFontFromFileTTF(fontPath, 18f, null, io.Fonts.GetGlyphRangesDefault());
-            
-            var allocateGlyphRangeArrayMethodInfo = typeof(TextureManager).GetMethod("AllocateGlyphRangeArray", Flags);
-            var context = (Context)typeof(UImGui.UImGui).GetField("_context", Flags).GetValue(renderer);
-            var textureManager = (TextureManager)typeof(Context).GetField("TextureManager", Flags).GetValue(context);
-            
-            unsafe
+            catch (Exception ex)
             {
-                ImFontConfig fontConfig = default;
-                ImFontConfigPtr fontConfigPtr = new ImFontConfigPtr(&fontConfig);
+                Debug.LogError($"Error loading Custom Item Pack at \"{itemDirectory}\": {ex}");
+            }
+        }
+    }
 
-                fontDefinition.Config.ApplyTo(fontConfigPtr);
-                fontConfigPtr.GlyphRanges = (IntPtr)allocateGlyphRangeArrayMethodInfo.Invoke(textureManager, [fontDefinition.Config]);
+    private static void SendCustomItemsReady()
+    {
+        if (UIManager.IpcChannel == null) return;
 
-                io.Fonts.AddFontFromFileTTF(fontPath, fontDefinition.Config.SizeInPixels, fontConfigPtr);
-            }*/
-            
-            Window.Font = io.Fonts.AddFontFromFileTTF($@"{Application.streamingAssetsPath}\mods\net.lstwo.lstwoMODS\InterVariable.ttf", 18, null, io.Fonts.GetGlyphRangesDefault());
-        });
+        var packs = CustomItemPacks.Select(p => new CustomItemPackData
+        {
+            PackName   = p.packName,
+            PackAuthor = p.packAuthor,
+            Items      = p.items.Select(i => new CustomItemData
+            {
+                Name        = i.itemName,
+                Description = i.itemDescription
+            }).ToList()
+        }).ToList();
+
+        UIManager.IpcChannel.SendMessage(new CustomItemsReadyMessage { Packs = packs }.Serialize());
     }
 
     public static void InitChildClasses<T>()

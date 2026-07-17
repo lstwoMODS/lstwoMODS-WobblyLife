@@ -1,146 +1,39 @@
 ﻿using HarmonyLib;
 using HawkNetworking;
-using lstwoMODS_WobblyLife.UI.TabMenus;
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection; 
-using System.Text;
-using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
-using lstwoMODS_Core;
 using lstwoMODS_Core.UI.TabMenus;
 using lstwoMODS_Core.Hacks;
 
-namespace lstwoMODS_WobblyLife.Hacks;
+namespace lstwoMODS_WobblyLife.Mods;
 
-public class ServerSettings : BaseHack
+public class ServerSettings : BaseMod
 {
     public override string Name => "Server Settings";
-
     public override string Description => "";
+    public override ModsWindow ModsWindow => Plugin.ServerModsWindow;
 
-    public override HacksTab HacksTab => Plugin.ServerHacksTab;
-
-    public override void ConstructUI(GameObject root)
+    protected override void OnStaticInit()
     {
         new Harmony(typeof(CustomGamemodePatch).FullName).PatchAll(typeof(CustomGamemodePatch));
         new Harmony(typeof(MountainBaseTelephoneBoxPatch).FullName).PatchAll(typeof(MountainBaseTelephoneBoxPatch));
         new Harmony(typeof(PlayerVehicleDestructablePatch).FullName).PatchAll(typeof(PlayerVehicleDestructablePatch));
         new Harmony(typeof(PlayerVehicleRoadMovementPatch).FullName).PatchAll(typeof(PlayerVehicleRoadMovementPatch));
         new Harmony(typeof(TelephoneBoxPatch).FullName).PatchAll(typeof(TelephoneBoxPatch));
-
-        var ui = new HacksUIHelper(root);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.ServerSettings.IsRespawningAllowed", "Is Respawning Allowed", (b) =>
-        {
-            respawningAllowed = b;
-
-        }, true);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.ServerSettings.AllowVehicleSpawning", "Allow Vehicle Spawning", (b) =>
-        {
-            enableVehicles = b;
-
-            try
-            {
-                WobblyServerUtilCompat.SetSettingsManagerValue("enableVehicles", b);
-            }
-            catch { }
-
-        }, true);
-        ui.CreateToggle("lstwo.ServerSettings.AllowVehicleDamage", "Allow Vehicle Damage", (b) =>
-        {
-            enableVehicleDamage = b;
-
-            try
-            {
-                WobblyServerUtilCompat.SetSettingsManagerValue("enableVehicleDamage", b);
-            }
-            catch { }
-
-        }, true);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.ServerSettings.AllowTankSpawning", "Allow Tank Spawning", (b) =>
-        {
-            enableVehicleTank = b;
-
-            try
-            {
-                WobblyServerUtilCompat.SetSettingsManagerValue("enableVehicleTank", b);
-            }
-            catch { }
-
-        }, true);
-        ui.CreateToggle("lstwo.ServerSettings.AllowUFOSpawning", "Allow UFO Spawning", (b) =>
-        {
-            enableVehicleUFO = b;
-
-            try
-            {
-                WobblyServerUtilCompat.SetSettingsManagerValue("enableVehicleUFO", b);
-            }
-            catch { }
-
-        }, true);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.ServerSettings.AllowVehicleBoost", "Allow Vehicle Boost", (b) =>
-        {
-            enableVehicleBoost = b;
-
-            try
-            {
-                WobblyServerUtilCompat.SetSettingsManagerValue("enableVehicleBoost", b);
-            }
-            catch { }
-
-        }, true);
-
-        ui.AddSpacer(6);
-
-        ui.CreateToggle("lstwo.ServerSettings.PreventPlayerDrowningToggle", "Prevent Player Drowning", (b) =>
-        {
-            preventPlayerDrowning = b;
-        });
-
-        ui.CreateToggle("lstwo.ServerSettings.PreventVehicleDrowningToggle", "Prevent Vehicle Drowning", (b) =>
-        {
-            preventVehicleDrowning = b;
-        });
-
-        ui.AddSpacer(6);
     }
 
-    public override void RefreshUI()
-    {
-    }
+    [ModSetting] public static bool RespawningAllowed = true;
 
-    public override void Update()
-    {
-    }
+    [ModSetting] public static bool EnableVehicles = true;
+    [ModSetting] public static bool EnableVehicleDamage = true;
 
-    public static bool respawningAllowed = true;
+    [ModSetting] public static bool EnableVehicleTank = true;
+    [ModSetting] public static bool EnableVehicleUfo = true;
 
-    public static bool enableVehicles = true;
-    public static bool enableVehicleDamage = true;
+    [ModSetting] public static bool EnableVehicleBoost = true;
 
-    public static bool enableVehicleTank = true;
-    public static bool enableVehicleUFO = true;
-
-    public static bool enableVehicleBoost = true;
-
-    public static bool preventPlayerDrowning = false;
-    public static bool preventVehicleDrowning = false;
+    [ModSetting] public static bool PreventPlayerDrowning = false;
+    [ModSetting] public static bool PreventVehicleDrowning = false;
 
     public class CustomGamemodePatch
     {
@@ -148,7 +41,7 @@ public class ServerSettings : BaseHack
         [HarmonyPrefix]
         public static bool IsRespawningAllowed()
         {
-            return respawningAllowed;
+            return RespawningAllowed;
         }
     }
 
@@ -158,15 +51,13 @@ public class ServerSettings : BaseHack
         [HarmonyPrefix]
         public static bool IsAllowedToInteractPrefix(ref bool __result)
         {
-            if (!enableVehicleUFO)
-            {
-                __result = false;
-                return false;
-            }
-            else
+            if (EnableVehicleUfo)
             {
                 return true;
             }
+            
+            __result = false;
+            return false;
         }
     }
 
@@ -176,26 +67,24 @@ public class ServerSettings : BaseHack
         [HarmonyPrefix]
         public static bool ServerDamagePrefix(short damage, bool bLimit = true, bool bForceSend = false)
         {
-            return enableVehicleDamage;
+            return EnableVehicleDamage;
         }
     }
 
     public class PlayerVehicleRoadMovementPatch
     {
-        public static Dictionary<PlayerVehicleRoadMovement, bool> boostEnabled = new();
+        public static Dictionary<PlayerVehicleRoadMovement, bool> BoostEnabled = new();
 
         [HarmonyPatch(typeof(PlayerVehicleRoadMovement), "SimulateVehicleInput")]
         [HarmonyPrefix]
         public static bool SimulateVehicleInput(ref PlayerVehicleRoadMovement __instance, VehicleRoadInput input)
         {
-            if (!boostEnabled.ContainsKey(__instance))
+            if (!BoostEnabled.TryGetValue(__instance, out var boostEnabled))
             {
                 return true;
             }
-                
-            var field = typeof(PlayerVehicleRoadMovement).GetField("bAllowBoost", Plugin.Flags);
-            field.SetValue(__instance, enableVehicleBoost && boostEnabled[__instance]);
-
+            
+            __instance.bAllowBoost = EnableVehicleBoost && boostEnabled;
             return true;
         }
     }
@@ -203,19 +92,17 @@ public class ServerSettings : BaseHack
     public class TelephoneBoxPatch
     {
         [HarmonyPatch(typeof(TelephoneBox), "ServerSpawnVehicle")]
-        [HarmonyPrefix()]
+        [HarmonyPrefix]
         [HarmonyPriority(Priority.VeryHigh)]
         private static bool ServerSpawnVehiclePrefix(ref TelephoneBox __instance, ref HawkNetReader reader, ref HawkRPCInfo info)
         {
-            if (!enableVehicles) return false;
+            if (!EnableVehicles) return false;
 
-            var t = typeof(TelephoneBox);
+            var actionInteract = __instance.actionInteract;
+            var availableVehiclesData = __instance.avaliableVehiclesData;
+            var vehicleSpawnTransform = __instance.vehicleSpawnTransform;
 
-            var actionInteract = (global::ActionEnterExitInteract)t.GetField("actionInteract", Plugin.Flags)?.GetValue(__instance);
-            var avaliableVehiclesData = (VehiclesScriptableObject)t.GetField("avaliableVehiclesData", Plugin.Flags)?.GetValue(__instance);
-            var vehicleSpawnTransform = (Transform)t.GetField("vehicleSpawnTransform", Plugin.Flags)?.GetValue(__instance);
-
-            var playerController = UnitySingleton<GameInstance>.Instance.GetPlayerControllerByNetworkID(reader.ReadUInt32());
+            var playerController = GameInstance.Instance.GetPlayerControllerByNetworkID(reader.ReadUInt32());
                 
             if (!playerController || !actionInteract)
             {
@@ -232,19 +119,19 @@ public class ServerSettings : BaseHack
             actionInteract.RequestExit(playerController);
             var guid = reader.ReadGUID();
 
-            if (!playerController || !avaliableVehiclesData)
+            if (!playerController || !availableVehiclesData)
             {
                 return false;
             }
                 
-            var assetReference = avaliableVehiclesData.Find(guid);
+            var assetReference = availableVehiclesData.Find(guid);
 
             if (assetReference == null)
             {
                 return false;
             }
                 
-            var array = Physics.OverlapSphere(vehicleSpawnTransform.position, 5f, LayerMask.GetMask(new string[] { "Vehicle" }));
+            var array = Physics.OverlapSphere(vehicleSpawnTransform.position, 5f, LayerMask.GetMask("Vehicle"));
                 
             foreach (var overlap in array)
             {
@@ -266,12 +153,11 @@ public class ServerSettings : BaseHack
                     VanishComponent.VanishAndDestroy(x.gameObject);
                 }
 
-                if (x.GetComponent<PlayerVehicleRoadMovement>() != null &&
-                    !PlayerVehicleRoadMovementPatch.boostEnabled.ContainsKey(x.GetComponent<PlayerVehicleRoadMovement>()))
+                var vehicleRoadMovement = x.GetComponent<PlayerVehicleRoadMovement>();
+
+                if (vehicleRoadMovement != null && !PlayerVehicleRoadMovementPatch.BoostEnabled.ContainsKey(vehicleRoadMovement))
                 {
-                    var field = typeof(PlayerVehicleRoadMovement).GetField("bAllowBoost", Plugin.Flags);
-                    PlayerVehicleRoadMovementPatch.boostEnabled.Add(x.GetComponent<PlayerVehicleRoadMovement>(),
-                        (bool)field.GetValue(x.GetComponent<PlayerVehicleRoadMovement>()));
+                    PlayerVehicleRoadMovementPatch.BoostEnabled.Add(vehicleRoadMovement, vehicleRoadMovement.bAllowBoost);
                 }
 
                 var playerVehicle = x as PlayerVehicle;
@@ -289,15 +175,15 @@ public class ServerSettings : BaseHack
                 }
                     
                 employment.SetPersonalVehicle(playerVehicle);
-            }, vehicleSpawnTransform.position, vehicleSpawnTransform.rotation, null, false, false, false, true);
+            }, vehicleSpawnTransform.position, vehicleSpawnTransform.rotation, null, false);
 
             return false;
         }
 
         private static bool AllowSpawnVehicle(GameObject obj)
         {
-            if (obj.GetComponent<PlayerTank>() != null && !enableVehicleTank) return false;
-            if (obj.GetComponent<PlayerUFO>() != null && !enableVehicleUFO) return false;
+            if (obj.GetComponent<PlayerTank>() != null && !EnableVehicleTank) return false;
+            if (obj.GetComponent<PlayerUFO>() != null && !EnableVehicleUfo) return false;
             return true;
         }
 
@@ -305,15 +191,13 @@ public class ServerSettings : BaseHack
         [HarmonyPrefix]
         private static bool SimulateWaterPrefix(ref PlayerCharacterMovement __instance)
         {
-            var r = new QuickReflection<PlayerCharacterMovement>(__instance, Plugin.Flags);
-
-            var water = (Water)r.GetField("water");
-            var head = (RagdollPart)r.GetField("head");
-            var playerCharacter = (PlayerCharacter)r.GetField("playerCharacter");
-            var characterCustomize = (CharacterCustomize)r.GetField("characterCustomize");
-            var bDrowning = (bool)r.GetField("bDrowning");
-            var timeDrowning = (float)r.GetField("timeDrowning");
-            var hipRigidbody = (Rigidbody)r.GetField("hipRigidbody");
+            var water = __instance.water;
+            var head = __instance.head;
+            var playerCharacter = __instance.playerCharacter;
+            var characterCustomize = __instance.characterCustomize;
+            var bDrowning = __instance.bDrowning;
+            var timeDrowning = __instance.timeDrowning;
+            var hipRigidbody = __instance.hipRigidbody;
 
             if (!__instance.IsInWater() || !head || !playerCharacter || !characterCustomize)
             {
@@ -336,27 +220,27 @@ public class ServerSettings : BaseHack
                 
             var num = waterAnchorTransform.position.y - head.transform.position.y;
                 
-            if (water.IsDeep() && num >= 1f && !preventPlayerDrowning)
+            if (water.IsDeep() && num >= 1f && !PreventPlayerDrowning)
             {
                 if (!bDrowning)
                 {
-                    r.SetField("bDrowning", true);
-                    r.SetField("timeDrowning", Time.time);
+                    __instance.bDrowning = true;
+                    __instance.timeDrowning = Time.time;
                 }
             }
             else
             {
-                r.SetField("bDrowning", false);
+                __instance.bDrowning = false;
             }
 
-            if (!bDrowning || !(Time.time - timeDrowning >= 3f) || preventPlayerDrowning)
+            if (!bDrowning || !(Time.time - timeDrowning >= 3f) || PreventPlayerDrowning)
             {
                 return false;
             }
                 
             var num2 = (waterAnchorTransform.position.y - hipRigidbody.transform.position.y) / 2f;
             playerCharacter.Kill(num2 + 2f);
-            __instance.StartCoroutine((IEnumerator)r.GetMethod("SimulateDrowning", waterAnchorTransform));
+            __instance.StartCoroutine(__instance.SimulateDrowning(waterAnchorTransform));
 
             return false;
         }
@@ -366,7 +250,7 @@ public class ServerSettings : BaseHack
         private static bool ShouldDestroyWhenUnderWaterTooLongPrefix(ref bool __result)
         {
             __result = false;
-            return !preventVehicleDrowning;
+            return !PreventVehicleDrowning;
         }
     }
 }

@@ -1,10 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Numerics;
 using UnityEngine;
+using Vector2 = UnityEngine.Vector2;
 using Vector3 = UnityEngine.Vector3;
 
-namespace lstwoMODS_WobblyLife.Hacks.ESP;
+namespace lstwoMODS_WobblyLife.Mods.ESP;
 
 public class PlayerTracker : GameObjectTracker
 {
@@ -45,9 +45,6 @@ public class PlayerTracker : GameObjectTracker
     
     public override void RefreshCache()
     {
-        playerHipRb = GameInstance.Instance.GetFirstLocalPlayerController().GetPlayerCharacter().GetHipRigidbody();
-        mainCamera = Camera.main;
-
         for (var i = 0; i < trackedObjects.Count; i++)
         {
             var body = trackedObjects[i];
@@ -118,7 +115,14 @@ public class PlayerTracker : GameObjectTracker
 
             if (drawLines)
             {
-                DrawLine(playerHipRb.transform.position, worldPos, Color.HSVToRGB(Mathf.Clamp01(Vector3.Distance(worldPos, playerHipRb.transform.position) / 300f), 1f, 1f));
+                if (FirstPerson.firstPersonEnabled.Value || FirstPerson.firstPersonEnabledPlayer1.Value)
+                {
+                    DrawLine(new Vector2(0.5f, 0.5f), worldPos, Color.HSVToRGB(Mathf.Clamp01(Vector3.Distance(worldPos, mainCamera.transform.position) / 300f), 1f, 1f));
+                }
+                else
+                {
+                    DrawLine(playerHipRb.transform.position, worldPos, Color.HSVToRGB(Mathf.Clamp01(Vector3.Distance(worldPos, playerHipRb.transform.position) / 300f), 1f, 1f));
+                }
             }
         }
     }
