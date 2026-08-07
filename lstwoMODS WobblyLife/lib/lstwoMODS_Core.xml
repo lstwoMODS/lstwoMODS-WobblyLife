@@ -4,6 +4,49 @@
         <name>lstwoMODS_Core</name>
     </assembly>
     <members>
+        <member name="T:lstwoMODS_Core.DataStorage">
+             <summary>
+             JSON-backed persistence for mods, with write-behind caching.
+            
+             Saves do not touch the disk directly. They update the in-memory state and mark the target
+             file dirty; a background flusher writes it once things go quiet. This matters because
+             settings without an apply button fire their change callback on <b>every</b> frame the widget
+             value differs, so dragging a slider for a few seconds used to mean a few hundred
+             <see cref="M:System.IO.File.Replace(System.String,System.String,System.String)"/> calls in the game directory, each one going
+             through the antivirus filter stack. Coalescing also makes the last change win by
+             construction, which the old fire-and-forget <c>Task.Run</c> per save could not guarantee.
+            
+             Readers never see stale data: <see cref="M:lstwoMODS_Core.DataStorage.Load``1(System.String,System.String)"/>, <see cref="M:lstwoMODS_Core.DataStorage.Exists(System.String,System.String)"/>,
+             <see cref="M:lstwoMODS_Core.DataStorage.ListKeys(System.String,System.String)"/> and <see cref="M:lstwoMODS_Core.DataStorage.GetFilePath(System.String,System.String)"/> all account for writes still in flight,
+             and <see cref="M:lstwoMODS_Core.DataStorage.FlushAll"/> runs on shutdown. The only loss window is a hard crash or kill
+             within <see cref="F:lstwoMODS_Core.DataStorage.MaxDelayMs"/> of a change, which is an acceptable trade for settings.
+             </summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage.DebounceMs">
+            <summary>Write a file this long after the last change to it.</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage.MaxDelayMs">
+            <summary>...but never hold a change longer than this, however busy the file is.</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage.TickMs">
+            <summary>How often the flusher re-checks while anything is pending.</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage._pending">
+            <summary>Files with unwritten changes, keyed by absolute path.</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage._lastWritten">
+            <summary>Last JSON actually written per path, so a no-op save doesn't hit the disk at all.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.Warn(System.String)">
+            <summary>Logging that cannot itself throw: the flusher also runs during shutdown,
+            after the plugin instance backing <see cref="P:lstwoMODS_Core.Plugin.LogSource"/> may be gone.</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage.PendingWrite.Json">
+            <summary>Eagerly serialized snapshot, for values the caller may mutate after saving.</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.DataStorage.PendingWrite.Producer">
+            <summary>Deferred serializer, for state we own and can serialize once at flush time.</summary>
+        </member>
         <member name="M:lstwoMODS_Core.DataStorage.WriteAtomic(System.String,System.String)">
             <summary>
             Crash-safe write: write to a temp file, then swap it into place. When the
@@ -11,13 +54,40 @@
             the previous version as <c>.bak</c>, which the loaders fall back to.
             </summary>
         </member>
+        <member name="M:lstwoMODS_Core.DataStorage.QueueWrite(System.String,System.String,System.Func{System.String})">
+            <summary>Mark <paramref name="path"/> dirty. Supply either a snapshot or a deferred serializer.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.FlushDue">
+            <summary>Write every pending file that has gone quiet, or that has waited long enough.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.WritePending(System.String)">
+            <summary>Write one pending file now. No-op when nothing is pending for it.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.DiscardPending(System.String)">
+            <summary>Drop a queued write, e.g. because the file was just deleted.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.FlushDirectory(System.String)">
+            <summary>Write out anything pending directly inside <paramref name="dir"/>, so a directory listing is complete.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.Flush(System.String,System.String)">
+            <summary>Write the pending change for this id + key, if any, before this call returns.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.FlushBag(System.String)">
+            <summary>Write the pending shared <c>data.json</c> for this id, if any, before this call returns.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.DataStorage.FlushAll">
+            <summary>
+            Write every pending file before returning. Called on shutdown; also safe to call
+            whenever durability matters right now (before sharing a file, before a risky operation).
+            </summary>
+        </member>
         <member name="M:lstwoMODS_Core.DataStorage.Load``1(System.String,System.String)">
             <summary>Deserialize and return the saved value, or <c>default</c> if the file does not exist.</summary>
         </member>
         <member name="M:lstwoMODS_Core.DataStorage.Save``1(System.String,System.String,``0)">
             <summary>
-            Serialize <paramref name="value"/> immediately (snapshot), then write to disk on a
-            background thread. Concurrent saves to the same file are queued and written in order.
+            Serialize <paramref name="value"/> immediately (snapshot), then write to disk once the
+            file goes quiet. Repeated saves to the same key coalesce; the newest value wins.
             </summary>
         </member>
         <member name="M:lstwoMODS_Core.DataStorage.Exists(System.String,System.String)">
@@ -33,7 +103,8 @@
         </member>
         <member name="M:lstwoMODS_Core.DataStorage.GetFilePath(System.String,System.String)">
             <summary>Absolute path of the file backing this id + key. Useful for telling the user
-            where a shareable file lives (creating any missing parent folders as a side effect).</summary>
+            where a shareable file lives (creating any missing parent folders as a side effect).
+            Any pending write is flushed first, so the file on disk is current when handed out.</summary>
         </member>
         <member name="M:lstwoMODS_Core.DataStorage.Delete(System.String,System.String)">
             <summary>Deletes the saved file for this id + key if it exists.</summary>
@@ -46,7 +117,9 @@
         </member>
         <member name="M:lstwoMODS_Core.DataStorage.SaveToBag``1(System.String,System.String,``0)">
             <summary>
-            Update <paramref name="key"/> in the shared bag and write <c>data.json</c> asynchronously.
+            Update <paramref name="key"/> in the shared bag; <c>data.json</c> is rewritten once the
+            file goes quiet. The bag is authoritative in memory, so the serialize is deferred too and
+            a burst of changes costs one serialize instead of one per change.
             </summary>
         </member>
         <member name="M:lstwoMODS_Core.DataStorage.DeleteFromBag(System.String,System.String)">
@@ -66,6 +139,21 @@
             <summary>Parse "Ctrl+Shift+F". False (and a default binding) when the key segment
             isn't a <see cref="T:UnityEngine.KeyCode"/>; unknown modifier segments are ignored.</summary>
         </member>
+        <member name="T:lstwoMODS_Core.Hotkeys.KeyMapper">
+             <summary>
+             Translates between Unity's <see cref="T:UnityEngine.KeyCode"/> (what the game polls) and
+             <see cref="T:lstwoMODS.ImGui.Shared.ImGuiKey"/> (what the overlay reports). Public so mods binding their own hotkeys
+             through <see cref="T:lstwoMODS_Core.UI.Elements.KeyCapture"/> can share one table instead of
+             each carrying a partial copy.
+            
+             Anything the two enums do not both name is unmappable, and that is a real limit rather than a
+             gap to fill: Unity's legacy Input has no <c>KeyCode</c> above <c>F15</c>, so F16 to F24 can be
+             captured by the overlay but never polled in game. Those return <see cref="F:UnityEngine.KeyCode.None"/>.
+             </summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Hotkeys.KeyMapper.ToImGui(UnityEngine.KeyCode)">
+            <summary>ImGui equivalent of a Unity key, or <see cref="F:lstwoMODS.ImGui.Shared.ImGuiKey.None"/> when there isn't one.</summary>
+        </member>
         <member name="M:lstwoMODS_Core.Hotkeys.KeyMapper.ToKeyCode(lstwoMODS.ImGui.Shared.ImGuiKey)">
             <summary>Reverse mapping for the key-capture widget. <see cref="F:UnityEngine.KeyCode.None"/>
             when the ImGui key has no Unity equivalent in the map.</summary>
@@ -73,11 +161,20 @@
         <member name="P:lstwoMODS_Core.Hotkeys.OverlayHotkey.Excluded">
             <summary>When true, this hotkey is hidden from the rebind panel and cannot be user-rebound.</summary>
         </member>
-        <member name="M:lstwoMODS_Core.Hotkeys.OverlayHotkeyManager.Register(System.String,System.String,UnityEngine.KeyCode,lstwoMODS.ImGui.Shared.HotkeyModifiers,System.Action,System.Boolean)">
-            <summary>
-            Register a hotkey. If a saved binding exists in config it overrides
-            <paramref name="defaultKey"/>/<paramref name="defaultModifiers"/>.
-            </summary>
+        <member name="P:lstwoMODS_Core.Hotkeys.OverlayHotkey.GameOnly">
+            <summary>When true, only the in-game input path fires this hotkey: pressing the key while
+            the overlay window has focus does nothing. Use it for binds that act on the game world,
+            where a press aimed at the overlay's own UI shouldn't reach through.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Hotkeys.OverlayHotkeyManager.Register(System.String,System.String,UnityEngine.KeyCode,lstwoMODS.ImGui.Shared.HotkeyModifiers,System.Action,System.Boolean,System.Boolean)">
+             <summary>
+             Register a hotkey. If a saved binding exists in config it overrides
+             <paramref name="defaultKey"/>/<paramref name="defaultModifiers"/>.
+            
+             With <c>gameOnly</c> the hotkey fires only from the in-game input path: a press that lands
+             on the overlay window is ignored, so a bind that acts on the game world doesn't reach
+             through while the user is working in the overlay's own UI.
+             </summary>
         </member>
         <member name="M:lstwoMODS_Core.Hotkeys.OverlayHotkeyManager.Unregister(System.String)">
             <summary>Remove a registered hotkey.</summary>
@@ -456,9 +553,11 @@
         <member name="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.OutputType">
             <summary>The type of the value this step produces as a named output, when that differs from
             <see cref="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.ReturnType"/>. Set this for a step that returns an <see cref="T:System.Collections.IEnumerator"/> to
-            the runner (so it gets yielded) yet still yields a usable value once it completes  a waited
-            macro call (Run Macro / If / Switch) returns the callee's Return value this way. Null =
-            derive from <see cref="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.ReturnType"/> (the normal case).</summary>
+            the runner (so it gets yielded) yet still yields a usable value once it completes: a waited
+            macro call (Run Macro / If / Switch) returns the callee's Return value this way, and a
+            plugin step returns its own by handing back a <see cref="T:lstwoMODS_Core.Macros.MacroValueRoutine"/>. This only
+            declares the type for the editor; a bare <see cref="T:System.Collections.IEnumerator"/> still records no output
+            however this is set. Null = derive from <see cref="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.ReturnType"/> (the normal case).</summary>
         </member>
         <member name="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.Execute">
             <summary>Invoked with one evaluated argument per <see cref="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.Parameters"/> entry.
@@ -527,6 +626,10 @@
             macro type, or the default mode needs an argument). Also used by
             <see cref="T:lstwoMODS_Core.Macros.MacroExpressions"/> so <c>setting()</c> reads the same instance as Get steps.
             </summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroRegistry.AsEnumerable(System.Object)">
+            <summary>Flatten a value for For Each: an enumerable yields its elements; a string is a
+            single item (not its characters); anything else is one item.</summary>
         </member>
         <member name="M:lstwoMODS_Core.Macros.MacroRegistry.RunPicked(lstwoMODS_Core.Macros.Macro,System.Boolean)">
             <summary>Shared macro-dispatch for the If and Switch steps: run <paramref name="target"/>
@@ -640,6 +743,41 @@
         <member name="P:lstwoMODS_Core.Macros.MacroResultRoutine.ReturnValue">
             <summary>The value the run returned (null until it has completed, or when it returned nothing).</summary>
         </member>
+        <member name="T:lstwoMODS_Core.Macros.MacroValueRoutine">
+             <summary>
+             A step coroutine that produces a value. A step whose <see cref="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.Execute"/>
+             returns a bare <see cref="T:System.Collections.IEnumerator"/> gets yielded but records no output; wrap the routine in
+             one of these and assign <see cref="P:lstwoMODS_Core.Macros.MacroValueRoutine.Result"/> before it finishes to give the step an output that
+             later steps can read through <c>prev</c>, the step-output picker or a named output.
+             Declare the type on <see cref="F:lstwoMODS_Core.Macros.MacroMethodDescriptor.OutputType"/> so the editor types it.
+             <code>
+             Execute = _ =>
+             {
+                 var chain = MacroRunner.CurrentChain;      // capture here, it is null inside the routine
+                 return new MacroValueRoutine(r => Await(r, chain));
+             },
+             OutputType = typeof(bool),
+            
+             static IEnumerator Await(MacroValueRoutine r, MacroCallChain chain)
+             {
+                 while (!Shop.Settled)
+                 {
+                     if (chain != null &amp;&amp; chain.Stopped) yield break;
+                     yield return null;
+                 }
+                 r.Result = Shop.LastSucceeded;
+             }
+             </code>
+             </summary>
+        </member>
+        <member name="P:lstwoMODS_Core.Macros.MacroValueRoutine.Result">
+            <summary>The step's output. Assign it before the routine finishes; a routine that ends
+            without setting it (or that is cut short by a Stop) leaves the output null.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroValueRoutine.#ctor(System.Func{lstwoMODS_Core.Macros.MacroValueRoutine,System.Collections.IEnumerator})">
+            <param name="body">Builds the routine. It is handed this instance so it can assign
+            <see cref="P:lstwoMODS_Core.Macros.MacroValueRoutine.Result"/>, which is why it is a factory rather than a plain enumerator.</param>
+        </member>
         <member name="T:lstwoMODS_Core.Macros.MacroRunner">
             <summary>
             Executes a macro's steps in order inside a main-thread coroutine. A failed step
@@ -701,7 +839,7 @@
             <param name="triggerValues">Named values the trigger fired with (which player, money gained,
             ...), surfaced to the run's expressions; null for a run with no trigger data.</param>
         </member>
-        <member name="M:lstwoMODS_Core.Macros.MacroRunner.RunNested(lstwoMODS_Core.Macros.Macro,lstwoMODS_Core.Macros.MacroCallChain,System.Boolean)">
+        <member name="M:lstwoMODS_Core.Macros.MacroRunner.RunNested(lstwoMODS_Core.Macros.Macro,lstwoMODS_Core.Macros.MacroCallChain,System.Boolean,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
             <summary>Run <paramref name="macro"/> as a waited sub-call of the given chain: the
             caller yields the returned routine, so it completes before the next step. Ignores
             the Enabled flag and the already-running guard (an explicit call is a subroutine,
@@ -712,8 +850,11 @@
             <see cref="P:lstwoMODS_Core.Macros.MacroResultRoutine.ReturnValue"/> for whatever the callee's Return step handed
             back. The runner does this automatically, so a waited Run Macro / If / Switch step's output
             is the called macro's return value.</returns>
+            <param name="triggerValues">Named values to hand the sub-run (a caller's arguments, a
+            loop's item/index), surfaced to its expressions exactly as a trigger's outputs are:
+            bare variables when the callee's trigger declares them, always via <c>trigger("name")</c>.</param>
         </member>
-        <member name="M:lstwoMODS_Core.Macros.MacroRunner.RunDetached(lstwoMODS_Core.Macros.Macro,lstwoMODS_Core.Macros.MacroCallChain,System.Boolean)">
+        <member name="M:lstwoMODS_Core.Macros.MacroRunner.RunDetached(lstwoMODS_Core.Macros.Macro,lstwoMODS_Core.Macros.MacroCallChain,System.Boolean,System.Collections.Generic.IReadOnlyDictionary{System.String,System.Object})">
             <summary>Run <paramref name="macro"/> without waiting for it (its own coroutine).
             The new chain inherits the caller's same-frame entries, so a cycle with no yield in
             between still trips the loop guard, which throws out of this call, into the
@@ -733,6 +874,39 @@
         <member name="M:lstwoMODS_Core.Macros.MacroRunner.Guarded(System.Collections.IEnumerator,lstwoMODS_Core.Macros.MacroRunToken,System.Action{System.Exception})">
             <summary>Wraps a nested routine so an exception inside it aborts the macro
             cleanly instead of killing the outer coroutine (which would leak the running flag).</summary>
+        </member>
+        <member name="T:lstwoMODS_Core.Macros.MacroRunStep">
+            <summary>
+            The built-in <c>core.runMacro</c> step: run another macro, optionally passing it arguments and/or
+            waiting for its return value. The target is either a fixed pick or a run-time expression (an
+            if/loop primitive: an expression resolving to a macro id, or <c>""</c> to run nothing). When a
+            fixed target declares parameters (via a <see cref="F:lstwoMODS_Core.Macros.MacroTriggerBuiltins.CalledId"/> "Called by
+            Macro" trigger) the editor shows one expression field per parameter and passes the evaluated
+            values in as the sub-run's trigger values, so the callee reads each as a bare variable (or
+            <c>trigger("name")</c>). Its shape varies with the picked macro, so like Switch it is a
+            custom-editor step built on the public <see cref="T:lstwoMODS_Core.Macros.MacroStepEditor"/> API.
+            </summary>
+        </member>
+        <member name="T:lstwoMODS_Core.Macros.MacroRunStep.RunData">
+            <summary>Persisted configuration, stored in <see cref="F:lstwoMODS_Core.Macros.MacroStep.Custom"/>.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroRunStep.BuildArgs(lstwoMODS_Core.Macros.Macro,lstwoMODS_Core.Macros.MacroRunStep.RunData,lstwoMODS_Core.Macros.CustomStepRunContext)">
+            <summary>Evaluate one argument per declared parameter into the trigger-value map, or null when
+            the target declares no parameters (a plain run).</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroRunStep.Params(lstwoMODS_Core.Macros.Macro)">
+            <summary>The parameters a macro accepts from a caller: its trigger's resolved outputs.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroRunStep.Migrate(lstwoMODS_Core.Macros.MacroStep)">
+            <summary>Best-effort read of a legacy (pre-custom-editor) Run Macro step's <c>macro</c>/<c>wait</c>
+            value sources, so old steps keep working. New steps store everything in <see cref="F:lstwoMODS_Core.Macros.MacroStep.Custom"/>.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroRunStep.RunEditor.ApplyVisibility(lstwoMODS_Core.Macros.MacroRunStep.RunUI,lstwoMODS_Core.Macros.MacroRunStep.RunData)">
+            <summary>Show the pick or expression target editor per mode, and the arguments block only
+            for a fixed target that declares parameters.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroRunStep.TypeLabel(System.Type)">
+            <summary>Friendly type name for an argument's hint/tooltip, or null for an untyped parameter.</summary>
         </member>
         <member name="T:lstwoMODS_Core.Macros.MacroStep">
             <summary>
@@ -931,14 +1105,30 @@
             couldn't. Read this as the reference example for authoring your own (see also WLMacroTriggers).
             </summary>
         </member>
+        <member name="F:lstwoMODS_Core.Macros.MacroTriggerBuiltins.ParamsKey">
+            <summary>Config key for the Called-by-Macro trigger's parameter list.</summary>
+        </member>
         <member name="F:lstwoMODS_Core.Macros.MacroTriggerBuiltins.BindingKey">
             <summary>Config key for the Hotkey trigger's binding string ("Ctrl+Shift+F").</summary>
         </member>
         <member name="F:lstwoMODS_Core.Macros.MacroTriggerBuiltins.ModeKey">
             <summary>Config key for the Hotkey trigger's <see cref="T:lstwoMODS_Core.Macros.MacroHotkeyMode"/>.</summary>
         </member>
+        <member name="F:lstwoMODS_Core.Macros.MacroTriggerBuiltins.InOverlayKey">
+            <summary>Config key for the Hotkey trigger's "also fire while the overlay has focus" flag.
+            Unset (the default) means the bind is in-game only.</summary>
+        </member>
         <member name="F:lstwoMODS_Core.Macros.MacroTriggerBuiltins.SecondsKey">
             <summary>Config key for the Interval trigger's period, in seconds.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroTriggerBuiltins.ParseParams(System.String)">
+            <summary>Parse a Called-by-Macro parameter spec ("count, target:Player, loud:bool") into
+            trigger outputs. Each entry is <c>name</c> or <c>name:type</c>; unknown/absent types fall
+            back to <see cref="T:System.Object"/>. Blank and duplicate names are dropped.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroTriggerBuiltins.ParamType(System.String)">
+            <summary>Map a human-typed type name to a CLR type: the common primitives, else a type
+            registered with <see cref="T:lstwoMODS_Core.Macros.MacroTypes"/> (Player, ...), else <see cref="T:System.Object"/>.</summary>
         </member>
         <member name="T:lstwoMODS_Core.Macros.MacroTriggerWidget">
             <summary>How a trigger config field is edited in a macro card's "Trigger Options".</summary>
@@ -950,6 +1140,11 @@
         <member name="F:lstwoMODS_Core.Macros.MacroTriggerWidget.Keybind">
             <summary>Press-the-keys capture. The field must be a <see cref="T:System.String"/>; its stored
             value is a binding in "Ctrl+Shift+F" form (see <see cref="T:lstwoMODS_Core.Hotkeys.HotkeyBinding"/>).</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.Macros.MacroTriggerWidget.ParamList">
+            <summary>An editable list of short text entries with add/remove buttons, stored as one
+            comma-separated <see cref="T:System.String"/> in config. Used for the Called-by-Macro trigger's
+            parameter list (one input per parameter instead of a single comma-separated box).</summary>
         </member>
         <member name="T:lstwoMODS_Core.Macros.MacroTriggerParam">
             <summary>
@@ -1169,6 +1364,11 @@
             resolves them via <see cref="T:lstwoMODS_Core.Macros.TypedModeValueSource"/>.
             </summary>
         </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroTypes.ByName(System.String)">
+            <summary>Resolve a registered type by its <see cref="F:lstwoMODS_Core.Macros.MacroTypeDescriptor.DisplayName"/> or the
+            CLR type name (case-insensitive), e.g. "Player" -> PlayerRef. Null when nothing matches. Used
+            to parse a human-typed type name in a macro parameter spec ("target:Player").</summary>
+        </member>
         <member name="M:lstwoMODS_Core.Macros.MacroTypes.EncodeSelection(System.String,System.String)">
             <summary>Encode a mode pick. An empty <paramref name="modeId"/> encodes "unset".</summary>
         </member>
@@ -1209,10 +1409,22 @@
         <member name="M:lstwoMODS_Core.Macros.MacroValues.ToDisplay(System.Object)">
             <summary>String form of a stored constant for editing in the UI.</summary>
         </member>
-        <member name="M:lstwoMODS_Core.Macros.MacroValues.ParseUnityValue(System.String,System.Type)">
-            <summary>Parse a UI-entered Unity value: "x, y, z" (decoration like "(...)"/"RGBA(...)"
+        <member name="M:lstwoMODS_Core.Macros.MacroValues.IsVectorLike(System.Type)">
+            <summary>Vector and color parameter types, in both the Unity and the serializable
+            (<see cref="T:Vec2"/>, <see cref="T:Col"/>, ...) flavour. These share one display form,
+            so a macro file written against either keeps loading.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroValues.TryConvertVectorLike(System.Object,System.Type,System.Object@)">
+            <summary>Convert between the two flavours of the same shape, e.g. a boxed
+            <see cref="T:UnityEngine.Vector2"/> for a <see cref="T:Vec2"/> target. False when the shapes differ.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroValues.ParseVectorValue(System.String,System.Type)">
+            <summary>Parse a UI-entered vector or color: "x, y, z" (decoration like "(...)"/"RGBA(...)"
             tolerated, so <see cref="M:lstwoMODS_Core.Macros.MacroValues.ToDisplay(System.Object)"/> and Unity's own ToString both round-trip),
             or "#RRGGBB"/"#RRGGBBAA" for colors.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroValues.ComponentHint(System.Type)">
+            <summary>The component list to show in a parse error, e.g. "x, y, z".</summary>
         </member>
         <member name="M:lstwoMODS_Core.Macros.MacroValues.FriendlyTypeName(System.Type)">
             <summary>Short human-readable type name for parameter labels.</summary>
@@ -1325,6 +1537,36 @@
         </member>
         <member name="M:lstwoMODS_Core.Macros.ValueSourceConverter.RegisterKind(System.String,System.Type)">
             <summary>Register an additional serializable kind (later phases / plugins).</summary>
+        </member>
+        <member name="T:lstwoMODS_Core.MainThread">
+            <summary>
+            Hands work back to Unity's main thread. Anything driven by the UI arrives on the IPC reader
+            thread (the overlay is a separate process), and Unity APIs must not be touched from there.
+            The queue is drained several times per <c>Plugin.Update</c>.
+            </summary>
+        </member>
+        <member name="P:lstwoMODS_Core.MainThread.IsMainThread">
+            <summary>True when the calling thread is Unity's main thread.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.MainThread.Claim">
+            <summary>Record the calling thread as the main one. Called from <c>Plugin.Awake</c>.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.MainThread.Enqueue(System.Action)">
+            <summary>Queue <paramref name="action"/> to run on the next <c>Plugin.Update</c>.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.MainThread.Invoke(System.Action)">
+            <summary>
+            Run <paramref name="action"/> on the main thread, inline when we are already on it so a
+            main-thread caller doesn't pay a frame of latency. Also runs inline before the main thread
+            has been claimed, since queued work would have nothing to drain it.
+            </summary>
+        </member>
+        <member name="M:lstwoMODS_Core.MainThread.Drain">
+            <summary>
+            Run everything queued so far. Each action is isolated: one that throws is logged and the
+            rest still run, because the queue carries unrelated work from every mod and a single bad
+            callback would otherwise abort the whole Update (and do it again every frame).
+            </summary>
         </member>
         <member name="T:lstwoMODS_Core.Hacks.AutoUIBuilder">
             <summary>
@@ -1542,8 +1784,9 @@
             <code>
             [ModAction("Apply Force")]
             void ApplyForce([ModActionParam(WidgetType.Slider, Min = 0, Max = 100)] float magnitude,
-                            [ModActionParam(WidgetType.Input)] Vector3 direction) { }
+                            [ModActionParam(Widget = WidgetType.Input)] Vector3 direction) { }
             </code>
+            <see cref="P:lstwoMODS_Core.Hacks.ModActionParamAttribute.Widget"/> can be passed positionally or set by name, whichever reads better.
             </summary>
         </member>
         <member name="P:lstwoMODS_Core.Hacks.ModActionParamAttribute.Label">
@@ -1583,10 +1826,10 @@
             <summary>InputFloat / InputInt / InputFloat2/3/4 / InputText.</summary>
         </member>
         <member name="F:lstwoMODS_Core.Hacks.WidgetType.Color3">
-            <summary>ColorEdit3  for Color or Vector3.</summary>
+            <summary>ColorEdit3, for Color/Col or Vector3/Vec3.</summary>
         </member>
         <member name="F:lstwoMODS_Core.Hacks.WidgetType.Color4">
-            <summary>ColorEdit4  for Color or Vector4.</summary>
+            <summary>ColorEdit4, for Color/Col or Vector4/Vec4.</summary>
         </member>
         <member name="T:lstwoMODS_Core.Hacks.ModContextAttribute">
              <summary>
@@ -1929,13 +2172,16 @@
             <summary>Remove all entries and callbacks for a mod (e.g. when the mod is unloaded).</summary>
         </member>
         <member name="T:lstwoMODS_Core.Hacks.ModSettingAttribute">
-            <summary>
-            Mark a field or property to expose it as a UI setting and register it in <see cref="T:lstwoMODS_Core.Hacks.ModRegistry"/>.
-            The auto-builder maps the value type to an appropriate widget:
-              bool → Checkbox | float → DragFloat (optionally clamped) or SliderFloat (if both min+max set)
-              int → DragInt or SliderInt | string → InputText | Color → ColorEdit4
-              Vector2/3/4 → DragFloat2/3/4 | Enum → Combo
-            </summary>
+             <summary>
+             Mark a field or property to expose it as a UI setting and register it in <see cref="T:lstwoMODS_Core.Hacks.ModRegistry"/>.
+             The auto-builder maps the value type to an appropriate widget:
+               bool → Checkbox | float → DragFloat (optionally clamped) or SliderFloat (if both min+max set)
+               int → DragInt or SliderInt | string → InputText | Color or Col → ColorEdit4
+               Vector2/3/4 or Vec2/3/4 → DragFloat2/3/4 | Enum → Combo
+            
+             Prefer <see cref="T:Vec2"/>/<see cref="T:Vec3"/>/<see cref="T:Vec4"/>/<see cref="T:Col"/> over the
+             Unity types for anything persisted: Unity's vectors and colors cannot be serialized.
+             </summary>
         </member>
         <member name="P:lstwoMODS_Core.Hacks.ModSettingAttribute.Label">
             <summary>Display label. Defaults to the member name.</summary>
@@ -2216,10 +2462,22 @@
             </summary>
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.ColorEdit3">
-            <summary>ImGui.ColorEdit3: RGB color editor. Uses UnityEngine.Color (ignores alpha).</summary>
+            <summary>ImGui.ColorEdit3: RGB color editor (ignores alpha). Values are <see cref="T:Col"/>,
+            which converts implicitly to and from <see cref="T:UnityEngine.Color"/>.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.ColorEdit3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Color})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Col"/> overload for values that get saved: <see cref="T:UnityEngine.Color"/> cannot be
+            serialized.</summary>
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.ColorEdit4">
-            <summary>ImGui.ColorEdit4  RGBA color editor. Uses UnityEngine.Color.</summary>
+            <summary>ImGui.ColorEdit4: RGBA color editor. Values are <see cref="T:Col"/>, which converts
+            implicitly to and from <see cref="T:UnityEngine.Color"/>.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.ColorEdit4.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Color})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Col"/> overload for values that get saved: <see cref="T:UnityEngine.Color"/> cannot be
+            serialized.</summary>
         </member>
         <member name="M:lstwoMODS_Core.UI.Elements.Combo.#ctor(System.String,System.String[],System.Int32,System.Action{System.Int32},lstwoMODS.ImGui.Shared.ImGuiComboFlags,System.Boolean)">
             <param name="name">Unique ID and ImGui label.</param>
@@ -2261,11 +2519,45 @@
         <member name="T:lstwoMODS_Core.UI.Elements.ClosePopup">
             <summary>Calls ImGui.CloseCurrentPopup(). Place inside a Popup or Modal to close it on a button press or menu item click.</summary>
         </member>
-        <member name="M:lstwoMODS_Core.UI.Elements.DragFloat.#ctor(System.String,System.Single,System.Single,System.Single,System.Single,System.String,System.Action{System.Single},System.Boolean)">
+        <member name="M:lstwoMODS_Core.UI.Elements.DragFloat.#ctor(System.String,System.Single,System.Single,System.Single,System.Single,System.String,System.Action{System.Single},lstwoMODS.ImGui.Shared.ImGuiSliderFlags,System.Boolean)">
             <param name="mainThread">
             When true (default), OnValueChanged fires on Unity's main thread via Plugin.Update().
             Set false to fire immediately on the IPC thread  survives game freezes but unsafe for Unity APIs.
             </param>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragFloat2.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector2})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec2"/> overload for values that get saved: <see cref="T:UnityEngine.Vector2"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragFloat3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector3})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec3"/> overload for values that get saved: <see cref="T:UnityEngine.Vector3"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragFloat4.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector4})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec4"/> overload for values that get saved: <see cref="T:UnityEngine.Vector4"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragInt2.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector2Int})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec2Int"/> overload for values that get saved: it serializes as a plain
+            {"X":..,"Y":..} object rather than dragging Unity's derived properties along.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragInt3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector3Int})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec3Int"/> overload for values that get saved: it serializes as a plain
+            {"X":..,"Y":..,"Z":..} object rather than dragging Unity's derived properties along.</summary>
+        </member>
+        <member name="T:lstwoMODS_Core.UI.Elements.DragInt4">
+            <summary>ImGui.DragInt4: draggable four-component integer. Values are <see cref="T:Vec4Int"/>,
+            which converts implicitly to and from a <c>(x, y, z, w)</c> tuple. Unity has no
+            <c>Vector4Int</c>, so there is no Unity-typed overload here.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragInt4.WithValue(lstwoMODS_Core.UI.Ref{System.ValueTuple{System.Int32,System.Int32,System.Int32,System.Int32}})">
+            <summary>Binds a tuple-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec4Int"/> overload for values that get saved.</summary>
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.DragSource">
             <summary>
@@ -2480,6 +2772,40 @@
             Size the HStack to an explicit pixel width.
             </summary>
         </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.InputFloat2.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector2})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec2"/> overload for values that get saved: <see cref="T:UnityEngine.Vector2"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.InputFloat3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector3})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec3"/> overload for values that get saved: <see cref="T:UnityEngine.Vector3"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.InputFloat4.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector4})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec4"/> overload for values that get saved: <see cref="T:UnityEngine.Vector4"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.InputInt2.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector2Int})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec2Int"/> overload for values that get saved: it serializes as a plain
+            {"X":..,"Y":..} object rather than dragging Unity's derived properties along.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.InputInt3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector3Int})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec3Int"/> overload for values that get saved: it serializes as a plain
+            {"X":..,"Y":..,"Z":..} object rather than dragging Unity's derived properties along.</summary>
+        </member>
+        <member name="T:lstwoMODS_Core.UI.Elements.InputInt4">
+            <summary>ImGui.InputInt4: four-component integer input. Values are <see cref="T:Vec4Int"/>,
+            which converts implicitly to and from a <c>(x, y, z, w)</c> tuple. Unity has no
+            <c>Vector4Int</c>, so there is no Unity-typed overload here.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.InputInt4.WithValue(lstwoMODS_Core.UI.Ref{System.ValueTuple{System.Int32,System.Int32,System.Int32,System.Int32}})">
+            <summary>Binds a tuple-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec4Int"/> overload for values that get saved.</summary>
+        </member>
         <member name="M:lstwoMODS_Core.UI.Elements.InputText.#ctor(System.String,System.String,System.String,System.Int32,System.Boolean,System.Single,System.Single,lstwoMODS.ImGui.Shared.ImGuiInputTextFlags,System.Action{System.String},System.Boolean)">
             <param name="hint">Placeholder text shown when empty. null = no hint.</param>
             <param name="multiline">If true, renders as InputTextMultiline with the given size.</param>
@@ -2522,6 +2848,20 @@
         </member>
         <member name="M:lstwoMODS_Core.UI.Elements.KeyCapture.WithListeningText(System.String)">
             <summary>Label shown while listening for a key press. Default "Press a key...".</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.KeyCapture.WithContentWidth(System.Boolean)">
+            <summary>Match the button width to <c>ImGui.CalcItemWidth()</c> instead of stretching it
+            across the row, so it aligns with the input widgets around it.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.KeyCapture.WithLabel(System.String)">
+            <summary>Text drawn to the right of the button, where ImGui puts every other input's label.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.KeyCapture.WithInlineLabel(System.String)">
+            <summary>
+            Lay the binding out like a normal setting row: a content-width button on the left with
+            <paramref name="label"/> to its right. Without this the button stretches the full row and
+            any label has to be placed before it, which reads backwards next to every other input.
+            </summary>
         </member>
         <member name="M:lstwoMODS_Core.UI.Elements.KeyCapture.WithDisplay(System.String)">
             <summary>Idle label shown when not listening (e.g. the current binding).</summary>
@@ -2627,7 +2967,7 @@
         <member name="M:lstwoMODS_Core.UI.Elements.PinRow.WithTrailing(lstwoMODS_Core.UI.Elements.BaseUIElement[])">
             <summary>Set the right-pinned trailing elements (e.g. action buttons). Chainable.</summary>
         </member>
-        <member name="M:lstwoMODS_Core.UI.Elements.PlotDragLine.#ctor(System.String,System.Int32,System.Double,System.Boolean,System.Nullable{UnityEngine.Color},System.Single,lstwoMODS.ImGui.Shared.ImPlotDragToolFlags,System.Action{System.Double},System.Boolean)">
+        <member name="M:lstwoMODS_Core.UI.Elements.PlotDragLine.#ctor(System.String,System.Int32,System.Double,System.Boolean,System.Nullable{Col},System.Single,lstwoMODS.ImGui.Shared.ImPlotDragToolFlags,System.Action{System.Double},System.Boolean)">
             <param name="vertical">True = DragLineX (vertical line at x=value), False = DragLineY (horizontal at y=value)</param>
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.PlotHistogram">
@@ -2657,6 +2997,40 @@
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.SliderAngle">
             <summary>ImGui.SliderAngle: angle in radians, displayed in degrees.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.SliderFloat2.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector2})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec2"/> overload for values that get saved: <see cref="T:UnityEngine.Vector2"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.SliderFloat3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector3})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec3"/> overload for values that get saved: <see cref="T:UnityEngine.Vector3"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.SliderFloat4.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector4})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec4"/> overload for values that get saved: <see cref="T:UnityEngine.Vector4"/> cannot be
+            serialized.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.SliderInt2.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector2Int})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec2Int"/> overload for values that get saved: it serializes as a plain
+            {"X":..,"Y":..} object rather than dragging Unity's derived properties along.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.SliderInt3.WithValue(lstwoMODS_Core.UI.Ref{UnityEngine.Vector3Int})">
+            <summary>Binds a Unity-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec3Int"/> overload for values that get saved: it serializes as a plain
+            {"X":..,"Y":..,"Z":..} object rather than dragging Unity's derived properties along.</summary>
+        </member>
+        <member name="T:lstwoMODS_Core.UI.Elements.SliderInt4">
+            <summary>ImGui.SliderInt4: four-component integer slider. Values are <see cref="T:Vec4Int"/>,
+            which converts implicitly to and from a <c>(x, y, z, w)</c> tuple. Unity has no
+            <c>Vector4Int</c>, so there is no Unity-typed overload here.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Elements.SliderInt4.WithValue(lstwoMODS_Core.UI.Ref{System.ValueTuple{System.Int32,System.Int32,System.Int32,System.Int32}})">
+            <summary>Binds a tuple-typed ref, for callers that already hold one. Prefer the
+            <see cref="T:Vec4Int"/> overload for values that get saved.</summary>
         </member>
         <member name="M:lstwoMODS_Core.UI.Elements.TabItem.WithClose(System.Action{System.Boolean},System.Boolean)">
             <summary>Show an X close button on the tab. Chainable.</summary>
@@ -2747,7 +3121,7 @@
         <member name="M:lstwoMODS_Core.UI.Elements.UIImage.WithUV(System.Single,System.Single,System.Single,System.Single)">
             <summary>Set UV rectangle for image cropping (0–1 range). Chainable.</summary>
         </member>
-        <member name="M:lstwoMODS_Core.UI.Elements.UIImage.WithTint(UnityEngine.Color)">
+        <member name="M:lstwoMODS_Core.UI.Elements.UIImage.WithTint(Col)">
             <summary>Tint color multiplied over the image. Chainable.</summary>
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.UIImageButton">
@@ -2914,8 +3288,32 @@
             having to click the overlay first.
             </summary>
         </member>
+        <member name="P:lstwoMODS_Core.UI.Ref`1.RunCallbacksOnMainThread">
+             <summary>
+             Where <see cref="E:lstwoMODS_Core.UI.Ref`1.Changed"/> is raised.
+            
+             True (the default) means Unity's main thread. A change made on a background thread (the
+             IPC reader thread, for anything the user did in the overlay) is queued and raised on the
+             next <c>Plugin.Update</c>, so handlers can call Unity APIs without marshalling. A change
+             already made on the main thread is raised inline, with no frame of latency.
+            
+             False raises it synchronously on whichever thread set <see cref="P:lstwoMODS_Core.UI.Ref`1.Value"/>, and only there:
+             it is never also raised on the main thread. Use it for handlers that must keep working
+             while the game is frozen or loading (the main thread is not ticking then) and that touch
+             no Unity API. This mirrors the <c>mainThread</c> flag on UI elements.
+             </summary>
+        </member>
         <member name="E:lstwoMODS_Core.UI.Ref`1.Changed">
-            <summary>Fired on the calling thread whenever Value is set from code.</summary>
+            <summary>
+            Fired whenever Value is set, including when it is set to the value it already had.
+            See <see cref="P:lstwoMODS_Core.UI.Ref`1.RunCallbacksOnMainThread"/> for which thread it arrives on.
+            </summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Ref`1.#ctor(`0,System.Boolean)">
+            <param name="runCallbacksOnMainThread">See <see cref="P:lstwoMODS_Core.UI.Ref`1.RunCallbacksOnMainThread"/>.</param>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.Ref`1.WithMainThreadCallbacks(System.Boolean)">
+            <summary>Chainable form of <see cref="P:lstwoMODS_Core.UI.Ref`1.RunCallbacksOnMainThread"/>.</summary>
         </member>
         <member name="T:lstwoMODS_Core.UI.StylePresetData">
             <summary>
@@ -3220,6 +3618,22 @@
             <param name="dismissLabel">Label on the dismiss button (default "OK").</param>
             <param name="onDismissed">Optional callback when the user clicks OK.</param>
         </member>
+        <member name="F:lstwoMODS_Core.UI.UIManager.OnReconnected">
+            <summary>
+            Fires when a freshly started overlay has connected in place of one that died. The window
+            trees are replayed by core, but anything a mod pushed across once at startup (asset
+            catalogues, item lists, ...) died with the old process and has to be re-sent from here.
+            Runs on the IPC connect thread, not the Unity main thread.
+            </summary>
+        </member>
+        <member name="E:lstwoMODS_Core.UI.UIManager.MessageReceived">
+            <summary>
+            Inbound overlay messages, forwarded after core has handled its own types. Subscribe here
+            rather than to <see cref="F:lstwoMODS_Core.UI.UIManager.IpcChannel"/>.MessageReceived: a restart replaces the channel
+            object, and a subscription made against the old one is dropped silently, leaving the mod
+            unable to receive anything until the game is restarted. Runs on the IPC reader thread.
+            </summary>
+        </member>
         <member name="M:lstwoMODS_Core.UI.UIManager.StartOverlay">
             <summary>
             Start (or restart) the overlay process with a fresh port, auth token and IPC channel.
@@ -3321,6 +3735,14 @@
         <member name="F:lstwoMODS_Core.UI.TabMenus.MacrosWindow.TriggerFieldUI.ModeIds">
             <summary>Mode id per <see cref="F:lstwoMODS_Core.UI.TabMenus.MacrosWindow.TriggerFieldUI.ModeCombo"/> entry; "" for the EmptyLabel entry.</summary>
         </member>
+        <member name="F:lstwoMODS_Core.UI.TabMenus.MacrosWindow.TriggerFieldUI.ParamList">
+            <summary>ParamList widget: a variable-length list of text rows editing one
+            comma-separated config string (the Called-by-Macro trigger's parameters).</summary>
+        </member>
+        <member name="T:lstwoMODS_Core.UI.TabMenus.MacrosWindow.ParamListUI">
+            <summary>Per-field state for a <see cref="F:lstwoMODS_Core.Macros.MacroTriggerWidget.ParamList"/> field: the row host
+            plus the live rows. Rows are self-managed (add/remove), so the generic field refresh skips it.</summary>
+        </member>
         <member name="F:lstwoMODS_Core.UI.TabMenus.MacrosWindow.StepUI.Header">
             <summary>The step's card: a compact tree row (name, drag handle, X to delete)
             with the parameters and quick actions inside.</summary>
@@ -3385,6 +3807,17 @@
         <member name="M:lstwoMODS_Core.UI.TabMenus.MacrosWindow.RefreshValueEditor(lstwoMODS_Core.UI.TabMenus.MacrosWindow.ParamUI,System.String)">
             <summary>Push the constant's display string into whichever typed editor this param
             uses, skipping the send when the editor already shows the value.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.TabMenus.MacrosWindow.Near(System.Single,System.Single)">
+             <summary>
+             Nearly equal, used to decide whether an editor already shows the constant.
+            
+             The constant is stored as its display string, and <c>float.ToString()</c> on this
+             runtime is 7 significant digits, not round-trip exact: 1.2345678 comes back as
+             1.234568. An exact test would therefore re-send the value on every refresh, which
+             costs an IPC message per frame and yanks the widget back while the user is dragging
+             it. The tolerance is relative, so it holds for large magnitudes too.
+             </summary>
         </member>
         <member name="M:lstwoMODS_Core.UI.TabMenus.MacrosWindow.ValidateExpr(lstwoMODS_Core.UI.TabMenus.MacrosWindow.CardUI,System.Collections.Generic.List{lstwoMODS_Core.Macros.MacroStep},System.Int32,System.Int32,System.String)">
             <summary>Edit-time expression check with the same variables the runner will declare:
@@ -3466,6 +3899,14 @@
             scoped by trigger id so switching between two kinds that share a config key never re-adds a
             just-removed id in the same frame (which the overlay would drop).</summary>
         </member>
+        <member name="M:lstwoMODS_Core.UI.TabMenus.MacrosWindow.CommitParamList(lstwoMODS_Core.UI.TabMenus.MacrosWindow.ParamListUI)">
+            <summary>Re-serialize the rows into the trigger's comma-separated config string (blank rows
+            dropped) and persist, which re-resolves the trigger's outputs.</summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.TabMenus.MacrosWindow.SplitParams(System.String)">
+            <summary>Split a stored comma-separated parameter spec into per-row entries (verbatim, so the
+            optional ":type" survives). Blank entries dropped.</summary>
+        </member>
         <member name="M:lstwoMODS_Core.UI.TabMenus.MacrosWindow.Slugify(System.String)">
             <summary>Identifier-safe form of a trigger id ("core.hotkey" → "core_hotkey") for use in
             element ids.</summary>
@@ -3528,11 +3969,750 @@
         <member name="M:lstwoMODS_Core.UI.TabMenus.ModsWindow.ResetOrder">
             <summary>Discard this window's saved custom order and restore registration order.</summary>
         </member>
+        <member name="M:lstwoMODS_Core.UI.TabMenus.SettingsWindow.ApplyBackgroundToWindow">
+            <summary>Push the current window-background config to the live overlay (applies immediately).</summary>
+        </member>
         <member name="E:lstwoMODS_Core.UI.TabMenus.SettingsWindow.OnBuildUI">
             <summary>
             Subscribe to append custom elements to the Settings window.
             The list is passed before the Group is constructed, so additions are fully registered.
             </summary>
+        </member>
+        <member name="T:lstwoMODS_Core.F2Mode">
+            <summary>
+            Controls what the F2 hotkey toggles. Selected via the plugin config / Settings window.
+            </summary>
+        </member>
+        <member name="F:lstwoMODS_Core.F2Mode.ToggleMenuBarAndPanels">
+            <summary>F2 toggles the menu bar and all panels together (default).</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.F2Mode.ToggleMenuBarOnly">
+            <summary>F2 toggles only the menu bar; panels stay visible (e.g. moved to a second monitor).</summary>
+        </member>
+        <member name="F:lstwoMODS_Core.F2Mode.ToggleNothing">
+            <summary>F2 does nothing; the menu bar and panels are always visible.</summary>
+        </member>
+        <member name="T:Col">
+             <summary>
+             Serializable stand-in for an RGBA colour, components in the usual 0..1 range.
+            
+             Converts implicitly to and from <see cref="T:UnityEngine.Color"/>,
+             <see cref="T:System.Drawing.Color"/>, the System.Numerics vectors and Unity's vectors, so it
+             can be passed wherever any of those is expected, while still surviving a JSON round trip.
+             <see cref="T:UnityEngine.Color"/> cannot: its <c>linear</c> and <c>gamma</c> properties return
+             a colour, so Newtonsoft recurses into them forever. Persist this instead.
+            
+             The channels are readable as both <c>R</c>/<c>G</c>/<c>B</c>/<c>A</c> and their lower-case
+             aliases, so code written against either convention reads the same. Only the upper-case set
+             is serialized.
+             </summary>
+        </member>
+        <member name="F:Col.R">
+            <summary>The red channel.</summary>
+        </member>
+        <member name="F:Col.G">
+            <summary>The green channel.</summary>
+        </member>
+        <member name="F:Col.B">
+            <summary>The blue channel.</summary>
+        </member>
+        <member name="F:Col.A">
+            <summary>The alpha channel.</summary>
+        </member>
+        <member name="P:Col.r">
+            <summary>Unity-style alias for <see cref="F:Col.R"/>.</summary>
+        </member>
+        <member name="P:Col.g">
+            <summary>Unity-style alias for <see cref="F:Col.G"/>.</summary>
+        </member>
+        <member name="P:Col.b">
+            <summary>Unity-style alias for <see cref="F:Col.B"/>.</summary>
+        </member>
+        <member name="P:Col.a">
+            <summary>Unity-style alias for <see cref="F:Col.A"/>.</summary>
+        </member>
+        <member name="P:Col.White">
+            <summary>Opaque white.</summary>
+        </member>
+        <member name="P:Col.Black">
+            <summary>Opaque black.</summary>
+        </member>
+        <member name="P:Col.Clear">
+            <summary>Fully transparent black.</summary>
+        </member>
+        <member name="M:Col.#ctor(System.Single,System.Single,System.Single,System.Single)">
+            <param name="r">The red channel.</param>
+            <param name="g">The green channel.</param>
+            <param name="b">The blue channel.</param>
+            <param name="a">The alpha channel. Defaults to fully opaque.</param>
+        </member>
+        <member name="M:Col.Deconstruct(System.Single@,System.Single@,System.Single@,System.Single@)">
+            <summary>Splits into channels, for <c>var (r, g, b, a) = col;</c>.</summary>
+        </member>
+        <member name="M:Col.WithAlpha(System.Single)">
+            <summary>A copy of this colour with its alpha replaced.</summary>
+        </member>
+        <member name="M:Col.op_Implicit(System.Numerics.Vector4)~Col">
+            <summary>Converts from <see cref="T:System.Numerics.Vector4"/> (RGBA).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~System.Numerics.Vector4">
+            <summary>Converts to <see cref="T:System.Numerics.Vector4"/> (RGBA).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(System.Numerics.Vector3)~Col">
+            <summary>Converts from <see cref="T:System.Numerics.Vector3"/> (RGB, opaque).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~System.Numerics.Vector3">
+            <summary>Converts to <see cref="T:System.Numerics.Vector3"/>, dropping alpha.</summary>
+        </member>
+        <member name="M:Col.op_Implicit(UnityEngine.Color)~Col">
+            <summary>Converts from <see cref="T:UnityEngine.Color"/>.</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~UnityEngine.Color">
+            <summary>Converts to <see cref="T:UnityEngine.Color"/>.</summary>
+        </member>
+        <member name="M:Col.op_Implicit(System.Drawing.Color)~Col">
+            <summary>Converts from <see cref="T:System.Drawing.Color"/> (0..255 per channel).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~System.Drawing.Color">
+            <summary>Converts to <see cref="T:System.Drawing.Color"/>, clamping to 0..255.</summary>
+        </member>
+        <member name="M:Col.ToByte(System.Single)">
+            <summary>Out-of-range channels would otherwise wrap when cast to a byte.</summary>
+        </member>
+        <member name="M:Col.op_Implicit(UnityEngine.Vector3)~Col">
+            <summary>Converts from <see cref="T:UnityEngine.Vector3"/> (RGB, opaque).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~UnityEngine.Vector3">
+            <summary>Converts to <see cref="T:UnityEngine.Vector3"/>, dropping alpha.</summary>
+        </member>
+        <member name="M:Col.op_Implicit(UnityEngine.Vector4)~Col">
+            <summary>Converts from <see cref="T:UnityEngine.Vector4"/> (RGBA).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~UnityEngine.Vector4">
+            <summary>Converts to <see cref="T:UnityEngine.Vector4"/> (RGBA).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Vec4)~Col">
+            <summary>Converts from <see cref="T:Vec4"/> (RGBA).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~Vec4">
+            <summary>Converts to <see cref="T:Vec4"/> (RGBA).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Vec3)~Col">
+            <summary>Converts from <see cref="T:Vec3"/> (RGB, opaque).</summary>
+        </member>
+        <member name="M:Col.op_Implicit(Col)~Vec3">
+            <summary>Converts to <see cref="T:Vec3"/>, dropping alpha.</summary>
+        </member>
+        <member name="M:Col.Equals(Col)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Col.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Col.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Col.op_Equality(Col,Col)">
+            <summary>Exact channel-wise equality.</summary>
+        </member>
+        <member name="M:Col.op_Inequality(Col,Col)">
+            <summary>Exact channel-wise inequality.</summary>
+        </member>
+        <member name="M:Col.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:ColJsonConverter">
+            <summary>
+            JSON for <see cref="T:Col"/>. Newtonsoft would otherwise fill a channel that is absent from
+            the file with <c>default(float)</c>, so a hand-written <c>{"R":1,"G":0,"B":0}</c> would load
+            as fully transparent rather than the opaque red it reads as. Alpha defaults to 1 here;
+            lower-case channel names are accepted too, since that is how the value prints.
+            </summary>
+        </member>
+        <member name="M:ColJsonConverter.WriteJson(Newtonsoft.Json.JsonWriter,Col,Newtonsoft.Json.JsonSerializer)">
+            <inheritdoc/>
+        </member>
+        <member name="M:ColJsonConverter.ReadJson(Newtonsoft.Json.JsonReader,System.Type,Col,System.Boolean,Newtonsoft.Json.JsonSerializer)">
+            <inheritdoc/>
+        </member>
+        <member name="T:Vec2">
+             <summary>
+             Serializable stand-in for a 2D float vector.
+            
+             Converts implicitly to and from <see cref="T:UnityEngine.Vector2"/> and
+             <see cref="T:System.Numerics.Vector2"/>, so it can be passed wherever either of those is
+             expected, while still surviving a JSON round trip. Unity's own vector and color types do
+             not: their derived instance properties (<c>normalized</c>, <c>linear</c>, ...) return the
+             same type, so Newtonsoft recurses into them forever. Persist this instead.
+            
+             The components are readable as both <c>X</c>/<c>Y</c> and <c>x</c>/<c>y</c> so code written
+             against either convention reads the same. Only the upper-case pair is serialized.
+             </summary>
+        </member>
+        <member name="F:Vec2.X">
+            <summary>The X component.</summary>
+        </member>
+        <member name="F:Vec2.Y">
+            <summary>The Y component.</summary>
+        </member>
+        <member name="P:Vec2.x">
+            <summary>Unity-style alias for <see cref="F:Vec2.X"/>.</summary>
+        </member>
+        <member name="P:Vec2.y">
+            <summary>Unity-style alias for <see cref="F:Vec2.Y"/>.</summary>
+        </member>
+        <member name="P:Vec2.Zero">
+            <summary>(0, 0).</summary>
+        </member>
+        <member name="P:Vec2.One">
+            <summary>(1, 1).</summary>
+        </member>
+        <member name="M:Vec2.#ctor(System.Single,System.Single)">
+            <param name="x">The X component.</param>
+            <param name="y">The Y component.</param>
+        </member>
+        <member name="M:Vec2.#ctor(System.Single)">
+            <summary>Both components set to <paramref name="value"/>.</summary>
+        </member>
+        <member name="M:Vec2.Deconstruct(System.Single@,System.Single@)">
+            <summary>Splits into components, for <c>var (x, y) = vec;</c>.</summary>
+        </member>
+        <member name="M:Vec2.op_Implicit(System.Numerics.Vector2)~Vec2">
+            <summary>Converts from <see cref="T:System.Numerics.Vector2"/>.</summary>
+        </member>
+        <member name="M:Vec2.op_Implicit(Vec2)~System.Numerics.Vector2">
+            <summary>Converts to <see cref="T:System.Numerics.Vector2"/>.</summary>
+        </member>
+        <member name="M:Vec2.op_Implicit(Vec2)~UnityEngine.Vector2">
+            <summary>Converts to <see cref="T:UnityEngine.Vector2"/>.</summary>
+        </member>
+        <member name="M:Vec2.op_Implicit(UnityEngine.Vector2)~Vec2">
+            <summary>Converts from <see cref="T:UnityEngine.Vector2"/>.</summary>
+        </member>
+        <member name="M:Vec2.op_Addition(Vec2,Vec2)">
+            <summary>Component-wise addition.</summary>
+        </member>
+        <member name="M:Vec2.op_Subtraction(Vec2,Vec2)">
+            <summary>Component-wise subtraction.</summary>
+        </member>
+        <member name="M:Vec2.op_UnaryNegation(Vec2)">
+            <summary>Negation.</summary>
+        </member>
+        <member name="M:Vec2.op_Multiply(Vec2,Vec2)">
+            <summary>Component-wise multiplication.</summary>
+        </member>
+        <member name="M:Vec2.op_Multiply(Vec2,System.Single)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec2.op_Multiply(System.Single,Vec2)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec2.op_Division(Vec2,Vec2)">
+            <summary>Component-wise division.</summary>
+        </member>
+        <member name="M:Vec2.op_Division(Vec2,System.Single)">
+            <summary>Divides by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec2.Equals(Vec2)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec2.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec2.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec2.op_Equality(Vec2,Vec2)">
+            <summary>Exact component-wise equality.</summary>
+        </member>
+        <member name="M:Vec2.op_Inequality(Vec2,Vec2)">
+            <summary>Exact component-wise inequality.</summary>
+        </member>
+        <member name="M:Vec2.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:Vec2Int">
+             <summary>
+             Serializable stand-in for a 2D integer vector, the counterpart of <see cref="T:Vec2"/>.
+             Converts implicitly to and from <see cref="T:UnityEngine.Vector2Int"/>, and widens implicitly
+             to <see cref="T:Vec2"/>.
+            
+             The components are readable as both <c>X</c>/<c>Y</c> and <c>x</c>/<c>y</c>. Only the
+             upper-case pair is serialized.
+             </summary>
+        </member>
+        <member name="F:Vec2Int.X">
+            <summary>The X component.</summary>
+        </member>
+        <member name="F:Vec2Int.Y">
+            <summary>The Y component.</summary>
+        </member>
+        <member name="P:Vec2Int.x">
+            <summary>Unity-style alias for <see cref="F:Vec2Int.X"/>.</summary>
+        </member>
+        <member name="P:Vec2Int.y">
+            <summary>Unity-style alias for <see cref="F:Vec2Int.Y"/>.</summary>
+        </member>
+        <member name="P:Vec2Int.Zero">
+            <summary>(0, 0).</summary>
+        </member>
+        <member name="P:Vec2Int.One">
+            <summary>(1, 1).</summary>
+        </member>
+        <member name="M:Vec2Int.#ctor(System.Int32,System.Int32)">
+            <param name="x">The X component.</param>
+            <param name="y">The Y component.</param>
+        </member>
+        <member name="M:Vec2Int.#ctor(System.Int32)">
+            <summary>Both components set to <paramref name="value"/>.</summary>
+        </member>
+        <member name="M:Vec2Int.Deconstruct(System.Int32@,System.Int32@)">
+            <summary>Splits into components, for <c>var (x, y) = vec;</c>.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Implicit(Vec2Int)~UnityEngine.Vector2Int">
+            <summary>Converts to <see cref="T:UnityEngine.Vector2Int"/>.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Implicit(UnityEngine.Vector2Int)~Vec2Int">
+            <summary>Converts from <see cref="T:UnityEngine.Vector2Int"/>.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Implicit(Vec2Int)~Vec2">
+            <summary>Widens to <see cref="T:Vec2"/>.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Explicit(Vec2)~Vec2Int">
+            <summary>Truncates a <see cref="T:Vec2"/> towards zero.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Addition(Vec2Int,Vec2Int)">
+            <summary>Component-wise addition.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Subtraction(Vec2Int,Vec2Int)">
+            <summary>Component-wise subtraction.</summary>
+        </member>
+        <member name="M:Vec2Int.op_UnaryNegation(Vec2Int)">
+            <summary>Negation.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Multiply(Vec2Int,Vec2Int)">
+            <summary>Component-wise multiplication.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Multiply(Vec2Int,System.Int32)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Multiply(System.Int32,Vec2Int)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec2Int.Equals(Vec2Int)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec2Int.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec2Int.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec2Int.op_Equality(Vec2Int,Vec2Int)">
+            <summary>Component-wise equality.</summary>
+        </member>
+        <member name="M:Vec2Int.op_Inequality(Vec2Int,Vec2Int)">
+            <summary>Component-wise inequality.</summary>
+        </member>
+        <member name="M:Vec2Int.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:Vec3">
+             <summary>
+             Serializable stand-in for a 3D float vector. See <see cref="T:Vec2"/> for why Unity's own
+             vector types cannot be persisted directly.
+            
+             The components are readable as both <c>X</c>/<c>Y</c>/<c>Z</c> and <c>x</c>/<c>y</c>/<c>z</c>.
+             Only the upper-case set is serialized.
+             </summary>
+        </member>
+        <member name="F:Vec3.X">
+            <summary>The X component.</summary>
+        </member>
+        <member name="F:Vec3.Y">
+            <summary>The Y component.</summary>
+        </member>
+        <member name="F:Vec3.Z">
+            <summary>The Z component.</summary>
+        </member>
+        <member name="P:Vec3.x">
+            <summary>Unity-style alias for <see cref="F:Vec3.X"/>.</summary>
+        </member>
+        <member name="P:Vec3.y">
+            <summary>Unity-style alias for <see cref="F:Vec3.Y"/>.</summary>
+        </member>
+        <member name="P:Vec3.z">
+            <summary>Unity-style alias for <see cref="F:Vec3.Z"/>.</summary>
+        </member>
+        <member name="P:Vec3.Zero">
+            <summary>(0, 0, 0).</summary>
+        </member>
+        <member name="P:Vec3.One">
+            <summary>(1, 1, 1).</summary>
+        </member>
+        <member name="M:Vec3.#ctor(System.Single,System.Single,System.Single)">
+            <param name="x">The X component.</param>
+            <param name="y">The Y component.</param>
+            <param name="z">The Z component.</param>
+        </member>
+        <member name="M:Vec3.#ctor(System.Single)">
+            <summary>All three components set to <paramref name="value"/>.</summary>
+        </member>
+        <member name="M:Vec3.Deconstruct(System.Single@,System.Single@,System.Single@)">
+            <summary>Splits into components, for <c>var (x, y, z) = vec;</c>.</summary>
+        </member>
+        <member name="M:Vec3.op_Implicit(System.Numerics.Vector3)~Vec3">
+            <summary>Converts from <see cref="T:System.Numerics.Vector3"/>.</summary>
+        </member>
+        <member name="M:Vec3.op_Implicit(Vec3)~System.Numerics.Vector3">
+            <summary>Converts to <see cref="T:System.Numerics.Vector3"/>.</summary>
+        </member>
+        <member name="M:Vec3.op_Implicit(Vec3)~UnityEngine.Vector3">
+            <summary>Converts to <see cref="T:UnityEngine.Vector3"/>.</summary>
+        </member>
+        <member name="M:Vec3.op_Implicit(UnityEngine.Vector3)~Vec3">
+            <summary>Converts from <see cref="T:UnityEngine.Vector3"/>.</summary>
+        </member>
+        <member name="M:Vec3.op_Addition(Vec3,Vec3)">
+            <summary>Component-wise addition.</summary>
+        </member>
+        <member name="M:Vec3.op_Subtraction(Vec3,Vec3)">
+            <summary>Component-wise subtraction.</summary>
+        </member>
+        <member name="M:Vec3.op_UnaryNegation(Vec3)">
+            <summary>Negation.</summary>
+        </member>
+        <member name="M:Vec3.op_Multiply(Vec3,Vec3)">
+            <summary>Component-wise multiplication.</summary>
+        </member>
+        <member name="M:Vec3.op_Multiply(Vec3,System.Single)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec3.op_Multiply(System.Single,Vec3)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec3.op_Division(Vec3,Vec3)">
+            <summary>Component-wise division.</summary>
+        </member>
+        <member name="M:Vec3.op_Division(Vec3,System.Single)">
+            <summary>Divides by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec3.Equals(Vec3)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec3.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec3.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec3.op_Equality(Vec3,Vec3)">
+            <summary>Exact component-wise equality.</summary>
+        </member>
+        <member name="M:Vec3.op_Inequality(Vec3,Vec3)">
+            <summary>Exact component-wise inequality.</summary>
+        </member>
+        <member name="M:Vec3.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:Vec3Int">
+             <summary>
+             Serializable stand-in for a 3D integer vector, the counterpart of <see cref="T:Vec3"/>.
+             Converts implicitly to and from <see cref="T:UnityEngine.Vector3Int"/>, and widens implicitly
+             to <see cref="T:Vec3"/>.
+            
+             The components are readable as both <c>X</c>/<c>Y</c>/<c>Z</c> and their lower-case aliases.
+             Only the upper-case set is serialized.
+             </summary>
+        </member>
+        <member name="F:Vec3Int.X">
+            <summary>The X component.</summary>
+        </member>
+        <member name="F:Vec3Int.Y">
+            <summary>The Y component.</summary>
+        </member>
+        <member name="F:Vec3Int.Z">
+            <summary>The Z component.</summary>
+        </member>
+        <member name="P:Vec3Int.x">
+            <summary>Unity-style alias for <see cref="F:Vec3Int.X"/>.</summary>
+        </member>
+        <member name="P:Vec3Int.y">
+            <summary>Unity-style alias for <see cref="F:Vec3Int.Y"/>.</summary>
+        </member>
+        <member name="P:Vec3Int.z">
+            <summary>Unity-style alias for <see cref="F:Vec3Int.Z"/>.</summary>
+        </member>
+        <member name="P:Vec3Int.Zero">
+            <summary>(0, 0, 0).</summary>
+        </member>
+        <member name="P:Vec3Int.One">
+            <summary>(1, 1, 1).</summary>
+        </member>
+        <member name="M:Vec3Int.#ctor(System.Int32,System.Int32,System.Int32)">
+            <param name="x">The X component.</param>
+            <param name="y">The Y component.</param>
+            <param name="z">The Z component.</param>
+        </member>
+        <member name="M:Vec3Int.#ctor(System.Int32)">
+            <summary>All three components set to <paramref name="value"/>.</summary>
+        </member>
+        <member name="M:Vec3Int.Deconstruct(System.Int32@,System.Int32@,System.Int32@)">
+            <summary>Splits into components, for <c>var (x, y, z) = vec;</c>.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Implicit(Vec3Int)~UnityEngine.Vector3Int">
+            <summary>Converts to <see cref="T:UnityEngine.Vector3Int"/>.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Implicit(UnityEngine.Vector3Int)~Vec3Int">
+            <summary>Converts from <see cref="T:UnityEngine.Vector3Int"/>.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Implicit(Vec3Int)~Vec3">
+            <summary>Widens to <see cref="T:Vec3"/>.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Explicit(Vec3)~Vec3Int">
+            <summary>Truncates a <see cref="T:Vec3"/> towards zero.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Addition(Vec3Int,Vec3Int)">
+            <summary>Component-wise addition.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Subtraction(Vec3Int,Vec3Int)">
+            <summary>Component-wise subtraction.</summary>
+        </member>
+        <member name="M:Vec3Int.op_UnaryNegation(Vec3Int)">
+            <summary>Negation.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Multiply(Vec3Int,Vec3Int)">
+            <summary>Component-wise multiplication.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Multiply(Vec3Int,System.Int32)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Multiply(System.Int32,Vec3Int)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec3Int.Equals(Vec3Int)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec3Int.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec3Int.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec3Int.op_Equality(Vec3Int,Vec3Int)">
+            <summary>Component-wise equality.</summary>
+        </member>
+        <member name="M:Vec3Int.op_Inequality(Vec3Int,Vec3Int)">
+            <summary>Component-wise inequality.</summary>
+        </member>
+        <member name="M:Vec3Int.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:Vec4">
+             <summary>
+             Serializable stand-in for a 4D float vector. See <see cref="T:Vec2"/> for why Unity's own
+             vector types cannot be persisted directly. For colours prefer <see cref="T:Col"/>, which
+             carries the same four floats but names them R/G/B/A.
+            
+             The components are readable as both <c>X</c>/<c>Y</c>/<c>Z</c>/<c>W</c> and their lower-case
+             aliases. Only the upper-case set is serialized.
+             </summary>
+        </member>
+        <member name="F:Vec4.X">
+            <summary>The X component.</summary>
+        </member>
+        <member name="F:Vec4.Y">
+            <summary>The Y component.</summary>
+        </member>
+        <member name="F:Vec4.Z">
+            <summary>The Z component.</summary>
+        </member>
+        <member name="F:Vec4.W">
+            <summary>The W component.</summary>
+        </member>
+        <member name="P:Vec4.x">
+            <summary>Unity-style alias for <see cref="F:Vec4.X"/>.</summary>
+        </member>
+        <member name="P:Vec4.y">
+            <summary>Unity-style alias for <see cref="F:Vec4.Y"/>.</summary>
+        </member>
+        <member name="P:Vec4.z">
+            <summary>Unity-style alias for <see cref="F:Vec4.Z"/>.</summary>
+        </member>
+        <member name="P:Vec4.w">
+            <summary>Unity-style alias for <see cref="F:Vec4.W"/>.</summary>
+        </member>
+        <member name="P:Vec4.Zero">
+            <summary>(0, 0, 0, 0).</summary>
+        </member>
+        <member name="P:Vec4.One">
+            <summary>(1, 1, 1, 1).</summary>
+        </member>
+        <member name="M:Vec4.#ctor(System.Single,System.Single,System.Single,System.Single)">
+            <param name="x">The X component.</param>
+            <param name="y">The Y component.</param>
+            <param name="z">The Z component.</param>
+            <param name="w">The W component.</param>
+        </member>
+        <member name="M:Vec4.#ctor(System.Single)">
+            <summary>All four components set to <paramref name="value"/>.</summary>
+        </member>
+        <member name="M:Vec4.Deconstruct(System.Single@,System.Single@,System.Single@,System.Single@)">
+            <summary>Splits into components, for <c>var (x, y, z, w) = vec;</c>.</summary>
+        </member>
+        <member name="M:Vec4.op_Implicit(System.Numerics.Vector4)~Vec4">
+            <summary>Converts from <see cref="T:System.Numerics.Vector4"/>.</summary>
+        </member>
+        <member name="M:Vec4.op_Implicit(Vec4)~System.Numerics.Vector4">
+            <summary>Converts to <see cref="T:System.Numerics.Vector4"/>.</summary>
+        </member>
+        <member name="M:Vec4.op_Implicit(Vec4)~UnityEngine.Vector4">
+            <summary>Converts to <see cref="T:UnityEngine.Vector4"/>.</summary>
+        </member>
+        <member name="M:Vec4.op_Implicit(UnityEngine.Vector4)~Vec4">
+            <summary>Converts from <see cref="T:UnityEngine.Vector4"/>.</summary>
+        </member>
+        <member name="M:Vec4.op_Addition(Vec4,Vec4)">
+            <summary>Component-wise addition.</summary>
+        </member>
+        <member name="M:Vec4.op_Subtraction(Vec4,Vec4)">
+            <summary>Component-wise subtraction.</summary>
+        </member>
+        <member name="M:Vec4.op_UnaryNegation(Vec4)">
+            <summary>Negation.</summary>
+        </member>
+        <member name="M:Vec4.op_Multiply(Vec4,Vec4)">
+            <summary>Component-wise multiplication.</summary>
+        </member>
+        <member name="M:Vec4.op_Multiply(Vec4,System.Single)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec4.op_Multiply(System.Single,Vec4)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec4.op_Division(Vec4,Vec4)">
+            <summary>Component-wise division.</summary>
+        </member>
+        <member name="M:Vec4.op_Division(Vec4,System.Single)">
+            <summary>Divides by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec4.Equals(Vec4)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec4.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec4.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec4.op_Equality(Vec4,Vec4)">
+            <summary>Exact component-wise equality.</summary>
+        </member>
+        <member name="M:Vec4.op_Inequality(Vec4,Vec4)">
+            <summary>Exact component-wise inequality.</summary>
+        </member>
+        <member name="M:Vec4.ToString">
+            <inheritdoc/>
+        </member>
+        <member name="T:Vec4Int">
+             <summary>
+             Serializable stand-in for a 4D integer vector, the counterpart of <see cref="T:Vec4"/>.
+             Unity has no <c>Vector4Int</c>, so this also converts to and from the
+             <c>(int, int, int, int)</c> tuple the four-component integer widgets used to expose.
+            
+             The components are readable as both <c>X</c>/<c>Y</c>/<c>Z</c>/<c>W</c> and their lower-case
+             aliases. Only the upper-case set is serialized.
+             </summary>
+        </member>
+        <member name="F:Vec4Int.X">
+            <summary>The X component.</summary>
+        </member>
+        <member name="F:Vec4Int.Y">
+            <summary>The Y component.</summary>
+        </member>
+        <member name="F:Vec4Int.Z">
+            <summary>The Z component.</summary>
+        </member>
+        <member name="F:Vec4Int.W">
+            <summary>The W component.</summary>
+        </member>
+        <member name="P:Vec4Int.x">
+            <summary>Unity-style alias for <see cref="F:Vec4Int.X"/>.</summary>
+        </member>
+        <member name="P:Vec4Int.y">
+            <summary>Unity-style alias for <see cref="F:Vec4Int.Y"/>.</summary>
+        </member>
+        <member name="P:Vec4Int.z">
+            <summary>Unity-style alias for <see cref="F:Vec4Int.Z"/>.</summary>
+        </member>
+        <member name="P:Vec4Int.w">
+            <summary>Unity-style alias for <see cref="F:Vec4Int.W"/>.</summary>
+        </member>
+        <member name="P:Vec4Int.Zero">
+            <summary>(0, 0, 0, 0).</summary>
+        </member>
+        <member name="P:Vec4Int.One">
+            <summary>(1, 1, 1, 1).</summary>
+        </member>
+        <member name="M:Vec4Int.#ctor(System.Int32,System.Int32,System.Int32,System.Int32)">
+            <param name="x">The X component.</param>
+            <param name="y">The Y component.</param>
+            <param name="z">The Z component.</param>
+            <param name="w">The W component.</param>
+        </member>
+        <member name="M:Vec4Int.#ctor(System.Int32)">
+            <summary>All four components set to <paramref name="value"/>.</summary>
+        </member>
+        <member name="M:Vec4Int.Deconstruct(System.Int32@,System.Int32@,System.Int32@,System.Int32@)">
+            <summary>Splits into components, for <c>var (x, y, z, w) = vec;</c>.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Implicit(System.ValueTuple{System.Int32,System.Int32,System.Int32,System.Int32})~Vec4Int">
+            <summary>Converts from a <c>(x, y, z, w)</c> tuple.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Implicit(Vec4Int)~System.ValueTuple{System.Int32,System.Int32,System.Int32,System.Int32}">
+            <summary>Converts to a <c>(x, y, z, w)</c> tuple.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Implicit(Vec4Int)~Vec4">
+            <summary>Widens to <see cref="T:Vec4"/>.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Explicit(Vec4)~Vec4Int">
+            <summary>Truncates a <see cref="T:Vec4"/> towards zero.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Addition(Vec4Int,Vec4Int)">
+            <summary>Component-wise addition.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Subtraction(Vec4Int,Vec4Int)">
+            <summary>Component-wise subtraction.</summary>
+        </member>
+        <member name="M:Vec4Int.op_UnaryNegation(Vec4Int)">
+            <summary>Negation.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Multiply(Vec4Int,Vec4Int)">
+            <summary>Component-wise multiplication.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Multiply(Vec4Int,System.Int32)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Multiply(System.Int32,Vec4Int)">
+            <summary>Scales by <paramref name="s"/>.</summary>
+        </member>
+        <member name="M:Vec4Int.Equals(Vec4Int)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec4Int.Equals(System.Object)">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec4Int.GetHashCode">
+            <inheritdoc/>
+        </member>
+        <member name="M:Vec4Int.op_Equality(Vec4Int,Vec4Int)">
+            <summary>Component-wise equality.</summary>
+        </member>
+        <member name="M:Vec4Int.op_Inequality(Vec4Int,Vec4Int)">
+            <summary>Component-wise inequality.</summary>
+        </member>
+        <member name="M:Vec4Int.ToString">
+            <inheritdoc/>
         </member>
     </members>
 </doc>

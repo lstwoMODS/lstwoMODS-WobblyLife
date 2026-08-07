@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using HarmonyLib;
+using HawkNetworking;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
@@ -10,7 +11,7 @@ namespace lstwoMODS_WobblyLife.Mods;
 public class PlayerScaleManager : PlayerBasedMod
 {
     public override string Name => "Player Scale";
-    public override string Description => "Scale the selected player's ragdoll. Baked into the prefab so it applies cleanly on (re)spawn.";
+    public override string Description => "Scale the selected player's ragdoll. Baked into the prefab so it applies cleanly on (re)spawn. Host only; replicates to clients running the mod.";
     public override ModsWindow ModsWindow => Plugin.PlayerModsWindow;
 
     [ModSetting(Speed = 0.05f, Order = 10, ApplyButton = true, Label = "Player Scale", ApplyButtonLabel = "Apply & Respawn")]
@@ -49,15 +50,142 @@ public static class PlayerScalePatches
         var prefab = playerCharacterPrefab ?? __instance.playerCharacterPrefab;
         if (prefab == null) return;
 
-        var body = prefab.GetComponentInChildren<PlayerBody>(true);
-        if (body == null) return;
+        var scaleRoot = ResolveScaleRoot(prefab);
+        if (scaleRoot == null) return;
+
+        var target = PlayerScaleManager.GetScaleSettings(__instance).Scale;
+        scaleRoot.localScale = Vector3.one * target;
+    }
+
+    /// <summary>
+    /// The transform the whole character hangs off. Normally the hip, but if the hip is not one of the
+    /// transforms <see cref="HawkTransformSync"/> replicates, the closest synced ancestor is used instead so
+    /// the scale can actually reach remote clients. Deterministic from the prefab, so host and client agree.
+    /// </summary>
+    public static Transform ResolveScaleRoot(PlayerCharacter character)
+    {
+        var body = character != null ? character.GetComponentInChildren<PlayerBody>(true) : null;
+        if (body == null) return null;
 
         var hipRb = body.GetRigidbody();
         var hip = hipRb ? hipRb.transform : body.transform;
 
-        var target = PlayerScaleManager.GetScaleSettings(__instance).Scale;
-        hip.localScale = Vector3.one * target;
+        var sync = character.GetComponent<HawkTransformSync>();
+        if (sync == null) return hip;
+
+        for (var t = hip; t != null; t = t.parent)
+        {
+            if (IsSyncedTransform(sync, t)) return t;
+            if (t == sync.transform) break;
+        }
+
+        return hip;
     }
+
+    private static bool IsSyncedTransform(HawkTransformSync sync, Transform transform)
+    {
+        if (sync.transform == transform && sync.mainTransformSyncSetting.settings.IsValid()) return true;
+
+        foreach (var ext in sync.externalTransformsToSync)
+        {
+            if (ext != null && ext.transform == transform && ext.syncSettings.settings.IsValid()) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Turns on scale replication for the scale root before <see cref="HawkTransformSync.Setup"/> bakes the
+    /// per-transform flags into the outgoing message. Server only: the flags travel with every transform on
+    /// the wire, so vanilla clients keep parsing the packet fine, they just ignore the scale.
+    /// </summary>
+    [HarmonyPatch(typeof(HawkTransformSync), nameof(HawkTransformSync.Setup))]
+    [HarmonyPrefix]
+    public static void EnableScaleSyncOnSpawn(HawkTransformSync __instance)
+    {
+        if (__instance.bSetup) return;
+
+        var manager = HawkNetworkManager.DefaultInstance;
+        if (manager == null || !manager.IsServer()) return;
+
+        var character = __instance.GetComponent<PlayerCharacter>();
+        if (character == null) return;
+
+        var scaleRoot = ResolveScaleRoot(character);
+        if (scaleRoot == null) return;
+        if ((scaleRoot.localScale - Vector3.one).sqrMagnitude <= 1e-6f) return;
+
+        // Never flip the flag on an entry that syncs nothing: that would make it valid and add a transform to
+        // the message, and clients build their entry list from their own prefab. The counts have to match.
+        var synced = false;
+
+        if (__instance.transform == scaleRoot && __instance.mainTransformSyncSetting.settings.IsValid())
+        {
+            __instance.mainTransformSyncSetting.settings.bSyncScale = true;
+            synced = true;
+        }
+
+        foreach (var ext in __instance.externalTransformsToSync)
+        {
+            if (ext == null || ext.transform != scaleRoot) continue;
+            if (!ext.syncSettings.settings.IsValid()) continue;
+
+            ext.syncSettings.settings.bSyncScale = true;
+            synced = true;
+        }
+
+        if (!synced && !bWarnedAboutUnsyncedScaleRoot)
+        {
+            bWarnedAboutUnsyncedScaleRoot = true;
+            Plugin.LogSource.LogWarning(
+                $"[PlayerScale] '{scaleRoot.name}' is not replicated by HawkTransformSync, so player scale stays local. " +
+                $"Synced transforms: {string.Join(", ", SyncedTransformNames(__instance))}");
+        }
+    }
+
+    private static string[] SyncedTransformNames(HawkTransformSync sync)
+    {
+        var names = new List<string>();
+
+        if (sync.mainTransformSyncSetting.settings.IsValid()) names.Add(sync.transform.name);
+
+        foreach (var ext in sync.externalTransformsToSync)
+        {
+            if (ext != null && ext.transform && ext.syncSettings.settings.IsValid()) names.Add(ext.transform.name);
+        }
+
+        return names.ToArray();
+    }
+
+    /// <summary>
+    /// Client side of the same handshake. Vanilla only applies a received scale when the local prefab was
+    /// authored to sync it, so the flag the host turned on at runtime would be dropped. Reading it straight
+    /// off the received message also means a vanilla host (which sends no scale) can never move us.
+    /// </summary>
+    [HarmonyPatch(typeof(HawkTransformSync), nameof(HawkTransformSync.OnSnapshot))]
+    [HarmonyPostfix]
+    public static void ApplySyncedScale(HawkTransformSync __instance, TransformsSyncMessage snapshot)
+    {
+        var settings = __instance.transformSyncSettings;
+        if (settings == null || snapshot == null) return;
+
+        var messages = snapshot.transformsMessages;
+        if (messages.Count != settings.Count) return;
+
+        for (var i = 0; i < messages.Count; i++)
+        {
+            var message = messages[i];
+            if (!message.bSyncScale) continue;
+
+            var setting = settings[i];
+            if (setting == null || setting.transform == null) continue;
+            if (setting.syncSettings.settings.bSyncScale) continue; // vanilla already lerps this one
+
+            setting.transform.localScale = message.scale;
+        }
+    }
+
+    private static bool bWarnedAboutUnsyncedScaleRoot;
 
     [HarmonyPatch(typeof(PlayerCharacterMovement), "SimulateMovement")]
     [HarmonyPrefix]

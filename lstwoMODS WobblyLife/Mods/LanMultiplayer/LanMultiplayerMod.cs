@@ -62,6 +62,10 @@ public class LanMultiplayerMod : BaseMod
 
     // ── Reflection into the game's singleton internals (for the runtime rebuild) ──
     private static readonly FieldInfo FHawkInstance   = AccessTools.Field(typeof(HawkNetworkManager),  "m_Instance");
+    // HawkNetworkManager.OnDestroy latches this static (not just OnApplicationQuit, which is what
+    // the name suggests), and once set, DefaultInstance returns the cached instance without ever
+    // lazily rebuilding. Destroying the transport for a switch trips it, so it has to be cleared.
+    private static readonly FieldInfo FHawkShutdown   = AccessTools.Field(typeof(HawkNetworkManager),  "m_ShuttingDown");
     private static readonly FieldInfo FWobblyInstance = AccessTools.Field(typeof(WobblyNetworkManager), "m_Instance");
     private static readonly FieldInfo FManagerInit    = AccessTools.Field(typeof(HawkNetworkBehaviour), "ManagerInit");
     private static readonly FieldInfo FManagerSingle  = AccessTools.Field(typeof(HawkNetworkBehaviour), "ManagerSingleton");
@@ -214,6 +218,12 @@ public class LanMultiplayerMod : BaseMod
             // DestroyImmediate (not Destroy) so FindObjectOfType can't grab a lingering instance.
             if (oldWrapper != null)   UnityEngine.Object.DestroyImmediate(oldWrapper.gameObject);
             if (oldTransport != null) UnityEngine.Object.DestroyImmediate(oldTransport.gameObject);
+
+            // Undo the shutdown latch those destroys just set. Leaving it means DefaultInstance
+            // hands out the null we cleared above, forever: the switch itself fails, and every
+            // game-side `HawkNetworkManager.DefaultInstance.Foo()` (WobblyTerrainManager.UpdateTerrains
+            // among them) throws once a frame from then on.
+            FHawkShutdown?.SetValue(null, false);
 
             // Recreate: transport first, then the wrapper. The wrapper's Awake binds to the new
             // transport and re-subscribes its ~15 events, so that side self-heals.

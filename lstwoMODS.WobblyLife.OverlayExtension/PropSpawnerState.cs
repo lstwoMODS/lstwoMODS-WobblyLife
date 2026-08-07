@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using lstwoMODS.WobblyLife.SharedObjects;
 using Newtonsoft.Json;
 
@@ -64,16 +65,39 @@ internal class PropTreeNode
 internal class SpawnedPropEntry
 {
     public int             SpawnId      { get; set; }
-    public string          Address      { get; set; }
-    public string          Name         { get; set; }
+    public string?         Address      { get; set; }
+    public string?         Name         { get; set; }
     public bool            Networked    { get; set; }
+    public string?         GroupId      { get; set; }
     public PropCacheEntry? LibraryEntry { get; set; }
+}
+
+/// <summary>Overlay-local view state. Nothing here belongs to the mod — the active group and the
+/// groups themselves live on the game side.</summary>
+internal class PropSpawnerUiState
+{
+    public bool FavOpen    { get; set; } = true;
+    public bool NetOpen    { get; set; } = true;
+    public bool NnetOpen   { get; set; }
+    public bool CustomOpen { get; set; } = true;
+    public bool GroupsOpen { get; set; } = true;
+
+    public string?      SelectedGroupId  { get; set; }
+    public List<string> ExpandedGroupIds { get; set; } = new();
 }
 
 internal class PropSpawnerState
 {
     public bool IsLoaded { get; private set; }
-    public int  Version  { get; private set; }
+
+    /// <summary>Bumped only when the asset library itself is replaced. Still the trigger for
+    /// rebuilding filters and dropping library selections.</summary>
+    public int Version { get; private set; }
+
+    /// <summary>Bumped on every applied snapshot. Deliberately separate from <see cref="Version"/>:
+    /// snapshots arrive on every mutation, and clearing the user's multi-selection each time would
+    /// make reassigning a dozen props impossible.</summary>
+    public int GroupsRevision { get; private set; }
 
     public List<PropCacheEntry> Networked    { get; private set; } = new();
     public List<PropCacheEntry> NonNetworked { get; private set; } = new();
@@ -81,19 +105,49 @@ internal class PropSpawnerState
     public PropTreeNode NetworkedTree    { get; private set; } = new();
     public PropTreeNode NonNetworkedTree { get; private set; } = new();
 
-    public List<SpawnedPropEntry>  SpawnedProps      { get; } = new();
-    public List<string>           AllComponentNames { get; private set; } = new();
-    public HashSet<string>        Favorites         { get; } = new(StringComparer.OrdinalIgnoreCase);
-    public List<CustomItemPackData> CustomItemPacks { get; private set; } = new();
+    public List<string>             AllComponentNames { get; private set; } = new();
+    public HashSet<string>          Favorites         { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public List<CustomItemPackData> CustomItemPacks   { get; private set; } = new();
 
-    private string? _favoritesPath;
+    // ── group snapshot, render-thread owned ─────────────────────────────────
+    public string? ActiveGroupId { get; private set; }
+    public List<PropGroupData>               Groups      { get; private set; } = new();
+    public Dictionary<string, PropGroupData> GroupsById  { get; private set; } = new(StringComparer.Ordinal);
+    public List<SpawnedPropEntry>            Spawned     { get; private set; } = new();
+    public Dictionary<int, SpawnedPropEntry> SpawnedById { get; private set; } = new();
+
+    /// <summary>Members per group in spawn order. The empty-string key is the ungrouped bucket.</summary>
+    public Dictionary<string, List<SpawnedPropEntry>> MembersByGroup { get; private set; }
+        = new(StringComparer.Ordinal);
+
+    public int TruncatedSpawned { get; private set; }
+
+    public string? StatusText  { get; private set; }
+    public bool    StatusIsBad { get; private set; }
+
+    public void ClearStatus()
+    {
+        StatusText  = null;
+        StatusIsBad = false;
+    }
+
+    public PropSpawnerUiState Ui { get; private set; } = new();
+
+    private Dictionary<string, PropCacheEntry> _byLoadKey = new(StringComparer.OrdinalIgnoreCase);
+
+    // Message handlers run on the IPC reader thread while Render() runs on the window thread, so
+    // nothing they touch may be a collection the renderer is walking. They hand over a reference;
+    // the render thread does the rebuilding.
+    private PropGroupsStateMessage? _pendingSnapshot;
+    private PropSpawnStatusMessage? _pendingStatus;
+    private int _lastRevision;
+
+    private string? _dataDir;
 
     public void LoadDatabase(string cachePath)
     {
         try
         {
-            SpawnedProps.Clear();
-
             var networkTypes = LoadNetworkTypes(cachePath);
             var cache = JsonConvert.DeserializeObject<PropCacheData>(File.ReadAllText(cachePath));
             if (cache?.Assets == null) return;
@@ -112,6 +166,15 @@ internal class PropSpawnerState
             NetworkedTree    = PropTreeNode.Build(net);
             NonNetworkedTree = PropTreeNode.Build(nonNet);
 
+            // One dictionary instead of a Concat().FirstOrDefault() scan of the whole asset
+            // database per spawned prop, which a snapshot would otherwise repeat per prop.
+            _byLoadKey = new Dictionary<string, PropCacheEntry>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in net.Concat(nonNet))
+            {
+                var key = entry.LoadKey;
+                if (!string.IsNullOrEmpty(key)) _byLoadKey[key!] = entry;
+            }
+
             AllComponentNames = cache.Assets
                 .Where(e => e.IsGameObject && e.ComponentTypes != null)
                 .SelectMany(e => e.ComponentTypes)
@@ -121,8 +184,12 @@ internal class PropSpawnerState
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            _favoritesPath = Path.Combine(Path.GetDirectoryName(cachePath)!, "favorites.json");
-            LoadFavorites();
+            SetDataDir(cachePath);
+
+            // Deliberately does not clear the spawned list: the mod owns it, and a database reload
+            // mid-session must not blank a live build. The plugin asks for a fresh snapshot
+            // instead, which re-resolves the library back-references below.
+            RelinkLibraryEntries();
 
             IsLoaded = true;
             Version++;
@@ -133,48 +200,174 @@ internal class PropSpawnerState
         }
     }
 
-    public void AddSpawned(PropSpawnedMessage msg)
-    {
-        var libEntry = Networked.Concat(NonNetworked)
-            .FirstOrDefault(e => string.Equals(e.LoadKey, msg.Address, StringComparison.OrdinalIgnoreCase));
-
-        SpawnedProps.Insert(0, new SpawnedPropEntry
-        {
-            SpawnId      = msg.SpawnId,
-            Address      = msg.Address,
-            Name         = msg.Name,
-            Networked    = msg.Networked,
-            LibraryEntry = libEntry
-        });
-
-        while (SpawnedProps.Count > 50)
-            SpawnedProps.RemoveAt(SpawnedProps.Count - 1);
-    }
-
-    public void RemoveSpawned(int spawnId)
-        => SpawnedProps.RemoveAll(e => e.SpawnId == spawnId);
-
-    public void ClearSpawned() => SpawnedProps.Clear();
-
     public void LoadCustomItems(List<CustomItemPackData> packs)
     {
         CustomItemPacks = packs ?? new List<CustomItemPackData>();
         Version++;
     }
 
+
+    // ── snapshot hand-off ───────────────────────────────────────────────────
+
+    /// <summary>IPC thread. Stores a reference and nothing else.</summary>
+    public void QueueSnapshot(PropGroupsStateMessage msg) => Interlocked.Exchange(ref _pendingSnapshot, msg);
+
+    /// <summary>IPC thread.</summary>
+    public void QueueStatus(PropSpawnStatusMessage msg) => Interlocked.Exchange(ref _pendingStatus, msg);
+
+    /// <summary>Render thread, before anything reads the collections. True when state changed.</summary>
+    public bool Pump()
+    {
+        var changed = false;
+
+        var status = Interlocked.Exchange(ref _pendingStatus, null);
+        if (status != null)
+        {
+            StatusText  = BuildStatusText(status);
+            StatusIsBad = status.Failed > 0;
+            changed     = true;
+        }
+
+        var snapshot = Interlocked.Exchange(ref _pendingSnapshot, null);
+        if (snapshot != null && snapshot.Revision > _lastRevision)
+        {
+            _lastRevision = snapshot.Revision;
+            RebuildFromSnapshot(snapshot);
+            GroupsRevision++;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    private static string BuildStatusText(PropSpawnStatusMessage status)
+    {
+        var text = status.Summary ?? "";
+        if (status.Errors is { Length: > 0 })
+            text = text.Length > 0
+                ? text + "\n" + string.Join("\n", status.Errors)
+                : string.Join("\n", status.Errors);
+        return text;
+    }
+
+    private void RebuildFromSnapshot(PropGroupsStateMessage msg)
+    {
+        // Fresh collections every time: the renderer may hold references to the old ones for the
+        // remainder of the frame it is drawing.
+        ActiveGroupId    = msg.ActiveGroupId;
+        TruncatedSpawned = msg.Truncated;
+
+        Groups     = msg.Groups ?? new List<PropGroupData>();
+        GroupsById = Groups.ToDictionary(g => g.Id, g => g, StringComparer.Ordinal);
+
+        var spawned     = new List<SpawnedPropEntry>();
+        var spawnedById = new Dictionary<int, SpawnedPropEntry>();
+        var byGroup     = new Dictionary<string, List<SpawnedPropEntry>>(StringComparer.Ordinal);
+
+        foreach (var data in msg.Spawned ?? new List<SpawnedPropData>())
+        {
+            var entry = new SpawnedPropEntry
+            {
+                SpawnId      = data.SpawnId,
+                Address      = data.Address,
+                Name         = data.Name,
+                Networked    = data.Networked,
+                GroupId      = data.GroupId,
+                LibraryEntry = Lookup(data.Address),
+            };
+
+            spawned.Add(entry);
+            spawnedById[entry.SpawnId] = entry;
+
+            var key = entry.GroupId ?? "";
+            if (!byGroup.TryGetValue(key, out var list)) byGroup[key] = list = new List<SpawnedPropEntry>();
+            list.Add(entry);
+        }
+
+        Spawned        = spawned;
+        SpawnedById    = spawnedById;
+        MembersByGroup = byGroup;
+    }
+
+    private void RelinkLibraryEntries()
+    {
+        foreach (var entry in Spawned)
+            entry.LibraryEntry = Lookup(entry.Address);
+    }
+
+    private PropCacheEntry? Lookup(string? loadKey)
+        => !string.IsNullOrEmpty(loadKey) && _byLoadKey.TryGetValue(loadKey!, out var found) ? found : null;
+
+
+    // ── overlay-local persistence ───────────────────────────────────────────
+
+    private string? FavoritesPath => _dataDir == null ? null : Path.Combine(_dataDir, "favorites.json");
+    private string? UiStatePath   => _dataDir == null ? null : Path.Combine(_dataDir, "prop_ui_state.json");
+
+    private void SetDataDir(string cachePath)
+    {
+        _dataDir = Path.GetDirectoryName(cachePath);
+        LoadFavorites();
+        LoadUiState();
+    }
+
     public void ToggleFavorite(string loadKey)
     {
         if (!Favorites.Remove(loadKey))
             Favorites.Add(loadKey);
-        SaveFavorites();
+        WriteAtomic(FavoritesPath, JsonConvert.SerializeObject(Favorites.ToArray()));
+    }
+
+    /// <summary>
+    /// Writes only when something actually changed. This runs every frame, so the check has to be
+    /// cheaper than the write: CollapsingHeader reports its state every frame, and serializing to
+    /// compare would allocate a string per frame for the privilege of throwing it away.
+    /// </summary>
+    public void SaveUiStateIfChanged()
+    {
+        if (!UiStateDiffers()) return;
+
+        _saved = new PropSpawnerUiState
+        {
+            FavOpen          = Ui.FavOpen,
+            NetOpen          = Ui.NetOpen,
+            NnetOpen         = Ui.NnetOpen,
+            CustomOpen       = Ui.CustomOpen,
+            GroupsOpen       = Ui.GroupsOpen,
+            SelectedGroupId  = Ui.SelectedGroupId,
+            ExpandedGroupIds = new List<string>(Ui.ExpandedGroupIds),
+        };
+
+        WriteAtomic(UiStatePath, JsonConvert.SerializeObject(Ui));
+    }
+
+    private PropSpawnerUiState? _saved;
+
+    private bool UiStateDiffers()
+    {
+        if (_saved == null) return true;
+
+        if (_saved.FavOpen    != Ui.FavOpen)    return true;
+        if (_saved.NetOpen    != Ui.NetOpen)    return true;
+        if (_saved.NnetOpen   != Ui.NnetOpen)   return true;
+        if (_saved.CustomOpen != Ui.CustomOpen) return true;
+        if (_saved.GroupsOpen != Ui.GroupsOpen) return true;
+        if (_saved.SelectedGroupId != Ui.SelectedGroupId) return true;
+
+        if (_saved.ExpandedGroupIds.Count != Ui.ExpandedGroupIds.Count) return true;
+        for (var i = 0; i < Ui.ExpandedGroupIds.Count; i++)
+            if (_saved.ExpandedGroupIds[i] != Ui.ExpandedGroupIds[i]) return true;
+
+        return false;
     }
 
     private void LoadFavorites()
     {
-        if (_favoritesPath == null || !File.Exists(_favoritesPath)) return;
+        var path = FavoritesPath;
+        if (path == null || !File.Exists(path)) return;
         try
         {
-            var keys = JsonConvert.DeserializeObject<string[]>(File.ReadAllText(_favoritesPath));
+            var keys = JsonConvert.DeserializeObject<string[]>(File.ReadAllText(path));
             if (keys == null) return;
             Favorites.Clear();
             foreach (var k in keys) Favorites.Add(k);
@@ -182,10 +375,34 @@ internal class PropSpawnerState
         catch { }
     }
 
-    private void SaveFavorites()
+    private void LoadUiState()
     {
-        if (_favoritesPath == null) return;
-        try { File.WriteAllText(_favoritesPath, JsonConvert.SerializeObject(Favorites.ToArray())); }
+        var path = UiStatePath;
+        if (path == null || !File.Exists(path)) return;
+        try
+        {
+            var loaded = JsonConvert.DeserializeObject<PropSpawnerUiState>(File.ReadAllText(path));
+            if (loaded == null) return;
+            loaded.ExpandedGroupIds ??= new List<string>();
+            Ui = loaded;
+            _saved = null;   // recomputed on the first SaveUiStateIfChanged
+        }
+        catch { }
+    }
+
+    /// <summary>Write to a temp file and swap it in, so a crash mid-write cannot truncate the
+    /// real one. Only this process writes these files, so there is no cross-process contention.</summary>
+    private static void WriteAtomic(string? path, string contents)
+    {
+        if (path == null) return;
+        try
+        {
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, contents);
+
+            if (File.Exists(path)) File.Replace(temp, path, null);
+            else                   File.Move(temp, path);
+        }
         catch { }
     }
 

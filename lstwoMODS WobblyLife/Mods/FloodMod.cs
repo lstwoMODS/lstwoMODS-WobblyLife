@@ -30,6 +30,9 @@ public class FloodMod : BaseMod
     private static bool isFlooding;
     private static Coroutine floodCoroutine;
 
+    // The flood is driven by a networked FloodManager the host spawns; without a modded host it never appears.
+    private static ModNetworkIndicator _netStatus;
+
     [ModSetting(Label = "Flood Speed (m/s)", Order = 10)] public static Ref<float> FloodRiseSpeed = new(0.35f);
     [ModSetting(Label = "Flood Start Depth (m below sea level)", Speed = 0.25f, Order = 20)] public static Ref<float> FloodStartDepth = new(20f);
     [ModSetting(Order = 30)] public static Ref<bool> KillPlayerOnTouch = new();
@@ -86,10 +89,16 @@ public class FloodMod : BaseMod
         FloodManager.Instance.ServerEndFlood();
     }
 
+    public override void Update() => _netStatus?.Tick();
+
     public override Container BuildPanel(string id)
     {
+        _netStatus = new ModNetworkIndicator("flood-net-status", () => FloodManager.Instance != null);
+
         return new Container(id,
-            
+
+            _netStatus,
+
             base.BuildPanel(id),
             new Button("Apply Settings", () => FloodManager.Instance.ServerChangeFloodSpeed()),
             

@@ -47,6 +47,7 @@ public class EmploymentManager : PlayerBasedMod
     [ModAction("Give Money", ShowInUI = false)]
     public void _GiveMoney(int money)
     {
+        if (SaveGuard.On) return;
         if (Player == null) return;
         if (!Player.Controller.networkObject.IsOwner()) return;
 
@@ -56,12 +57,15 @@ public class EmploymentManager : PlayerBasedMod
     [ModAction("Spawn Money", ShowInUI = false)]
     public void SpawnMoney(int amount)
     {
+        if (SaveGuard.On) return;
+
         RewardManagerInstance.Instance.ServerReward(Player, RewardType.MoneyBag, amount);
     }
-    
+
     [ModAction("Reset Money", ShowInUI = false)]
     public void ResetMoney()
     {
+        if (SaveGuard.On) return;
         if (Player == null) return;
         if (!Player.Controller.networkObject.IsOwner()) return;
 
@@ -81,18 +85,20 @@ public class EmploymentManager : PlayerBasedMod
         return new Container(id,
             
             new SeparatorText("sep-1", "Money"),
-            
-            new HStack("Give Money",
+
+            SaveGuard.Notice("employment-money-guard-notice"),
+
+            SaveGuard.Guard(new HStack("Give Money",
                 new DragInt("###Amount").WithValue(giveMoneyAmount),
                 ActionMenu(new Button("Give Money", () => _GiveMoney(giveMoneyAmount.Value)), nameof(_GiveMoney))
-            ).WithId("Give Money").WithContentWidth(),
+            ).WithId("Give Money").WithContentWidth()),
 
-            new HStack("Spawn Money",
+            SaveGuard.Guard(new HStack("Spawn Money",
                 new DragInt("###Amount").WithValue(spawnMoneyAmount),
                 ActionMenu(new Button("Spawn Money", () => SpawnMoney(spawnMoneyAmount.Value)), nameof(SpawnMoney))
-            ).WithId("Spawn Money").WithContentWidth(),
+            ).WithId("Spawn Money").WithContentWidth()),
 
-            ActionMenu(new Button("Reset Money", ResetMoney).WithContentWidth(), nameof(ResetMoney)),
+            SaveGuard.Guard(ActionMenu(new Button("Reset Money", ResetMoney).WithContentWidth(), nameof(ResetMoney))),
             
             base.BuildPanel(id),
 

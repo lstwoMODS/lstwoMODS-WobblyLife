@@ -15,6 +15,10 @@ public class PropSpawnerWindow : BaseWindow
 {
     private static readonly HashSet<string> _networkTypes = BuildNetworkTypes();
 
+    /// <summary>The database hand-off is a one-shot event, but a restarted overlay is a blank
+    /// process that never saw it. Remembering that it was sent lets it be replayed.</summary>
+    private bool _sentDatabaseReady;
+
     private static string NetworkTypesPath =>
         Path.Combine(Path.GetDirectoryName(AssetDatabase.CachePath)!, "network_types.json");
 
@@ -32,6 +36,20 @@ public class PropSpawnerWindow : BaseWindow
     private void OnDatabaseReady()
     {
         File.WriteAllText(NetworkTypesPath, JsonConvert.SerializeObject(_networkTypes));
+        SendDatabaseReady();
+    }
+
+    /// <summary>
+    /// Tells the overlay where the asset cache is. Also called after an overlay restart: without
+    /// it the fresh process has no library and the panel sits on "Waiting for asset database..."
+    /// for the rest of the session. No-op until the database has been ready once.
+    /// </summary>
+    public void SendDatabaseReady()
+    {
+        if (UIManager.IpcChannel == null) return;
+        if (!_sentDatabaseReady && !AssetDatabase.IsInitialized) return;
+
+        _sentDatabaseReady = true;
         UIManager.IpcChannel.SendMessage(new PropDatabaseReadyMessage
         {
             CachePath = AssetDatabase.CachePath

@@ -23,14 +23,30 @@ public class MuseumManager : BaseMod
     public override Container BuildPanel(string id)
     {
         return new Container(id,
-            
+
+            SaveGuard.Notice("museum-guard-notice"),
+
             new SeparatorText("Museum Collection", "Museum Collection"),
             new Combo("Collection", []).WithItems(museumCollectionDropdownItems).WithSelectedIndex(museumCollectionDropdownSelection),
-            new Button("Unlock All Artifacts", () => MuseumCollections[museumCollectionDropdownSelection.Value].Unlock(MuseumMission.museumData)).WithContentWidth(),
-            
+            SaveGuard.Guard(new Button("Unlock All Artifacts", UnlockSelectedCollection).WithContentWidth()),
+
             new SeparatorText("All Collections", "All Collections"),
-            new Button("Finish All Collections", () => MuseumCollections.ForEach(x => x.Unlock(MuseumMission.museumData))).WithContentWidth()
+            SaveGuard.Guard(new Button("Finish All Collections", UnlockAllCollections).WithContentWidth())
         );
+    }
+
+    private static void UnlockSelectedCollection()
+    {
+        if (SaveGuard.On) return;
+
+        MuseumCollections[museumCollectionDropdownSelection.Value].Unlock(MuseumMission.museumData);
+    }
+
+    private static void UnlockAllCollections()
+    {
+        if (SaveGuard.On) return;
+
+        MuseumCollections.ForEach(x => x.Unlock(MuseumMission.museumData));
     }
 
     public override void RefreshUI()

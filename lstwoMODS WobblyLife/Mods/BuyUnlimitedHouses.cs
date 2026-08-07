@@ -18,6 +18,14 @@ public class BuyUnlimitedHouses : BaseMod
     [ModSetting]
     public static readonly Ref<bool> Enabled = new();
 
+    public override Container BuildPanel(string id)
+    {
+        return new Container(id,
+            SaveGuard.Notice("houses-guard-notice"),
+            SaveGuard.Guard(base.BuildPanel(id))
+        );
+    }
+
     protected override void OnStaticInit()
     {
         new Harmony("lstwo.lstwoMODS_WobblyLife.BuyUnlimitedHouses").PatchAll(typeof(Patches));
@@ -29,7 +37,7 @@ public class BuyUnlimitedHouses : BaseMod
         [HarmonyPrefix]
         public static bool TryPurchaseHouse_Internal_Prefix(UIPlayerBasedHouseBuyHouse __instance)
         {
-            if (!Enabled.Value) return true;
+            if (!Enabled.Value || SaveGuard.On) return true;
 
             if (!__instance.playerController || !__instance.houseSign) return false;
 
@@ -61,8 +69,8 @@ public class BuyUnlimitedHouses : BaseMod
         [HarmonyPatch(typeof(PlayerControllerUnlocker), nameof(PlayerControllerUnlocker.UnlockHouse), typeof(Scene), typeof(Guid))] [HarmonyPrefix]
         public static bool UnlockHouse_Prefix(PlayerControllerUnlocker __instance, Scene scene, Guid houseGUID,
             ref bool __result)
-        {
-            if (!Enabled.Value) return true;
+        { 
+            if (!Enabled.Value || SaveGuard.On) return true;
 
             if (!__instance.playerController)
             {

@@ -30,6 +30,42 @@ public class ChatMessage
     public string Text = "";
     public DateTime ReceivedAt = DateTime.UtcNow;
 
+    /// <summary>
+    /// The sender's remote endpoint ("ip:port") when we hold their direct/LAN connection ourselves.
+    /// Never travels over the wire (a peer's address is not ours to hand to the rest of the lobby),
+    /// so it is empty for messages the host relayed on someone else's behalf. Steam-transport
+    /// messages identify by <see cref="SenderSteamId"/> instead and leave this empty.
+    /// </summary>
+    public string SenderAddress = "";
+
+    /// <summary>
+    /// The sender's chosen (or auto-assigned) name color, used to tint just the name of a normal
+    /// chat line. Null for kinds that don't show a player name in a colorable position.
+    /// </summary>
+    public Color? NameColor;
+
+    /// <summary>
+    /// True when this line renders the sender's name as a separately colored segment (see
+    /// <see cref="RenderName"/> / <see cref="RenderBody"/>). Only normal player chat does this.
+    /// </summary>
+    public bool HasColoredName =>
+        Kind == ChatMessageKind.PlayerSay && NameColor.HasValue && !string.IsNullOrEmpty(SenderName);
+
+    /// <summary>The name segment (colored with <see cref="NameColor"/>). Only meaningful when
+    /// <see cref="HasColoredName"/>.</summary>
+    public string RenderName() => Esc(SenderName);
+
+    /// <summary>The rest of the line, colored with <see cref="Color"/>, that follows the name segment.
+    /// Only meaningful when <see cref="HasColoredName"/>.</summary>
+    public string RenderBody() => $": {Esc(Text)}";
+
+    /// <summary>How the sender is identified on the transport we received them over, for logging:
+    /// a Steam ID under the Steam transport, an "ip:port" endpoint on a direct/LAN connection.</summary>
+    public string SenderIdentity() =>
+        !string.IsNullOrEmpty(SenderAddress) ? $"IP: {SenderAddress}"
+        : SenderSteamId != 0UL              ? $"Steam ID: {SenderSteamId}"
+        :                                     "unknown sender";
+
     public Color Color => Kind switch
     {
         ChatMessageKind.PlayerSay     => Color.white,

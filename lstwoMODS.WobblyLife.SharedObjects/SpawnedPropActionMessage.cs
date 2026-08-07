@@ -8,6 +8,11 @@ namespace lstwoMODS.WobblyLife.SharedObjects
         public const string MessageType = "WobblyLife.SpawnedPropAction";
 
         public int    SpawnId { get; set; }
+
+        /// <summary>Multi-select target. When set, <see cref="SpawnId"/> is ignored.
+        /// "Inspect" only ever acts on the first entry.</summary>
+        public int[]? SpawnIds { get; set; }
+
         /// <summary>"Delete" or "Inspect"</summary>
         public string Action  { get; set; }
 

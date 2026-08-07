@@ -57,10 +57,12 @@ public class FishingHelper : BaseMod
 
             new SeparatorText("Unlock Fish", "Unlock Fish"),
 
+            SaveGuard.Notice("fishing-guard-notice"),
+
             new Combo("Fish to Unlock", []).WithItems(AllFishCatchableDropdownItems).WithSelectedIndex(UnlockFishIndex),
-            ActionMenu(new Button("Unlock", () => UnlockFishCatchable(AllFishCatchables[UnlockFishIndex.Value])).WithContentWidth(), nameof(UnlockFishCatchable)),
-            
-            new Button("Unlock All Fish", () => AllFishCatchables.ForEach(UnlockFishCatchable)).WithContentWidth()
+            SaveGuard.Guard(ActionMenu(new Button("Unlock", () => UnlockFishCatchable(AllFishCatchables[UnlockFishIndex.Value])).WithContentWidth(), nameof(UnlockFishCatchable))),
+
+            SaveGuard.Guard(new Button("Unlock All Fish", () => AllFishCatchables.ForEach(UnlockFishCatchable)).WithContentWidth())
         );
     }
 
@@ -85,6 +87,8 @@ public class FishingHelper : BaseMod
     [ModAction(ShowInUI = false)]
     public static void UnlockFishCatchable(FishCatchableScriptableObject fishCatchable)
     {
+        if (SaveGuard.On) return;
+
         if (!fishCatchable)
         {
             return;

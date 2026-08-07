@@ -1,5 +1,6 @@
 using lstwoMODS_Overlay;
 using lstwoMODS.WobblyLife.SharedObjects;
+using Newtonsoft.Json;
 
 namespace lstwoMODS.WobblyLife.OverlayExtension;
 
@@ -19,15 +20,27 @@ public class WobblyLifeOverlayPlugin : OverlayPluginBase
         ctx.RegisterMessageHandler(PropDatabaseReadyMessage.MessageType, msg =>
         {
             var ready = PropDatabaseReadyMessage.Deserialize(msg);
-            if (ready?.CachePath != null)
-                PropSpawner.LoadDatabase(ready.CachePath);
+            if (ready?.CachePath == null) return;
+
+            PropSpawner.LoadDatabase(ready.CachePath);
+
+            // The database swap invalidates the spawned props' library back-references, and this
+            // is also the point at which an overlay that started late needs the live picture.
+            SendCommand(new PropGroupCommandMessage { Command = PropGroupCommand.Refresh });
         });
 
-        ctx.RegisterMessageHandler(PropSpawnedMessage.MessageType, msg =>
+        // Both handlers run on the IPC reader thread: queue only, never touch the collections the
+        // renderer walks.
+        ctx.RegisterMessageHandler(PropGroupsStateMessage.MessageType, msg =>
         {
-            var spawned = PropSpawnedMessage.Deserialize(msg);
-            if (spawned != null)
-                PropSpawner.AddSpawned(spawned);
+            var snapshot = PropGroupsStateMessage.Deserialize(msg);
+            if (snapshot != null) PropSpawner.QueueSnapshot(snapshot);
+        });
+
+        ctx.RegisterMessageHandler(PropSpawnStatusMessage.MessageType, msg =>
+        {
+            var status = PropSpawnStatusMessage.Deserialize(msg);
+            if (status != null) PropSpawner.QueueStatus(status);
         });
 
         ctx.RegisterMessageHandler(CustomItemsReadyMessage.MessageType, msg =>
@@ -37,4 +50,7 @@ public class WobblyLifeOverlayPlugin : OverlayPluginBase
                 PropSpawner.LoadCustomItems(ready.Packs);
         });
     }
+
+    internal static void SendCommand(PropGroupCommandMessage command)
+        => Context.SendToMod(JsonConvert.SerializeObject(command.Serialize()));
 }

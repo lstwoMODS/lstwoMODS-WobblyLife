@@ -22,6 +22,8 @@ internal class MissionManager : BaseMod
     [ModAction]
     public void CompleteActiveMissions()
     {
+        if (SaveGuard.On) return;
+
         var missions = WorldMissionManager.Instance.GetActiveMissions();
 
         foreach (var mission in missions)
@@ -33,8 +35,10 @@ internal class MissionManager : BaseMod
     [ModAction]
     public void CompleteAllMissions()
     {
+        if (SaveGuard.On) return;
+
         var missions = WorldMissionManager.Instance.GetAllMissions();
-        
+
         foreach (var mission in missions)
         {
             mission.CompleteMission();
@@ -43,6 +47,8 @@ internal class MissionManager : BaseMod
 
     public void UncompleteAllMissions()
     {
+        if (SaveGuard.On) return;
+
         var missions = WorldMissionManager.Instance.GetAllMissions();
 
         foreach (var mission in missions)
@@ -54,23 +60,29 @@ internal class MissionManager : BaseMod
     [ModAction(ShowInUI = false)]
     public void CompleteMission(WorldMission mission)
     {
+        if (SaveGuard.On) return;
+
         mission.CompleteMission();
     }
 
     public void UncompleteMission(WorldMission mission)
     {
+        if (SaveGuard.On) return;
+
         SaveGameManager.Instance.GetSaveMissionData().Uncomplete(mission.GetGuid());
     }
 
     public override Container BuildPanel(string id)
     {
         return new Container(id,
-            base.BuildPanel(id),
-            
+            SaveGuard.Notice("mission-guard-notice"),
+
+            SaveGuard.Guard(base.BuildPanel(id)),
+
             new Spacing("spacing"),
-            
+
             new Combo("Select Mission to Complete", []).WithItems(missionDropdownItems).WithSelectedIndex(selectedMissionIndex),
-            ActionMenu(new Button("Complete Selected Mission", () => CompleteMission(missions[selectedMissionIndex.Value])).WithContentWidth(), nameof(CompleteMission))
+            SaveGuard.Guard(ActionMenu(new Button("Complete Selected Mission", () => CompleteMission(missions[selectedMissionIndex.Value])).WithContentWidth(), nameof(CompleteMission)))
         );
     }
 

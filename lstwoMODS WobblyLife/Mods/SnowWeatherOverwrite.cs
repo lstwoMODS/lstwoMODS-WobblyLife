@@ -6,9 +6,29 @@ using lstwoMODS_Core.UI.TabMenus;
 
 namespace lstwoMODS_WobblyLife.Mods;
 
+/// <summary>What <see cref="SnowWeatherOverwrite"/> forces every weather trigger in the world to
+/// report. Values match the radio buttons' option values, which is what <c>mode</c> stores.</summary>
+public enum WeatherOverwriteMode
+{
+    DontOverwrite = 0,
+    SnowEverywhere = 1,
+    RainEverywhere = 2,
+}
+
 public class SnowWeatherOverwrite : BaseMod
 {
     private static Ref<int> mode = new();
+
+    /// <summary>Macro/hotkey view of the radio buttons. Writing it goes through <c>mode</c>, so the
+    /// panel follows along.</summary>
+    [ModSetting(ShowInUI = false, Label = "Overwrite Mode",
+        Description = "Force every weather trigger in the world to report Snow or Rain. Client side, so it works as a guest. " +
+                      "Snow also stops lightning entirely: the game only spawns strikes over Rain.")]
+    public static WeatherOverwriteMode Mode
+    {
+        get => (WeatherOverwriteMode)mode.Value;
+        set => mode.Value = (int)value;
+    }
 
     protected override void OnStaticInit()
     {
@@ -48,12 +68,12 @@ public class SnowWeatherOverwrite : BaseMod
 
         private static bool Patch(ref WeatherRainingType __result)
         {
-            if (mode.Value is not (1 or 2))
+            if (Mode == WeatherOverwriteMode.DontOverwrite)
             {
                 return true;
             }
-            
-            __result = mode.Value == 1 ? WeatherRainingType.Snow : WeatherRainingType.Rain;
+
+            __result = Mode == WeatherOverwriteMode.SnowEverywhere ? WeatherRainingType.Snow : WeatherRainingType.Rain;
             return false;
         }
 

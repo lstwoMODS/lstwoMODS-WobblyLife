@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FMODUnity;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI;
 using lstwoMODS_Core.UI.Elements;
@@ -117,7 +118,6 @@ public class OutfitManagerMod : BaseMod
         }
 
         var snapshot = FromClothesData(name, customize.GetClothesData());
-        // Also capture any layered pieces from the Clothing Stacking mod so the whole look is saved.
         snapshot.Layers = ClothingStackMod.GetWornLayers();
 
         var existing = _outfits.FirstOrDefault(o => o.Name == name);
@@ -179,8 +179,6 @@ public class OutfitManagerMod : BaseMod
 
     private void RefreshNames()
     {
-        // Legacy/hand-edited saves can hold two outfits with the same name; the hidden
-        // ##index keeps every dropdown entry uniquely selectable (ImGui keys on the string).
         _outfitNames.Value = _outfits.Select((o, i) => $"{o.Name}##{i}").ToArray();
         if (_selectedIndex.Value >= _outfits.Count)
             _selectedIndex.Value = Math.Max(0, _outfits.Count - 1);

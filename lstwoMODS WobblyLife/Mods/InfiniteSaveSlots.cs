@@ -4,6 +4,7 @@ using System.Reflection.Emit;
 using HarmonyLib;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI;
+using lstwoMODS_Core.UI.Elements;
 using lstwoMODS_Core.UI.TabMenus;
 using Unity.Mathematics;
 
@@ -17,6 +18,14 @@ public class InfiniteSaveSlots : BaseMod
     
     [ModSetting(Widget = WidgetType.Input, Max = 500, Min = 1)]
     public static Ref<int> maxFileSlots = new(5);
+
+    public override Container BuildPanel(string id)
+    {
+        return new Container(id,
+            SaveGuard.Notice("saveslots-guard-notice"),
+            SaveGuard.Guard(base.BuildPanel(id))
+        );
+    }
 
     protected override void OnStaticInit()
     {

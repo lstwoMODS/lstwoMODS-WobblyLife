@@ -19,9 +19,12 @@ public class ChatMod : BaseMod
     public override string Description => "";
     public override ModsWindow ModsWindow => Plugin.ExtraModsWindow;
 
-    [ModSetting] public static Ref<bool> Enabled = new();
-    [ModSetting] public static Ref<int> MaxHistory = new(200);
-    [ModSetting] public static Ref<int> HistorySize = new(50);
+    [ModSetting(Order = 10)] public static Ref<bool> Enabled = new();
+    [ModSetting(Order = 20)] public static Ref<int> MaxHistory = new(200);
+    [ModSetting(Order = 30)] public static Ref<int> HistorySize = new(50);
+
+    public static readonly Ref<bool>  UseCustomNameColor = new(false);
+    public static readonly Ref<Col> CustomNameColor    = new(Color.white);
 
     private const int LogCapacity = 100;
     private const float BackgroundAlpha = 0.55f;
@@ -50,16 +53,18 @@ public class ChatMod : BaseMod
 
     private static ChildWindow[] _logRows;
     private static TextColored[] _logRowTexts;
+    private static TextColored[] _logRowNameTexts;
+    private static SameLine[] _logRowSameLines;
     private static PushStyleColorCommand[] _logRowBgCmds;
     private static float[] _logRowAlphas;
 
     protected override void OnStaticInit()
     {
-        // Persist the chat settings: load the saved value on startup and auto-save on change.
-        // Defaults mirror the field initializers above so a fresh install behaves unchanged.
         BindData(Enabled,     nameof(Enabled),     false);
         BindData(MaxHistory,  nameof(MaxHistory),  200);
         BindData(HistorySize, nameof(HistorySize), 50);
+        BindData(UseCustomNameColor, nameof(UseCustomNameColor), false);
+        BindData(CustomNameColor,    nameof(CustomNameColor),    Color.white);
 
         ChatNetworking.Initialize();
 
@@ -67,11 +72,11 @@ public class ChatMod : BaseMod
         ChatNetworking.ServerCommandRequested += OnServerCommandRequested;
         ChatNetworking.SyncRequested += OnSyncRequested;
         ChatNetworking.SyncCommandsReceived += OnSyncCommandsReceived;
+        ChatNetworking.WhisperRequested += OnWhisperRequested;
 
         ChatCommands.RegisterDefaults();
         CustomCommandStore.Initialize();
 
-        // When the host edits its command set, push the new definitions to all clients.
         CustomCommandStore.Changed += () =>
         {
             if (ChatNetworking.IsHost() && ChatNetworking.IsOnline())
@@ -79,11 +84,41 @@ public class ChatMod : BaseMod
         };
     }
 
-    // Host: a client asked for the current server-command definitions, reply to just that client.
     private static void OnSyncRequested(HawkConnection sender)
     {
         if (!ChatNetworking.IsHost()) return;
         ChatNetworking.SendServerCommandsTo(sender, CustomCommandStore.GetSyncPayload());
+    }
+
+    private static void OnWhisperRequested(HawkConnection sender, string recipientName, string text)
+    {
+        if (!ChatNetworking.IsHost()) return;
+        DeliverWhisperFromHost(sender, recipientName, text);
+    }
+
+    public static bool DeliverWhisperFromHost(HawkConnection sender, string recipientName, string text)
+    {
+        var target = ChatNetworking.FindByName(recipientName);
+        if (target == null) return false;
+
+        var senderName = sender?.Name;
+        if (string.IsNullOrEmpty(senderName)) senderName = "?";
+        var senderId = ChatNetworking.SteamIdOf(sender);
+
+        var msg = new ChatMessage
+        {
+            Kind = ChatMessageKind.PrivateFrom,
+            SenderName = senderName,
+            SenderSteamId = senderId,
+            // Only meaningful for the local echo below (we hold this connection); SenderAddress is
+            // never serialized, so a relayed copy reaches the recipient without it.
+            SenderAddress = ChatNetworking.AddressOf(sender) ?? "",
+            Text = text,
+        };
+
+        if (target.Me) AppendLocal(msg);            // the host is the recipient
+        else ChatNetworking.Whisper(target, msg);   // relay to the recipient's client
+        return true;
     }
 
     // Client: the host pushed its server-command definitions, register them locally.
@@ -98,18 +133,28 @@ public class ChatMod : BaseMod
     {
         var window = lstwoMODS_Core.Plugin.Window;
 
-        _logRows      = new ChildWindow[LogCapacity];
-        _logRowTexts  = new TextColored[LogCapacity];
-        _logRowBgCmds = new PushStyleColorCommand[LogCapacity];
-        _logRowAlphas = new float[LogCapacity];
+        _logRows         = new ChildWindow[LogCapacity];
+        _logRowTexts     = new TextColored[LogCapacity];
+        _logRowNameTexts = new TextColored[LogCapacity];
+        _logRowSameLines = new SameLine[LogCapacity];
+        _logRowBgCmds    = new PushStyleColorCommand[LogCapacity];
+        _logRowAlphas    = new float[LogCapacity];
         for (var i = 0; i < LogCapacity; i++)
         {
+            var nameText = new TextColored($"chat-row-name-{i}", "", 1f, 1f, 1f, 1f)
+                .WithRequireInput(false);
+            nameText.Data.Enabled = false;
+
+            var sameLine = new SameLine($"chat-row-sameline-{i}", 0f, 0f)
+                .WithRequireInput(false);
+            sameLine.Data.Enabled = false;
+
             var text = new TextColored($"chat-row-text-{i}", "", 1f, 1f, 1f, 1f)
                 .WithRequireInput(false);
 
             var bgCmd = new PushStyleColorCommand { Col = ImGuiCol.ChildBg, R = 0.04f, G = 0.04f, B = 0.05f, A = 0f };
 
-            var row = new ChildWindow($"chat-row-{i}", 0f, 0f, text)
+            var row = new ChildWindow($"chat-row-{i}", 0f, 0f, nameText, sameLine, text)
                 .WithFlags(ImGuiChildFlags.AutoResizeX | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AlwaysUseWindowPadding)
                 .WithWindowFlags(ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoSavedSettings)
                 .WithStyleVar(ImGuiStyleVar.ChildRounding, 5f)
@@ -118,9 +163,11 @@ public class ChatMod : BaseMod
             row.Data.PushCommands.Add(bgCmd);
             row.Data.Enabled = false;
 
-            _logRows[i]      = row;
-            _logRowTexts[i]  = text;
-            _logRowBgCmds[i] = bgCmd;
+            _logRows[i]         = row;
+            _logRowTexts[i]     = text;
+            _logRowNameTexts[i] = nameText;
+            _logRowSameLines[i] = sameLine;
+            _logRowBgCmds[i]    = bgCmd;
         }
 
         _logChild = new ChildWindow("chat-log", 0f, 200f, _logRows.Cast<BaseUIElement>().ToArray())
@@ -164,7 +211,7 @@ public class ChatMod : BaseMod
     public static void AppendLocal(ChatMessage msg)
     {
         if (msg == null) return;
-        Plugin.LogSource.LogDebug($"[Chat] Message Received: {msg.Kind.ToString()} from '{msg.SenderName}' (Steam ID: {msg.SenderSteamId})");
+        Plugin.LogSource.LogDebug($"[Chat] Message Received: {msg.Kind.ToString()} from '{msg.SenderName}' ({msg.SenderIdentity()})");
         Plugin.LogSource.LogInfo($"[Chat] {msg.ReceivedAt.Hour}:{msg.ReceivedAt.Minute}:{msg.ReceivedAt.Second}: {msg.Render()}");
         
         _log.Add(msg);
@@ -275,9 +322,9 @@ public class ChatMod : BaseMod
         var anyRowVisible = UpdateLogRowAlphas();
         UpdateChatWindowVisuals(anyRowVisible);
         UpdateCommandSync();
+        _netStatus?.Tick();
     }
 
-    // Client-side: request the host's server commands once we're connected; drop them when we leave.
     private static void UpdateCommandSync()
     {
         if (!ChatNetworking.IsOnline())
@@ -290,7 +337,6 @@ public class ChatMod : BaseMod
             return;
         }
 
-        // The host authors the set locally; it never requests a sync.
         if (ChatNetworking.IsHost()) return;
 
         if (!_syncRequested && ChatNetworking.IsReady())
@@ -366,6 +412,7 @@ public class ChatMod : BaseMod
             if (targetEnabled) anyVisible = true;
 
             var textData = (TextData)text.Data;
+            var nameData = (TextData)_logRowNameTexts[i].Data;
             var targetBgAlpha = _chatOpen ? 0f : targetAlpha * RowBackgroundAlpha;
 
             var alphaChanged   = Math.Abs(_logRowAlphas[i] - targetAlpha) > 0.005f;
@@ -376,9 +423,11 @@ public class ChatMod : BaseMod
             {
                 _logRowAlphas[i]   = targetAlpha;
                 textData.A         = targetAlpha;
+                nameData.A         = targetAlpha;
                 _logRowBgCmds[i].A = targetBgAlpha;
                 row.Data.Enabled   = targetEnabled;
                 text.MarkChanged();
+                _logRowNameTexts[i].MarkChanged();
                 row.MarkChanged();
             }
         }
@@ -424,18 +473,26 @@ public class ChatMod : BaseMod
         CloseChat();
     }
 
-    private static void SendChat(string text)
+    /// <summary>
+    /// Send a normal (global) chat message to everyone: echo it locally and broadcast it when online.
+    /// This is what typing a plain line into the chat box does; also the "Send Chat Message" macro step.
+    /// </summary>
+    public static void SendChat(string text)
     {
         var me = ChatNetworking.LocalConnection();
         var name = me?.Name ?? "me";
-        var steamId = (me is SteamConnection sc) ? sc.steamId.Value : 0UL;
+        var steamId = ChatNetworking.SteamIdOf(me);
+        var address = ChatNetworking.AddressOf(me) ?? "";
+        var nameColor = EffectiveLocalNameColor(steamId, name);
 
         AppendLocal(new ChatMessage
         {
             Kind = ChatMessageKind.PlayerSay,
             SenderName = name,
             SenderSteamId = steamId,
+            SenderAddress = address,
             Text = text,
+            NameColor = nameColor,
         });
 
         if (ChatNetworking.IsOnline())
@@ -446,8 +503,64 @@ public class ChatMod : BaseMod
                 SenderName = name,
                 SenderSteamId = steamId,
                 Text = text,
+                NameColor = nameColor,
             });
         }
+    }
+
+    /// <summary>Our own name color for an outgoing message: the saved custom color when enabled,
+    /// otherwise the stable auto color derived from our identity (same one everyone else derives).</summary>
+    private static Color EffectiveLocalNameColor(ulong steamId, string name)
+        => UseCustomNameColor.Value ? CustomNameColor.Value : NameColorUtil.AutoColor(steamId, name);
+
+    /// <summary>
+    /// Send a private message to the player named <paramref name="recipientName"/>: echo it locally and
+    /// route it to the recipient (delivered directly when we are the host, otherwise relayed through the
+    /// host, since a client can't reach another client). Returns false when no such player is in the game.
+    /// Shared body of the <c>/msg</c> command and the "Whisper to Player" macro step.
+    /// </summary>
+    public static bool SendWhisper(string recipientName, string text)
+    {
+        // Resolve against the replicated roster (present on every client), so it works for non-hosts too.
+        var targetName = ChatNetworking.AllPlayerNames()
+            .FirstOrDefault(n => string.Equals(n, recipientName, StringComparison.OrdinalIgnoreCase));
+        if (targetName == null) return false;
+
+        var me = ChatNetworking.LocalConnection();
+        var senderName = me?.Name ?? "me";
+        var senderId   = ChatNetworking.SteamIdOf(me);
+
+        // Local echo of our outgoing message (correct kind/name; no network round-trip).
+        AppendLocal(new ChatMessage
+        {
+            Kind = ChatMessageKind.PrivateTo,
+            SenderName = senderName,
+            SenderSteamId = senderId,
+            SenderAddress = ChatNetworking.AddressOf(me) ?? "",
+            RecipientName = targetName,
+            Text = text,
+        });
+
+        // Only the host can reach the recipient's connection, so deliver there: directly when we are the
+        // host, otherwise relay the request through the host.
+        if (ChatNetworking.IsHost())
+            DeliverWhisperFromHost(me, targetName, text);
+        else
+            ChatNetworking.SendWhisperRelay(targetName, text);
+        return true;
+    }
+
+    /// <summary>
+    /// Run a chat command line through the normal client/server dispatch. The leading slash is optional
+    /// ("coords" and "/coords" behave identically). Shared entry point for the command box and the
+    /// "Run Chat Command" macro step, so both route through <see cref="ExecuteCommand"/>.
+    /// </summary>
+    public static void RunCommand(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return;
+        line = line.Trim();
+        if (!line.StartsWith("/")) line = "/" + line;
+        ExecuteCommand(line);
     }
 
     private static void ExecuteCommand(string line)
@@ -581,28 +694,60 @@ public class ChatMod : BaseMod
 
         for (var i = 0; i < LogCapacity; i++)
         {
-            var text = _logRowTexts[i];
-            var data = (TextData)text.Data;
-            
+            var text     = _logRowTexts[i];
+            var nameText = _logRowNameTexts[i];
+            var sameLine = _logRowSameLines[i];
+            var data     = (TextData)text.Data;
+            var nameData = (TextData)nameText.Data;
+
             if (i < visibleCount)
             {
                 var message = _log[start + i];
-                var messageColor = message.Color;
-                
-                data.Text = message.Render();
-                data.R = messageColor.r; data.G = messageColor.g; data.B = messageColor.b;
+
+                if (message.HasColoredName)
+                {
+                    // Name in the sender's color, then ": message" in the kind color, on one line.
+                    var nameColor = message.NameColor.Value;
+                    nameData.Text = message.RenderName();
+                    nameData.R = nameColor.r; nameData.G = nameColor.g; nameData.B = nameColor.b;
+
+                    var bodyColor = message.Color;
+                    data.Text = message.RenderBody();
+                    data.R = bodyColor.r; data.G = bodyColor.g; data.B = bodyColor.b;
+
+                    nameText.Data.Enabled = true;
+                    sameLine.Data.Enabled = true;
+                }
+                else
+                {
+                    var messageColor = message.Color;
+                    data.Text = message.Render();
+                    data.R = messageColor.r; data.G = messageColor.g; data.B = messageColor.b;
+
+                    nameData.Text = "";
+                    nameText.Data.Enabled = false;
+                    sameLine.Data.Enabled = false;
+                }
             }
             else
             {
                 data.Text = "";
+                nameData.Text = "";
+                nameText.Data.Enabled = false;
+                sameLine.Data.Enabled = false;
             }
-            
+
             text.MarkChanged();
+            nameText.MarkChanged();
+            sameLine.MarkChanged();
         }
     }
 
 
     // ── Custom command manager (mods-window panel) ──────────────────────────────
+
+    // Custom name-color picker is only interactive when the custom-color toggle is on.
+    private static readonly Ref<bool> _nameColorDisabled = new(true);
 
     private static readonly Ref<string> _newName  = new("");
     private static readonly Ref<string> _newDesc  = new("");
@@ -640,13 +785,30 @@ public class ChatMod : BaseMod
     private static readonly string[] ScopeNames = { "Client", "Server" };
     private static readonly string[] ParamTypeNames = { "String", "Int", "Float", "Player", "Enum", "Greedy" };
 
+    // Chat rides its own Hawk channel, so it only reaches other players when the host is modded too.
+    private static ModNetworkIndicator _netStatus;
+
     public override Container BuildPanel(string id)
     {
         RefreshCommandLists();
+        _nameColorDisabled.Value = !UseCustomNameColor.Value;
+
+        _netStatus = new ModNetworkIndicator("chat-net-status", ChatNetworking.IsReady);
 
         return new Container(id,
 
+            _netStatus,
+
             base.BuildPanel(id),
+
+            new SeparatorText("cc-namecolor-sep", "Name Color"),
+
+            new TextWrapped("cc-namecolor-info",
+                "Everyone gets a random name color by default. Turn on a custom color to pick your own; " +
+                "it saves and shows on your name for everyone in chat."),
+            new Checkbox("Use Custom Name Color", false, onChanged: e => _nameColorDisabled.Value = !e)
+                .WithValue(UseCustomNameColor),
+            new ColorEdit3("Name Color").WithValue(CustomNameColor).WithDisabled(_nameColorDisabled),
 
             new SeparatorText("cc-create-sep", "Create Command"),
 

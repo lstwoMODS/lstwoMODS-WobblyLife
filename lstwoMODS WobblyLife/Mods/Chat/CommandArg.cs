@@ -95,9 +95,8 @@ public class PlayerArg : CommandArg
     public override IEnumerable<string> Suggest(string typedSoFar)
     {
         var partial = typedSoFar ?? "";
-        return ChatNetworking.AllConnections()
-            .Select(c => c.Name)
-            .Where(n => !string.IsNullOrEmpty(n) && n.StartsWith(partial, System.StringComparison.OrdinalIgnoreCase));
+        return ChatNetworking.AllPlayerNames()
+            .Where(n => n.StartsWith(partial, System.StringComparison.OrdinalIgnoreCase));
     }
 }
 

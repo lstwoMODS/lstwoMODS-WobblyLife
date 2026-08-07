@@ -42,6 +42,13 @@ public static class ChatNetworking
         remove => ChatNetworkManager.SyncRequested -= value;
     }
 
+    /// <summary>Fires on the host when a client asks to whisper another player (sender, recipient name, text).</summary>
+    public static event Action<HawkConnection, string, string> WhisperRequested
+    {
+        add    => ChatNetworkManager.WhisperRequested += value;
+        remove => ChatNetworkManager.WhisperRequested -= value;
+    }
+
     public static void Initialize()
     {
         if (_initialized) return;
@@ -89,32 +96,70 @@ public static class ChatNetworking
     public static void RequestServerCommandSync()
         => ChatNetworkManager.Instance?.RequestSync();
 
+    /// <summary>Client: ask the host to deliver a private message to a named player (a client can't
+    /// reach another client directly, so whispers route through the host).</summary>
+    public static void SendWhisperRelay(string recipient, string text)
+        => ChatNetworkManager.Instance?.SendWhisperRequest(recipient, text);
+
+
+    // ── Roster ────────────────────────────────────────────────────────────
+    // The player list is sourced from the replicated player controllers, NOT from
+    // HawkNetworkManager.GetPlayers(): that manager list only holds the full roster on the host
+    // (clients keep a direct HawkConnection to the host and themselves only, never to their peers),
+    // so anything that read it was empty for non-host clients. Every PlayerController is a
+    // replicated network object present on all clients, and its owner connection is populated even
+    // for remote players (this is what the player-based mods window uses), so this works everywhere.
+    // Names come from GetPlayerName() (replicated); a connection's own Name is not reliably set on
+    // clients.
+
+    private static IEnumerable<PlayerController> Controllers()
+        => GameInstance.InstanceExists
+            ? GameInstance.Instance.GetPlayerControllers().Where(c => c != null)
+            : Enumerable.Empty<PlayerController>();
 
     public static HawkConnection FindBySteamId(ulong steamId)
     {
-        var mgr = HawkNetworkManager.DefaultInstance;
-        if (mgr == null) return null;
-        return mgr.GetPlayers()
-            .OfType<SteamConnection>()
-            .FirstOrDefault(c => c.steamId.Value == steamId);
+        foreach (var pc in Controllers())
+            if (pc.networkObject?.GetOwner() is SteamConnection sc && sc.steamId.Value == steamId)
+                return sc;
+        return null;
     }
 
     public static HawkConnection FindByName(string name)
     {
         if (string.IsNullOrEmpty(name)) return null;
-        var mgr = HawkNetworkManager.DefaultInstance;
-        if (mgr == null) return null;
-        return mgr.GetPlayers().FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+        var pc = Controllers().FirstOrDefault(c => string.Equals(c.GetPlayerName(), name, StringComparison.OrdinalIgnoreCase));
+        return pc?.networkObject?.GetOwner();
     }
 
+    /// <summary>Every player's owning connection, deduplicated (split-screen players share one).</summary>
     public static IEnumerable<HawkConnection> AllConnections()
     {
-        var mgr = HawkNetworkManager.DefaultInstance;
-        return mgr != null ? mgr.GetPlayers() : Enumerable.Empty<HawkConnection>();
+        var seen = new HashSet<HawkConnection>();
+        foreach (var pc in Controllers())
+        {
+            var conn = pc.networkObject?.GetOwner();
+            if (conn != null && seen.Add(conn)) yield return conn;
+        }
     }
+
+    /// <summary>Display name of every player in the game (one per controller, split-screen included),
+    /// from replicated controller state so it is correct on every client.</summary>
+    public static IEnumerable<string> AllPlayerNames()
+        => Controllers().Select(c => c.GetPlayerName()).Where(n => !string.IsNullOrEmpty(n));
 
     public static HawkConnection LocalConnection()
         => HawkNetworkManager.DefaultInstance?.GetMe();
+
+    /// <summary>The Steam ID behind a connection, or 0 when it is not a Steam connection
+    /// (direct/LAN transport, or no connection at all).</summary>
+    public static ulong SteamIdOf(HawkConnection conn)
+        => conn is SteamConnection sc ? sc.steamId.Value : 0UL;
+
+    /// <summary>The remote endpoint ("ip:port") behind a connection on the direct/LAN transport,
+    /// or null under Steam (where peers are addressed by Steam ID, not by address).</summary>
+    public static string AddressOf(HawkConnection conn)
+        => conn is LiteConnection lite ? lite.Peer?.EndPoint?.ToString() : null;
 
     public static bool IsOnline() => HawkNetworkManager.DefaultInstance != null && !HawkNetworkManager.DefaultInstance.IsOffline();
 

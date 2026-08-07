@@ -52,10 +52,14 @@ foreach ($file in $libFiles) {
     Write-Host "  $src -> $GamePluginsPath\$file"
 }
 
-$mainDll = "$BuildOut\lstwoMODS_WobblyLife.dll"
-if (-not (Test-Path $mainDll)) { Write-Host "ERROR: $mainDll not found." -ForegroundColor Red; exit 1 }
-Copy-Item $mainDll "$GamePluginsPath\lstwoMODS_WobblyLife.dll" -Force
-Write-Host "  $mainDll -> $GamePluginsPath\lstwoMODS_WobblyLife.dll"
+
+$buildFiles = @("lstwoMODS_WobblyLife.dll", "lstwoMODS.WobblyLife.SharedObjects.dll")
+foreach ($file in $buildFiles) {
+    $src = "$BuildOut\$file"
+    if (-not (Test-Path $src)) { Write-Host "ERROR: $src not found." -ForegroundColor Red; exit 1 }
+    Copy-Item $src "$GamePluginsPath\$file" -Force
+    Write-Host "  $src -> $GamePluginsPath\$file"
+}
 
 Write-Host ""
 Write-Host "Deploying overlay to $OverlayDir..." -ForegroundColor Cyan

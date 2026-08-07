@@ -32,10 +32,15 @@ public class ChatNetworkManager : HawkNetworkBehaviour
     /// <summary>Fires on the host when a client asks for the current server-command definitions.</summary>
     public static event Action<HawkConnection> SyncRequested;
 
+    /// <summary>Fires on the host when a client asks to whisper another player (sender, recipient name, text).
+    /// A client can't reach another client's connection directly, so whispers are relayed through the host.</summary>
+    public static event Action<HawkConnection, string, string> WhisperRequested;
+
     private byte RPC_CHAT_MESSAGE;
     private byte RPC_SERVER_COMMAND;
     private byte RPC_SYNC_COMMANDS;
     private byte RPC_REQUEST_SYNC;
+    private byte RPC_WHISPER;
 
     public override void Start()
     {
@@ -54,6 +59,7 @@ public class ChatNetworkManager : HawkNetworkBehaviour
         RPC_SERVER_COMMAND = networkObject.RegisterRPC(ServerReceiveCommand);
         RPC_SYNC_COMMANDS  = networkObject.RegisterRPC(ClientReceiveSync);
         RPC_REQUEST_SYNC   = networkObject.RegisterRPC(ServerReceiveSyncRequest);
+        RPC_WHISPER        = networkObject.RegisterRPC(ServerReceiveWhisper);
     }
 
     public override void OnDestroy()
@@ -69,26 +75,53 @@ public class ChatNetworkManager : HawkNetworkBehaviour
         try
         {
             var rawKind = reader.ReadByte();
-            reader.ReadUInt64();
+            var payloadSteamId = reader.ReadUInt64();
             var senderName = reader.ReadString();
             var recipientName = reader.ReadString();
             var text = reader.ReadString();
+            var packedNameColor = reader.ReadUInt32();
 
             var kind = SanitizeKind(rawKind);
 
             var sender = info.sender;
-            var verifiedName = sender?.Name;
-            var verifiedSteamId = (sender is SteamConnection sc) ? sc.steamId.Value : 0UL;
 
-            var displayName = !string.IsNullOrEmpty(verifiedName) ? verifiedName : senderName;
+            // A message coming from the host connection was either sent by the host or relayed by it
+            // on another player's behalf (all whispers, and broadcasts to 3+ players, route through the
+            // host — which stamps the real sender into the payload). The transport sender is then just
+            // "the host", so trust the payload identity. A message received directly (on the host, from
+            // a client) keeps the verified-connection identity so a client can't spoof its own name.
+            string displayName;
+            ulong displaySteamId;
+            string displayAddress = null;
+            if (sender != null && sender.IsHost && !sender.Me && !string.IsNullOrEmpty(senderName))
+            {
+                displayName = senderName;
+                displaySteamId = payloadSteamId;
+            }
+            else
+            {
+                var verifiedName = sender?.Name;
+                displaySteamId = ChatNetworking.SteamIdOf(sender);
+                displayAddress = ChatNetworking.AddressOf(sender);
+                displayName = !string.IsNullOrEmpty(verifiedName) ? verifiedName : senderName;
+            }
+
+            var safeName = Sanitize(displayName, MaxNameLength);
+
+            // Only normal player chat carries a colored name; other kinds keep their fixed kind color.
+            Color? nameColor = kind == ChatMessageKind.PlayerSay
+                ? NameColorUtil.Resolve(packedNameColor, displaySteamId, safeName)
+                : (Color?)null;
 
             MessageReceived?.Invoke(new ChatMessage
             {
                 Kind = kind,
-                SenderSteamId = verifiedSteamId,
-                SenderName = Sanitize(displayName, MaxNameLength),
+                SenderSteamId = displaySteamId,
+                SenderAddress = displayAddress ?? "",
+                SenderName = safeName,
                 RecipientName = Sanitize(recipientName, MaxNameLength),
                 Text = Sanitize(text, MaxTextLength),
+                NameColor = nameColor,
             });
         }
         catch (Exception ex)
@@ -138,6 +171,28 @@ public class ChatNetworkManager : HawkNetworkBehaviour
         SyncRequested?.Invoke(info.sender);
     }
 
+    // A client asked to whisper another player; the host resolves the recipient and forwards it.
+    private void ServerReceiveWhisper(HawkNetReader reader, HawkRPCInfo info)
+    {
+        if (!networkObject.IsServer()) return;
+        try
+        {
+            var recipient = reader.ReadString();
+            var text = reader.ReadString();
+            if (string.IsNullOrEmpty(recipient) || string.IsNullOrEmpty(text)) return;
+            if (text.Length > MaxTextLength) text = text.Substring(0, MaxTextLength);
+            if (recipient.Length > MaxNameLength) recipient = recipient.Substring(0, MaxNameLength);
+
+            if (!PassesCommandRateLimit(info.sender)) return;
+
+            WhisperRequested?.Invoke(info.sender, recipient, text);
+        }
+        catch (Exception ex)
+        {
+            Plugin.LogSource.LogError($"[ChatNetworkManager] Failed to deserialize whisper RPC: {ex}");
+        }
+    }
+
     /// <summary>Whitelist remote-origin kinds; coerce everything else (and out-of-range bytes) to PlayerSay.</summary>
     private static ChatMessageKind SanitizeKind(byte raw)
     {
@@ -181,7 +236,8 @@ public class ChatNetworkManager : HawkNetworkBehaviour
     {
         if (networkObject == null) return;
         networkObject.SendRPC(RPC_CHAT_MESSAGE, RPCRecievers.Others,
-            (byte)msg.Kind, msg.SenderSteamId, msg.SenderName ?? "", msg.RecipientName ?? "", msg.Text ?? "");
+            (byte)msg.Kind, msg.SenderSteamId, msg.SenderName ?? "", msg.RecipientName ?? "", msg.Text ?? "",
+            PackNameColor(msg));
     }
 
     /// <summary>Send to a single connection.</summary>
@@ -189,8 +245,13 @@ public class ChatNetworkManager : HawkNetworkBehaviour
     {
         if (networkObject == null || target == null) return;
         networkObject.SendRPC(RPC_CHAT_MESSAGE, target,
-            (byte)msg.Kind, msg.SenderSteamId, msg.SenderName ?? "", msg.RecipientName ?? "", msg.Text ?? "");
+            (byte)msg.Kind, msg.SenderSteamId, msg.SenderName ?? "", msg.RecipientName ?? "", msg.Text ?? "",
+            PackNameColor(msg));
     }
+
+    /// <summary>0x00RRGGBB of the sender's name color, or 0 ("unset") when the message has none.</summary>
+    private static uint PackNameColor(ChatMessage msg)
+        => msg.NameColor.HasValue ? NameColorUtil.Pack(msg.NameColor.Value) : 0u;
 
     /// <summary>Ask the host to execute a command line on our behalf.</summary>
     public void SendCommandToHost(string commandLine)
@@ -218,6 +279,13 @@ public class ChatNetworkManager : HawkNetworkBehaviour
     {
         if (networkObject == null) return;
         networkObject.SendRPC(RPC_REQUEST_SYNC, RPCRecievers.Server);
+    }
+
+    /// <summary>Client: ask the host to deliver a private message to a named player.</summary>
+    public void SendWhisperRequest(string recipient, string text)
+    {
+        if (networkObject == null) return;
+        networkObject.SendRPC(RPC_WHISPER, RPCRecievers.Server, recipient ?? "", text ?? "");
     }
 
     private static string ClampSync(string payload)

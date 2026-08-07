@@ -20,26 +20,30 @@ public class PetUnlocker : BaseMod
     public override Container BuildPanel(string id)
     {
         return new Container(id,
-            
+
+            SaveGuard.Notice("pet-guard-notice"),
+
             new Combo("Select Pet", []).WithItems(petDropdownItems).WithSelectedIndex(petDropdownIndex),
-            
-            new HStack("actions",
+
+            SaveGuard.Guard(new HStack("actions",
                 ActionMenu(new Button("Unlock Pet", () => UnlockPet(AllPets[petDropdownIndex.Value])), nameof(UnlockPet)),
                 ActionMenu(new Button("Lock Pet", () => LockPet(AllPets[petDropdownIndex.Value])), nameof(LockPet))
-            ).WithContentWidth(),
+            ).WithContentWidth()),
 
             new SeparatorText("Lock / Unlock All Pets", "Lock / Unlock All Pets"),
 
-            new HStack("actions",
+            SaveGuard.Guard(new HStack("actions",
                 ActionMenu(new Button("Unlock All Pet", UnlockAllPets), nameof(UnlockAllPets)),
                 ActionMenu(new Button("Lock All Pet", LockAllPets), nameof(LockAllPets))
-            ).WithContentWidth()
+            ).WithContentWidth())
         );
     }
 
     [ModAction(ShowInUI = false)]
     public static void UnlockPet(PetAssetReference pet)
     {
+        if (SaveGuard.On) return;
+
         var player = GameInstance.Instance.GetFirstLocalPlayerController();
         var controllerPet = player.GetPlayerControllerPet();
         controllerPet.UnlockPet(pet.prefab);
@@ -48,6 +52,8 @@ public class PetUnlocker : BaseMod
     [ModAction(ShowInUI = false)]
     public static void LockPet(PetAssetReference pet)
     {
+        if (SaveGuard.On) return;
+
         var player = GameInstance.Instance.GetFirstLocalPlayerController();
         var controllerPet = player.GetPlayerControllerPet();
         controllerPet.LockPet(pet.prefab);

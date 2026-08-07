@@ -53,6 +53,9 @@ public class ClothingStackMod : BaseMod
     private float _nextReconcile;
     private float _nextHeartbeat;
 
+    // Stacked layers ride a separate Hawk channel; others only see them when the host is modded too.
+    private ModNetworkIndicator _netStatus;
+
     protected override void OnStaticInit()
     {
         ClothingStackNetworking.Initialize();
@@ -76,7 +79,11 @@ public class ClothingStackMod : BaseMod
 
     public override Container BuildPanel(string id)
     {
+        _netStatus = new ModNetworkIndicator("clothingstack-net-status", ClothingStackNetworking.IsReady);
+
         return new Container(id,
+
+            _netStatus,
 
             new Checkbox("Enable Wardrobe Stacking", _enabled.Value).WithValue(_enabled),
             new UIText("StackHelp",
@@ -181,6 +188,8 @@ public class ClothingStackMod : BaseMod
 
     public override void Update()
     {
+        _netStatus?.Tick();
+
         if (!GameInstance.InstanceExists) return;
         var instance = GameInstance.Instance;
         if (instance == null) return;

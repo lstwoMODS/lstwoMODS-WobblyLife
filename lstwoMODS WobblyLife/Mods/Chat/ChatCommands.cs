@@ -77,30 +77,9 @@ public static class ChatCommands
             Execute = ctx =>
             {
                 if (ctx.Args.Length < 2) { ctx.Error("Usage: /msg <player> <message>"); return; }
-                var target = ChatNetworking.FindByName(ctx.Args[0]);
-                if (target == null) { ctx.Error($"Player '{ctx.Args[0]}' not found."); return; }
 
-                var text = ctx.GetRest(1);
-                var me = ChatNetworking.LocalConnection();
-                var senderName = me?.Name ?? "me";
-                var senderId   = (me is SteamConnection sc) ? sc.steamId.Value : 0UL;
-
-                ChatMod.AppendLocal(new ChatMessage
-                {
-                    Kind = ChatMessageKind.PrivateTo,
-                    SenderName = senderName,
-                    SenderSteamId = senderId,
-                    RecipientName = target.Name,
-                    Text = text,
-                });
-
-                ChatNetworking.Whisper(target, new ChatMessage
-                {
-                    Kind = ChatMessageKind.PrivateFrom,
-                    SenderName = senderName,
-                    SenderSteamId = senderId,
-                    Text = text,
-                });
+                if (!ChatMod.SendWhisper(ctx.Args[0], ctx.GetRest(1)))
+                    ctx.Error($"Player '{ctx.Args[0]}' not found.");
             },
         });
 
@@ -111,8 +90,7 @@ public static class ChatCommands
             Scope = CommandScope.Client,
             Execute = ctx =>
             {
-                var names = ChatNetworking.AllConnections().Select(c => c.Name).Where(n => !string.IsNullOrEmpty(n));
-                var joined = string.Join(", ", names);
+                var joined = string.Join(", ", ChatNetworking.AllPlayerNames());
                 ctx.ReplyText(string.IsNullOrEmpty(joined) ? "No players." : $"Online: {joined}");
             },
         });

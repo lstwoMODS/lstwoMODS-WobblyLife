@@ -15,10 +15,6 @@ public class SetTime : BaseMod
     public override string Description => "";
     public override ModsWindow ModsWindow => Plugin.ServerModsWindow;
 
-    // The game's DayNightCycle stores time as "degrees" (0-360). CalculateTimeString maps
-    // those degrees linearly onto a 24h clock: 0deg = 06:00, 90deg = 12:00, 180deg = 18:00,
-    // 270deg = 00:00 (midnight), 360deg = 06:00. So hours24 = (6 + degrees/15) mod 24, and
-    // the reverse (used for the HH:MM field below) is degrees = ((hours24 - 6 + 24) mod 24) * 15.
     private const float DegreesPerHour = 15f; // 360 degrees / 24 hours
     private const float SunriseHour = 6f;     // 0 degrees == 06:00
 
@@ -65,7 +61,6 @@ public class SetTime : BaseMod
         var dnc = DayNightCycle.Instance;
         timeSpeed.Value = dnc?.GetSpeed() ?? 0;
 
-        // Prefill the input fields with the current time when the panel opens.
         var degrees = dnc?.GetTimeOfDay() ?? 0f;
         timeDegrees.Value = degrees;
         timeHhmm.Value = DegreesToHhmm(degrees);
@@ -93,8 +88,6 @@ public class SetTime : BaseMod
         DayNightCycle.Instance?.SetTimeOfDay(NormalizeDegrees(degrees));
     }
 
-    // Hidden getters for macros: expose the current time of day so expressions/steps can read it.
-    // Each returns a value, so the macro system projects it as a "Get" step with a named output.
     [ModAction(ShowInUI = false, Label = "Get Time (Degrees)",
         Description = "Current time of day in degrees (0-360). 0 = 06:00, 90 = 12:00, 180 = 18:00, 270 = 00:00.")]
     public float GetTimeDegrees()

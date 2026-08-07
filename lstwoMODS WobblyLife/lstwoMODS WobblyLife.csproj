@@ -59,7 +59,6 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Resources\piracy2.png" />
-        <EmbeddedResource Include="Resources\piracy_emotes.png" />
     </ItemGroup>
 
     <ItemGroup>

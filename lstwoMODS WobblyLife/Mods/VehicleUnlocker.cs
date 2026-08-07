@@ -40,6 +40,8 @@ public class VehicleUnlocker : BaseMod
     [ModAction(ShowInUI = false)]
     public static void UnlockVehicle(VehicleAssetReference vehicleAssetReference)
     {
+        if (SaveGuard.On) return;
+
         var player = (PlayerRef) GameInstance.Instance?.GetFirstLocalPlayerController();
         player?.ControllerUnlocker?.UnlockVehicle(vehicleAssetReference);
     }
@@ -47,6 +49,8 @@ public class VehicleUnlocker : BaseMod
     [ModAction(ShowInUI = false)]
     public static void LockVehicle(VehicleAssetReference vehicleAssetReference)
     {
+        if (SaveGuard.On) return;
+
         var player = (PlayerRef) GameInstance.Instance?.GetFirstLocalPlayerController();
         player?.ControllerUnlocker?.LockVehicle(vehicleAssetReference);
     }
@@ -86,13 +90,15 @@ public class VehicleUnlocker : BaseMod
             LockVehicle(vehicle);
         }
     }
-
+    
     public override Container BuildPanel(string id)
     {
         return new Container(id,
-        
-            new Group("WobblyIsland",
-                
+
+            SaveGuard.Notice("vehicle-guard-notice"),
+
+            SaveGuard.Guard(new Group("WobblyIsland",
+
                 new SeparatorText("Wobbly Island Vehicles", "Wobbly Island Vehicles"),
         
                 new SearchableCombo("Select Vehicle", []).WithItems(gameVehicleDropdownItems).WithSelectedIndex(gameVehicleDropdownIndex),
@@ -107,11 +113,11 @@ public class VehicleUnlocker : BaseMod
                     ActionMenu(new Button("Lock All Vehicles", LockAllGameVehicles), nameof(LockAllGameVehicles))
                 ).WithContentWidth()
                 
-            ).WithId("WobblyIsland"),
-        
-            
-            new Group("Space",
-                
+            ).WithId("WobblyIsland")),
+
+
+            SaveGuard.Guard(new Group("Space",
+
                 new SeparatorText("Space Vehicles", "Space Vehicles"),
         
                 new SearchableCombo("Select Vehicle", []).WithItems(spaceVehicleDropdownItems).WithSelectedIndex(spaceVehicleDropdownIndex),
@@ -126,7 +132,7 @@ public class VehicleUnlocker : BaseMod
                     ActionMenu(new Button("Lock All Vehicles", LockAllSpaceVehicles), nameof(LockAllSpaceVehicles))
                 ).WithContentWidth()
                 
-            ).WithId("Space")
+            ).WithId("Space"))
         );
     }
 

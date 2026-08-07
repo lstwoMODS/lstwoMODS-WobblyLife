@@ -3,6 +3,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+.idea/
+
 # User-specific files
 *.rsuser
 *.suo
@@ -403,3 +405,6 @@ FodyWeavers.xsd
 # Local absolute paths config (machine-specific, do not commit)
 paths.ps1
 /docs/
+
+/Thunderstore/
+/Thunderstore/*

@@ -15,7 +15,7 @@ public class QualityOfLifeMod : BaseMod
     public override string Description => "Fixes and improvements to the game";
     public override ModsWindow ModsWindow => Plugin.ClientModsWindow;
 
-    [ModSetting] public static Ref<bool> UnlockCursor = new();
+    [ModSetting] public static Ref<bool> UnlockCursor = new(true);
     [ModSetting] public static Ref<bool> DisablePets = new();
     [ModSetting(Label = "Disable Loading Screen (Faster loading times)")] public static Ref<bool> DisableLoadingScreen = new();
     [ModSetting(Label = "Disable Splash Screen (Faster game start times)")] public static Ref<bool> DisableSplashScreen = new();

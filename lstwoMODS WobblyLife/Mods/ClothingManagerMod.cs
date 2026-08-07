@@ -67,20 +67,22 @@ public class ClothingManagerMod : BaseMod
     {
         return new Container(id,
 
+            SaveGuard.Notice("clothing-guard-notice"),
+
             new SeparatorText("Unlock / Lock Specific Clothing", "Unlock / Lock Specific Clothing"),
             new SearchableCombo("Select Clothing", []).WithItems(allClothingDropdownItems).WithSelectedIndex(selectingClothingIndex),
 
-            new HStack("Selected Clothing Actions",
+            SaveGuard.Guard(new HStack("Selected Clothing Actions",
                 ActionMenu(new Button("Unlock Selected Clothing", () => UnlockClothing(AllClothing[selectingClothingIndex.Value])), nameof(UnlockClothing)),
                 ActionMenu(new Button("Lock Selected Clothing", () => LockClothing(AllClothing[selectingClothingIndex.Value])), nameof(LockClothing))
-            ).WithContentWidth(),
+            ).WithContentWidth()),
 
             new SeparatorText("Unlock / Lock All Clothing", "Unlock / Lock All Clothing"),
 
-            new HStack("All Clothing Actions",
+            SaveGuard.Guard(new HStack("All Clothing Actions",
                 ActionMenu(new Button("Unlock All Clothing", UnlockAllClothing), nameof(UnlockAllClothing)),
                 ActionMenu(new Button("Lock All Clothing", LockAllClothing), nameof(LockAllClothing))
-            ).WithContentWidth()
+            ).WithContentWidth())
         );
     }
 
@@ -105,12 +107,16 @@ public class ClothingManagerMod : BaseMod
     [ModAction(ShowInUI = false)]
     public static void UnlockClothing(ClothingAssetReference clothing)
     {
+        if (SaveGuard.On) return;
+
         GameInstance.Instance?.GetFirstLocalPlayerController()?.GetPlayerControllerUnlocker()?.UnlockClothing(Plugin.Instance, clothing);
     }
-    
+
     [ModAction(ShowInUI = false)]
     public static void LockClothing(ClothingAssetReference clothing)
     {
+        if (SaveGuard.On) return;
+
         GameInstance.Instance?.GetFirstLocalPlayerController()?.GetPlayerControllerUnlocker()?.LockClothing(clothing);
     }
 }
