@@ -1,85 +1,103 @@
 # lstwoMODS-WobblyLife
 
-A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods while adding a lot of original mods on top.
+A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods / ProjectMods while adding a lot of original mods on top.
 
-# Quick Install Link
+## Installation Requirements
 
-https://mods.lstwo.net/download.php?game=rubber_band_games.wobbly_life
+Requires [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core/releases).
 
-This will download a zip file after a few seconds. Extract it and drag the `Wobbly Life.exe` onto the `DRAG GAME EXE HERE.bat` file.
+## Links
 
-# Installation Requirements
+- Discord: https://discord.gg/cKWcxccQXU (get support / request features)
+- Thunderstore: \[coming soon]
+- Website: \[coming soon]
 
-Requires [ShadowLib](https://github.com/lstwo/ShadowLib/releases).
+## Recommended Installation
 
-# Links
+Download the mod either from thunderstore using a mod launcher like r2modmanPlus, or from the lstwomods website.
 
-﻿Discord: https://discord.gg/cKWcxccQXU (get support / request features)﻿
-
-# Compatibility Chart
-
-| **Mod**           | **Wobbly Server Util** | **Wobbly's Fav**       |
-| ----------------: | :--------------------: | :--------------------: |
-| **Compatibility** | ✅Fully compatible    | 🟨 Most Functions Work |
-
-
-
-# Automatic Installation
-
-lstwoMODS now has an installer you can find [here](https://github.com/lstwoSTUDIOS/lstwoMODSInstaller/). If you scroll down to the ReadMe it should tell you how to set it up.
-
-# Manual Installation
+## Manual Installation
 
 Follow the instructions [here](https://github.com/lstwoMODS/lstwoMODS-Core/blob/main/README.md#manual-installation) with this mod being your modpack.
-  
-# Mod List
 
-- **Player Mods (can apply to any player)**
-  - Change Player Name
+## Mod List
+
+- **Player Mods**
+  - Ban Player
   - Character Manager
-  - Job Completer
   - Player Controller Manager
+  - Player Employment Manager
   - Frog Mods
-  - Give Money (only for yourself)
+  - Jetpack Multiplier
+  - Job Mods
+  - Moon Boots Modifier
   - Movement Manager
+  - Fake Dialog
+  - NPC Manager
+  - Player Scale
   - Ragdoll Manager
   - Smite Player
-  - Teleport All Players
+  - Spectate
+  - Teleport Players
+  - Teleport to Wardrobe
 
-- **Vehicle Mods (can apply to any player)**
+- **Vehicle Mods**
   - Enter Exit Interact Modifier
   - Road Vehicle Modifier
 
-- **Server Mods (applies to all players)**
+- **Client Mods**
+  - Buy Unlimited Houses
+  - Component ESP
+  - First Person
+  - Free Cam Modifier
+  - Hide UI
+  - Mouse Invert X
+  - Outfit Manager
+  - Player Character Cutoff Toggler
+  - Player ESP
+  - Quality of Life
+  - Sky Customizer
+  - Snow Weather Overwrite
+  - Vehicle ESP
+  - Water Customizer
+  - Clothing Stacking
+
+- **Server Mods**
+  - Arcade Mod Manager
+  - Sync In-Game Time to Real Time
+  - Hide and Seek Mods
   - Ragdoll All Players
   - Server Settings
   - Set Gravity
+  - Set Lobby Name
   - Set Time of Day
-  - Weather Editor (thunder doesn't work)
+  - Traffic Manager
+  - Weather Editor
+  - Wobble Run Mods
+  - LAN Multiplayer
 
-- **Save File Mods (applies only to you)**
+- **Save File Mods**
   - Achievement Manager
   - Clothing Manager
+  - Fishing Helper
+  - Infinite Save Slots
   - Mission Completer
   - Museum Manager
+  - Pet Manager
   - Present Manager
-  - Vehicle Unlocker (unfinished)
+  - Vehicle Unlocker
 
 - **Extra Mods**
+  - Voice Chat
   - Banana Peel Backpack Modifier
-  - Buy Unlimited Houses (doesn't always fully work)
-  - First Person
-  - Hide UI
-  - Jetpack Multiplier
-  - Player Character Cutoff Toggler
+  - Bug Fixes
+  - Exploit Prevention
+  - Flood Mod
   - Realistic Car Crashes
+  - Chat
 
 - **Prop Spawner**
-
-- **Custom Items**
-
-# FAQ
-
-- **Does it have a server player count changer?**
-
-  No, just use [Larger Lobbies](https://www.nexusmods.com/wobblylife/mods/8) for that.
+  - Prop Groups
+  - Save and Load
+  - Custom Items
+  - Favorites
