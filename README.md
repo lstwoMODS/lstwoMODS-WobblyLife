@@ -4,17 +4,16 @@ A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMOD
 
 ## Installation Requirements
 
-Requires [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core/releases).
+Requires [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core/releases) and [Cinematic Unity Explorer (BIE5 Mono)](https://github.com/originalnicodr/cinematicunityexplorer/releases/latest).
 
 ## Links
 
 - Discord: https://discord.gg/cKWcxccQXU (get support / request features)
-- Thunderstore: \[coming soon]
-- Website: \[coming soon]
+- Website: https://lstwomods.com
 
 ## Recommended Installation
 
-Download the mod either from thunderstore using a mod launcher like r2modmanPlus, or from the lstwomods website.
+Download the mod with all dependencies on [the website](https://lstwomods.com) and copy the files from the zip into the root of the game folder.
 
 ## Manual Installation
 
