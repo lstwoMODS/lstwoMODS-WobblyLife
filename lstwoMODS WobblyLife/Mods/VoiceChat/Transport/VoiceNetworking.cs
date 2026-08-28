@@ -18,8 +18,8 @@ namespace WLProxChat.Transport
         private static bool _initialized;
 
         /// <summary>
-        /// Only hooks the scene event. The prefab itself is built on the first gameplay scene, not
-        /// here: this runs from <c>OnStaticInit</c>, which is early enough that touching
+        /// Only hooks the scene event. The prefab itself is registered on the first gameplay scene,
+        /// not here: this runs from <c>OnStaticInit</c>, which is early enough that touching
         /// <see cref="HawkNetworkManager.DefaultInstance"/> would force the lazy network singleton
         /// into existence before the LAN mod has chosen a transport type for it.
         /// </summary>
@@ -40,9 +40,16 @@ namespace WLProxChat.Transport
                 if (scene.name is "MainMenu" or "LoadingScene") return;
 
                 if (!HawkNetworkManager.InstanceExists) return;
-                if (!HawkNetworkManager.DefaultInstance.IsServer()) return;
 
+                // Registration happens on every peer, not just the host. Only the host spawns the
+                // object, but a client that has not registered the asset id cannot instantiate the
+                // spawn message it receives: Hawk looks the id up in its own prefab registry and
+                // logs "Prefab assetid: ... is not registered" instead. Doing this behind the
+                // IsServer gate left every client without a voice channel, which the Steam build
+                // hid because Steam P2P voice does not go through this object at all.
                 if (!EnsurePrefab()) return;
+
+                if (!HawkNetworkManager.DefaultInstance.IsServer()) return;
 
                 NetworkPrefab.SpawnNetworkPrefab(_voiceManagerPrefab, Vector3.zero);
             }

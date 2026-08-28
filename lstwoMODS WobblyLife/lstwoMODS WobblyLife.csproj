@@ -21,7 +21,7 @@
 
     <ItemGroup>
 
-        <PackageReference Include="WobblyLife.GameLibs" Version="1.0.0.4" >
+        <PackageReference Include="WobblyLife.GameLibs" Version="1.1.0" >
             <ExcludeAssets>runtime</ExcludeAssets>
         </PackageReference>
 
@@ -42,6 +42,11 @@
             <HintPath>lib\CinematicUnityExplorer.BIE5.Mono.dll</HintPath>
         </Reference>
         
+        <!-- Managed Opus for the voice chat mod. See lib/Concentus.build.md for where this came from. -->
+        <Reference Include="Concentus">
+            <HintPath>lib\Concentus.dll</HintPath>
+        </Reference>
+
         <Reference Include="System.Runtime.CompilerServices.Unsafe">
             <HintPath>lib\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
         </Reference>
@@ -49,7 +54,6 @@
         <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
         <PackageReference Include="BepInEx.Core" Version="5.*" />
         <PackageReference Include="BepInEx.PluginInfoProps" Version="1.*" />
-        <PackageReference Include="UnityEngine.Modules" Version="2020.3.44" IncludeAssets="compile" />
         <PackageReference Include="UniverseLib.Mono" Version="1.5.1" />
     </ItemGroup>
 

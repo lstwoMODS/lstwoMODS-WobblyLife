@@ -11,9 +11,9 @@ namespace WLProxChat
     /// One remote speaker's audio, streamed into the game's FMOD core system.
     /// <para>
     /// The stream is an FMOD user-created looping stream (<c>OPENUSER | CREATESTREAM</c>) whose PCM
-    /// read callback is served from a lock free ring buffer. Decompressed Steam voice (16 bit mono
-    /// PCM) is pushed in from the game thread via <see cref="Enqueue"/>; FMOD pulls it out on its own
-    /// mixer thread. Nothing in the pull path may touch a Unity API.
+    /// read callback is served from a lock free ring buffer. Decoded voice (16 bit mono PCM) is
+    /// pushed in from the voice worker via <see cref="Enqueue"/>; FMOD pulls it out on its own mixer
+    /// thread. Nothing in the pull path may touch a Unity API.
     /// </para>
     /// </summary>
     public class FmodVoiceStream : IDisposable
@@ -204,7 +204,11 @@ namespace WLProxChat
         #region Producer (game thread)
 
         /// <summary>
-        /// Queues decoded 16 bit mono PCM for playback. Safe to call only from the game thread.
+        /// Queues decoded 16 bit mono PCM for playback.
+        /// <para>
+        /// Single producer: safe from any one thread, but only ever from one. In practice that is
+        /// the voice worker, which decodes every speaker including the local loopback.
+        /// </para>
         /// </summary>
         /// <param name="pcm">Buffer holding little endian 16 bit samples starting at index 0.</param>
         /// <param name="count">Number of bytes in <paramref name="pcm"/> to consume.</param>

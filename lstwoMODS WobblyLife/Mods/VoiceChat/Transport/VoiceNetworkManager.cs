@@ -21,38 +21,45 @@ namespace WLProxChat.Transport
     {
         public static VoiceNetworkManager Instance;
 
+        /// <summary>
+        /// A voice frame arrived over the game's own channel (see <see cref="HawkVoiceTransport"/>).
+        /// <paramref name="fromHostRelay"/> distinguishes the host's authoritative fan-out, which is
+        /// already stamped, from a client's own frame, which the host still has to verify. The
+        /// segment is only valid for the duration of the call.
+        /// </summary>
+        public static event Action<HawkConnection, bool, ArraySegment<byte>> VoiceReceived;
+
         private byte RPC_ENDPOINT;
         private byte RPC_REQUEST_ENDPOINT;
+        private byte RPC_VOICE_TO_HOST;
+        private byte RPC_VOICE_RELAY;
 
         /// <summary>Host: token issued to each connection, so a reconnecting client keeps working.</summary>
         private readonly Dictionary<int, ulong> issuedTokens = new();
 
         private readonly System.Random tokenSource = new();
 
-        public override void Start()
-        {
-            if (gameObject.hideFlags == HideFlags.HideAndDontSave) return;
-
-            base.Start();
-            Instance = this;
-        }
-
         public override void RegisterRPCs(HawkNetworkObject networkObject)
         {
-            if (gameObject.hideFlags == HideFlags.HideAndDontSave) return;
-
             base.RegisterRPCs(networkObject);
 
             RPC_ENDPOINT = networkObject.RegisterRPC(ClientReceiveEndpoint);
             RPC_REQUEST_ENDPOINT = networkObject.RegisterRPC(ServerReceiveEndpointRequest);
+
+            // Registration order assigns the ids, and both ends run this same method, so the two
+            // voice channels line up without a negotiated number.
+            RPC_VOICE_TO_HOST = networkObject.RegisterRPC(ServerReceiveVoice);
+            RPC_VOICE_RELAY = networkObject.RegisterRPC(ClientReceiveVoice, RPCValidateMask.Server);
         }
 
         public override void NetworkPost(HawkNetworkObject networkObject)
         {
-            if (gameObject.hideFlags == HideFlags.HideAndDontSave) return;
-
             base.NetworkPost(networkObject);
 
+            // The singleton is claimed here, not in Start: the registered prefab is a live GameObject
+            // whose own Unity Start runs too, and Instantiate copies its hideFlags onto the clone, so a
+            // flag check can't tell the two apart. NetworkPost only ever runs from
+            // HawkNetworkBehaviour.Initialize, which the template never goes through.
             Instance = this;
             VoiceTransport.Refresh();
 
@@ -184,6 +191,7 @@ namespace WLProxChat.Transport
             direct.ConfigureClient(address, port, token);
         }
 
+
         /// <summary>
         /// The host's address, taken from the live game connection we are already talking over. A
         /// client keeps a connection to the host and to itself, and only the host one is marked so.
@@ -202,6 +210,65 @@ namespace WLProxChat.Transport
             }
 
             return null;
+        }
+
+        #endregion
+
+        #region Voice frames
+
+        /// <summary>Client: hand a framed packet to the host, which verifies and fans it out.</summary>
+        public void SendVoiceToHost(byte[] frame)
+        {
+            if (networkObject == null || frame == null || frame.Length == 0) return;
+            networkObject.SendRPCUnreliable(RPC_VOICE_TO_HOST, RPCRecievers.Server, frame);
+        }
+
+        /// <summary>
+        /// Host: hand a framed packet to every other player, skipping <paramref name="skip"/> (the
+        /// speaker, who already heard themselves). Sent per connection rather than to
+        /// <c>Others</c> because that would include the speaker.
+        /// </summary>
+        public void RelayVoice(byte[] frame, HawkConnection skip)
+        {
+            if (networkObject == null || !networkObject.IsServer() || frame == null || frame.Length == 0) return;
+
+            var players = HawkNetworkManager.DefaultInstance?.GetPlayers();
+            if (players == null) return;
+
+            for (var i = 0; i < players.Count; i++)
+            {
+                var connection = players[i];
+                if (connection == null || connection.Me || connection == skip) continue;
+
+                networkObject.SendRPCUnreliable(RPC_VOICE_RELAY, connection, frame);
+            }
+        }
+
+        // Host: a client's own voice frame. Its identity claim is not yet trustworthy.
+        private void ServerReceiveVoice(HawkNetReader reader, HawkRPCInfo info)
+        {
+            if (networkObject == null || !networkObject.IsServer()) return;
+            Dispatch(info.sender, fromHostRelay: false, reader);
+        }
+
+        // Any client: the host's verified fan-out. The server-validate mask stops a client from
+        // originating this, so the speaker id it carries can be trusted.
+        private void ClientReceiveVoice(HawkNetReader reader, HawkRPCInfo info)
+            => Dispatch(info.sender, fromHostRelay: true, reader);
+
+        private static void Dispatch(HawkConnection sender, bool fromHostRelay, HawkNetReader reader)
+        {
+            try
+            {
+                var frame = reader.ReadBytesAndSize();
+                if (frame.Count == 0) return;
+
+                VoiceReceived?.Invoke(sender, fromHostRelay, frame);
+            }
+            catch (Exception e)
+            {
+                Plugin.LogSource.LogError($"[VoiceChat] malformed voice frame RPC: {e.Message}");
+            }
         }
 
         #endregion

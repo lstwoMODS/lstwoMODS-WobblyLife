@@ -49,7 +49,7 @@ public static class CustomCommandStore
             foreach (var cmd in saved)
             {
                 if (cmd == null || string.IsNullOrEmpty(cmd.Name)) continue;
-                cmd.Whitelist ??= new List<SteamProfile>();
+                cmd.Whitelist ??= new List<PlayerProfile>();
                 cmd.Params ??= new List<CustomCommandParam>();
                 _commands.Add(cmd);
             }
@@ -109,6 +109,46 @@ public static class CustomCommandStore
         SyncRegistry();
     }
 
+    /// <summary>Registers or unregisters a command without deleting it. What something that owns a
+    /// command — a CreatorTools project, say — uses when it is switched off.</summary>
+    public static void SetEnabled(CustomChatCommand cmd, bool enabled)
+    {
+        if (cmd == null || cmd.Enabled == enabled) return;
+        cmd.Enabled = enabled;
+        Persist();
+        SyncRegistry();
+    }
+
+    /// <summary>
+    /// Adds a command wholesale, or replaces one of the same name. For installing a shared
+    /// definition, where <see cref="Add"/>'s one-field-at-a-time route would mean a save and a
+    /// registry sync per parameter. Refuses to shadow a built-in, same as <see cref="Add"/>.
+    /// </summary>
+    public static bool Import(CustomChatCommand cmd)
+    {
+        if (cmd == null || string.IsNullOrEmpty(cmd.Name)) return false;
+        if (cmd.Name.Any(char.IsWhiteSpace)) return false;
+
+        cmd.Params    ??= new List<CustomCommandParam>();
+        cmd.Whitelist ??= new List<PlayerProfile>();
+
+        var existing = _commands.FirstOrDefault(
+            c => string.Equals(c.Name, cmd.Name, StringComparison.OrdinalIgnoreCase));
+
+        // Only a built-in that is not one of ours: replacing our own is the point of an import.
+        if (existing == null && CommandRegistry.TryGet(cmd.Name, out _)) return false;
+
+        if (existing != null) _commands.Remove(existing);
+        _commands.Add(cmd);
+
+        Persist();
+        SyncRegistry();
+        return true;
+    }
+
+    public static CustomChatCommand Get(string name)
+        => _commands.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+
     public static void SetWhitelistEnabled(CustomChatCommand cmd, bool enabled)
     {
         if (cmd == null || cmd.WhitelistEnabled == enabled) return;
@@ -133,20 +173,20 @@ public static class CustomCommandStore
         SyncRegistry();
     }
 
-    public static void AddToWhitelist(CustomChatCommand cmd, SteamProfile profile)
+    public static void AddToWhitelist(CustomChatCommand cmd, PlayerProfile profile)
     {
-        if (cmd == null || profile == null || profile.SteamId == 0) return;
-        if (cmd.Whitelist.Any(p => p.SteamId == profile.SteamId)) return;
+        if (cmd == null || profile == null || !profile.Key.IsValid) return;
+        if (cmd.Whitelist.Any(p => p.Key == profile.Key)) return;
 
         cmd.Whitelist.Add(profile);
         Persist();
         SyncRegistry();
     }
 
-    public static void RemoveFromWhitelist(CustomChatCommand cmd, ulong steamId)
+    public static void RemoveFromWhitelist(CustomChatCommand cmd, PlayerKey key)
     {
-        if (cmd == null) return;
-        if (cmd.Whitelist.RemoveAll(p => p.SteamId == steamId) == 0) return;
+        if (cmd == null || !key.IsValid) return;
+        if (cmd.Whitelist.RemoveAll(p => p.Key == key) == 0) return;
 
         Persist();
         SyncRegistry();
@@ -154,10 +194,11 @@ public static class CustomCommandStore
 
     private static void Persist() => DataStorage.Save(StorageId, StorageKey, _commands);
 
-    /// <summary>Register every local command and drop registrations that no longer exist.</summary>
+    /// <summary>Register every enabled local command and drop registrations that no longer apply.</summary>
     private static void SyncRegistry()
     {
-        var live = new HashSet<string>(_commands.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
+        var live = new HashSet<string>(
+            _commands.Where(c => c.Enabled).Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
 
         // Unregister names that were renamed away or deleted since the last sync.
         foreach (var name in _registered.Where(n => !live.Contains(n)).ToList())
@@ -168,6 +209,8 @@ public static class CustomCommandStore
 
         foreach (var cmd in _commands)
         {
+            if (!cmd.Enabled) continue;
+
             CommandRegistry.Register(BuildCommand(cmd));
             _registered.Add(cmd.Name);
         }
@@ -194,7 +237,8 @@ public static class CustomCommandStore
 
     /// <summary>
     /// Host is always allowed. When the whitelist is disabled, everyone is allowed; otherwise the
-    /// sender's Steam ID must be on the whitelist (an empty whitelist means host only).
+    /// sender's account must be on the whitelist (an empty whitelist means host only). A sender with
+    /// no account identity, which is every peer on a LAN transport, is never on it.
     /// </summary>
     private static bool IsAllowed(CustomChatCommand cmd, HawkConnection conn)
     {
@@ -203,8 +247,8 @@ public static class CustomCommandStore
         if (!cmd.WhitelistEnabled) return true;
         if (cmd.Whitelist.Count == 0) return false;
 
-        var steamId = (conn is SteamConnection sc) ? sc.steamId.Value : 0UL;
-        return steamId != 0 && cmd.Whitelist.Any(p => p.SteamId == steamId);
+        var key = PlayerIdentity.Of(conn);
+        return key.IsValid && cmd.Whitelist.Any(p => p.Key == key);
     }
 
     // ── Host to client sync ─────────────────────────────────────────────────────

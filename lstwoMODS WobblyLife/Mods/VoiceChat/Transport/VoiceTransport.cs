@@ -1,5 +1,6 @@
 using System;
 using HawkNetworking;
+using lstwoMODS_WobblyLife;
 using UnityEngine;
 using Plugin = lstwoMODS_WobblyLife.Plugin;
 
@@ -78,6 +79,14 @@ namespace WLProxChat.Transport
                 case VoiceTransportMode.Direct:
                     current = CreateDirect();
                     break;
+
+                case VoiceTransportMode.Hawk:
+                    current = new HawkVoiceTransport();
+                    break;
+
+                case VoiceTransportMode.Eos:
+                    current = new EosVoiceTransport();
+                    break;
             }
 
             activeMode = current == null ? VoiceTransportMode.None : wanted;
@@ -118,7 +127,20 @@ namespace WLProxChat.Transport
                 return VoiceTransportMode.None;
 
             if (manager is SteamP2PNetworkManager)
-                return VoiceTransportMode.Steam;
+            {
+                // Same manager type on both builds, but only the Steam build actually moves bytes
+                // over Steam P2P. On the crossplay build every peer is on EOS, the game leaves
+                // OnP2PSessionRequest empty, and a non-Steam player has no Steam id to address at
+                // all, so Steam P2P has nothing to carry voice over there.
+                if (!GameBuild.IsCrossplay)
+                    return VoiceTransportMode.Steam;
+
+                // EOS P2P on its own channel is the counterpart of the Steam transport and is what
+                // crossplay should be using. Relaying as Hawk RPCs also works and needs no
+                // reflection, so it stays as the fallback for a game update that moves the private
+                // fields EOS P2P is reached through.
+                return EosVoiceTransport.IsSupported ? VoiceTransportMode.Eos : VoiceTransportMode.Hawk;
+            }
 
             if (manager is LiteNetworkManager)
                 return VoiceTransportMode.Direct;
@@ -133,10 +155,7 @@ namespace WLProxChat.Transport
             var manager = HawkNetworkManager.DefaultInstance;
             if (manager == null) return null;
 
-            var direct = new DirectVoiceTransport
-            {
-                LocalConnectionId = manager.GetMe()?.Id ?? -1
-            };
+            var direct = new DirectVoiceTransport();
 
             var started = manager.IsServer()
                 ? direct.StartHost(VoiceChatSettings.DirectVoicePort)
@@ -210,6 +229,12 @@ namespace WLProxChat.Transport
     {
         None,
         Steam,
-        Direct
+        Direct,
+
+        /// <summary>Relayed as RPCs over the game's own channel. See <see cref="HawkVoiceTransport"/>.</summary>
+        Hawk,
+
+        /// <summary>EOS P2P datagrams on a channel the game does not read. See <see cref="EosVoiceTransport"/>.</summary>
+        Eos
     }
 }

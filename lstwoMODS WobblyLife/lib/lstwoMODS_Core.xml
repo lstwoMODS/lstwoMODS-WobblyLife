@@ -421,6 +421,27 @@
             overlay window (and thus the hotkey manager) exists; safe to call again.
             </summary>
         </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroManager.Reload">
+             <summary>
+             Re-reads the groups folder and re-arms. For anything that writes a group file from outside
+             this class — installing a shared file, removing one — since <see cref="M:lstwoMODS_Core.Macros.MacroManager.EnsureLoaded"/> runs
+             once and would otherwise not notice until the next launch.
+            
+             The in-memory groups are dropped, so callers holding a <see cref="T:lstwoMODS_Core.Macros.MacroGroup"/> or a
+             <see cref="T:lstwoMODS_Core.Macros.Macro"/> across this call are holding a stale object: look it up again by id.
+             Pending writes are flushed first, or a group saved moments ago would be re-read from the
+             version before it.
+             </summary>
+        </member>
+        <member name="M:lstwoMODS_Core.Macros.MacroManager.ImportGroup(lstwoMODS_Core.Macros.MacroGroup)">
+            <summary>
+            Adds a group that came from somewhere else — an installed bundle, a shared file — replacing
+            any group with the same id. The group is written to its own file and everything is then
+            re-read, because <see cref="M:lstwoMODS_Core.Macros.MacroManager.EnsureLoaded"/> is where the normalisation an imported file needs
+            lives: exactly one default group, globally unique slugs, and trigger migration. Returns the
+            group as it ended up after that, which is not the object passed in.
+            </summary>
+        </member>
         <member name="M:lstwoMODS_Core.Macros.MacroManager.Add(System.String,lstwoMODS_Core.Macros.MacroGroup)">
             <summary>Create a macro in <paramref name="group"/> (the default group when null).</summary>
         </member>
@@ -2586,7 +2607,7 @@
         <member name="F:lstwoMODS_Core.UI.Elements.DragTarget.OnDropBetween">
             <summary>Insert-between variant of <see cref="F:lstwoMODS_Core.UI.Elements.DragTarget.OnDrop"/>: (payloadType, payloadData, after)
             where <c>after</c> is true when the drop landed on the right half (insert after this
-            element). Set via <see cref="M:lstwoMODS_Core.UI.Elements.DragTarget.WithInsertBetween(System.Action{System.String,System.String,System.Boolean})"/>; takes precedence over <see cref="F:lstwoMODS_Core.UI.Elements.DragTarget.OnDrop"/>.</summary>
+            element). Set via <see cref="M:lstwoMODS_Core.UI.Elements.DragTarget.WithInsertBetween(System.Action{System.String,System.String,System.Boolean},System.Boolean)"/>; takes precedence over <see cref="F:lstwoMODS_Core.UI.Elements.DragTarget.OnDrop"/>.</summary>
         </member>
         <member name="M:lstwoMODS_Core.UI.Elements.DragTarget.#ctor(System.String,System.Action{System.String,System.String},System.String[],lstwoMODS_Core.UI.Elements.BaseUIElement[])">
             <param name="name">Unique element ID.</param>
@@ -2594,11 +2615,15 @@
             <param name="acceptTypes">Payload type strings this target accepts.</param>
             <param name="children">Visual content shown inside the drop zone.</param>
         </member>
-        <member name="M:lstwoMODS_Core.UI.Elements.DragTarget.WithInsertBetween(System.Action{System.String,System.String,System.Boolean})">
-            <summary>Switch to insert-between mode: the overlay draws a vertical insertion line at the
-            left/right edge (by cursor half) instead of a whole-element highlight, and reports the side
-            so a drop lands in the gap between items. <paramref name="onDropBetween"/> receives
-            (payloadType, payloadData, after). Chainable.</summary>
+        <member name="M:lstwoMODS_Core.UI.Elements.DragTarget.WithInsertBetween(System.Action{System.String,System.String,System.Boolean},System.Boolean)">
+             <summary>Switch to insert-between mode: the overlay draws an insertion line at the edge of
+             whichever half the cursor is over instead of a whole-element highlight, and reports the side
+             so a drop lands in the gap between items. <paramref name="onDropBetween"/> receives
+             (payloadType, payloadData, after).
+            
+             <paramref name="vertical"/> splits the element top and bottom rather than left and right,
+             which is what a list stacked down the screen needs; the default suits a row or a grid.
+             Chainable.</summary>
         </member>
         <member name="T:lstwoMODS_Core.UI.Elements.FlowGrid">
             <summary>
@@ -3634,9 +3659,24 @@
             unable to receive anything until the game is restarted. Runs on the IPC reader thread.
             </summary>
         </member>
+        <member name="F:lstwoMODS_Core.UI.UIManager.ConnectTimeoutMs">
+            <summary>
+            How long a freshly started overlay gets to connect back before it is treated as lost.
+            A process that starts but never connects (its own IPC connect failed, it hung during
+            plugin loading, ...) raises no Exited event, so without this the mod side waits in
+            AcceptTcpClientAsync forever and the UI simply never appears.
+            </summary>
+        </member>
         <member name="M:lstwoMODS_Core.UI.UIManager.StartOverlay">
             <summary>
             Start (or restart) the overlay process with a fresh port, auth token and IPC channel.
+            </summary>
+        </member>
+        <member name="M:lstwoMODS_Core.UI.UIManager.WatchForConnect(System.Int32)">
+            <summary>
+            Give this overlay generation <see cref="F:lstwoMODS_Core.UI.UIManager.ConnectTimeoutMs"/> to connect back, and treat it
+            as lost if it doesn't. Covers the case the Exited event can't: an overlay process that is
+            still alive but will never talk to us.
             </summary>
         </member>
         <member name="M:lstwoMODS_Core.UI.UIManager.OnOverlayLost(System.Int32,System.String)">

@@ -207,19 +207,19 @@ public static class ChatMacroTrigger
     }
 
     /// <summary>
-    /// The player who ran the command, as a <see cref="PlayerRef"/>. A Steam sender maps to their
-    /// in-game controller. A locally-run command (offline game, or a host whose connection isn't a
-    /// <see cref="SteamConnection"/>) resolves to the local player, since the sender is us, without
-    /// this, <c>player</c> is null offline even though the command was clearly run locally, and any
-    /// step using it NREs. Only a genuine remote Steam sender we can't match yet stays null (falling
-    /// back to local there would silently act on the host instead of the actual sender).
+    /// The player who ran the command, as a <see cref="PlayerRef"/>. A sender with an account maps
+    /// to their in-game controller. A locally-run command (offline game, or a host on a transport
+    /// that carries no account identity) resolves to the local player, since the sender is us,
+    /// without this, <c>player</c> is null offline even though the command was clearly run locally,
+    /// and any step using it NREs. Only a genuine remote sender we can't match yet stays null
+    /// (falling back to local there would silently act on the host instead of the actual sender).
     /// </summary>
     private static PlayerRef ResolveCommandSender(HawkConnection sender)
     {
         var resolved = ResolveConnection(sender);
         if (resolved != null) return resolved;
 
-        if (sender is not SteamConnection)
+        if (!PlayerIdentity.Of(sender).IsValid)
         {
             var local = GameInstance.InstanceExists ? GameInstance.Instance.GetFirstLocalPlayerController() : null;
             if (local != null) return local;
@@ -228,15 +228,17 @@ public static class ChatMacroTrigger
     }
 
     /// <summary>
-    /// Map a connection to a <see cref="PlayerRef"/> strictly by Steam account. Returns null when
-    /// there's no game, the connection isn't a Steam player, or no controller is owned by it yet.
+    /// Map a connection to a <see cref="PlayerRef"/> strictly by account. Returns null when there's
+    /// no game, the connection carries no account identity, or no controller is owned by it yet.
     /// Used for the <c>&lt;player&gt;</c> argument lookup, where an unknown name must stay unresolved
     /// rather than fall back to the local player.
     /// </summary>
     private static PlayerRef ResolveConnection(HawkConnection sender)
     {
-        if (sender is not SteamConnection sc) return null;
-        var controllers = SteamProfileHelper.GetPlayerControllers(sc.steamId.Value);
+        var key = PlayerIdentity.Of(sender);
+        if (!key.IsValid) return null;
+
+        var controllers = PlayerIdentity.ControllersFor(key);
         return controllers.Count > 0 ? controllers[0] : null;
     }
 

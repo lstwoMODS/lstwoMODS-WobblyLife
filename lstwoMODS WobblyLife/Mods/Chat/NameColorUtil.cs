@@ -26,8 +26,27 @@ public static class NameColorUtil
         return Color.HSVToRGB(hue, 0.6f, 1f);
     }
 
+    /// <summary>
+    /// Auto color for an account on either game build. A Steam key keeps hashing off the numeric id
+    /// so colors assigned before the crossplay split do not shift; anything else hashes its raw id
+    /// string.
+    /// </summary>
+    public static Color AutoColor(PlayerKey key, string name = null)
+    {
+        if (key.Platform == PlayerPlatform.Steam && key.SteamId != 0UL)
+            return AutoColor(key.SteamId, name);
+
+        if (key.IsValid)
+            return Color.HSVToRGB(HueFromName(key.Id), 0.6f, 1f);
+
+        return AutoColor(0UL, name);
+    }
+
     public static Color Resolve(uint packed, ulong steamId, string name)
         => packed != 0 ? Unpack(packed) : AutoColor(steamId, name);
+
+    public static Color Resolve(uint packed, PlayerKey key, string name)
+        => packed != 0 ? Unpack(packed) : AutoColor(key, name);
 
     private static float HueFromId(ulong x)
     {

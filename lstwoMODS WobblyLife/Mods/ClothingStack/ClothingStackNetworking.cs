@@ -12,8 +12,8 @@ public static class ClothingStackNetworking
     private static GameObject _managerPrefab;
     private static bool _initialized;
 
-    /// <summary>Fires when a peer's layer list arrives (verified wearer Steam id, encoded payload).</summary>
-    public static event Action<ulong, string> StackReceived
+    /// <summary>Fires when a peer's layer list arrives (verified wearer account, encoded payload).</summary>
+    public static event Action<PlayerKey, string> StackReceived
     {
         add    => ClothingStackNetworkManager.StackReceived += value;
         remove => ClothingStackNetworkManager.StackReceived -= value;

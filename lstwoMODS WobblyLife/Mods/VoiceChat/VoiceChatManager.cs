@@ -1,49 +1,50 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using HawkNetworking;
 using lstwoMODS.ImGui.Shared;
 using lstwoMODS_Core.Hotkeys;
 using UnityEngine;
-using Steamworks;
 using WLProxChat;
+using WLProxChat.Audio;
 using WLProxChat.Transport;
 using Color = UnityEngine.Color;
 using Plugin = lstwoMODS_WobblyLife.Plugin;
 
 /// <summary>
-/// Drives voice chat: captures from Steam, hands frames to whichever <see cref="IVoiceTransport"/>
-/// is running, and plays what comes back through one <see cref="FmodVoiceStream"/> per speaker.
-/// Knows nothing about how frames actually travel.
+/// Drives voice chat: owns the capture and codec pipeline, hands the frames it produces to whichever
+/// <see cref="IVoiceTransport"/> is running, and plays what comes back through one
+/// <see cref="FmodVoiceStream"/> per speaker.
+/// <para>
+/// Nothing here knows how audio is captured or compressed, and nothing here knows how frames
+/// travel. It is the piece in the middle: hotkeys and settings in, packets out, packets in, spatial
+/// playback out.
+/// </para>
 /// </summary>
 public class VoiceChatManager : MonoBehaviour
 {
     public static VoiceChatManager Instance;
 
-    /// <summary>Stands in for our own connection id on the loopback stream.</summary>
-    private const int LoopbackConnectionId = -2;
+    /// <summary>Stands in for our own speaker id on the loopback stream.</summary>
+    private const uint LoopbackSpeakerId = VoiceIdentity.Loopback;
 
-    private int sampleRate;
+    private VoicePipeline pipeline;
+
     private bool isMuted;
-    private bool running;
+
+    /// <summary>One stream per speaker, keyed by <see cref="VoiceIdentity"/> speaker id.</summary>
+    private readonly Dictionary<uint, VoicePlayer> speakers = new();
 
     /// <summary>
-    /// True once Steam's voice interface has answered. It is not necessarily up when the mod
-    /// initialises, so this is re-probed rather than decided once: latching a single early failure
-    /// disables capture for the whole session, with the mic silently never arming.
+    /// One remote speaker: their playback stream, and where in the world it is coming from.
+    /// <para>
+    /// The lock exists for exactly one race. Frames are decoded on the voice worker and enqueued
+    /// from there, while the stream itself is created and destroyed on the game thread as players
+    /// come and go. Everything else about <see cref="FmodVoiceStream"/> is already single producer.
+    /// </para>
     /// </summary>
-    private bool steamVoiceAvailable;
-
-    private float nextSteamProbe;
-
-    /// <summary>One stream per speaker, keyed by Hawk connection id.</summary>
-    private readonly Dictionary<int, VoicePlayer> speakers = new();
-
     private class VoicePlayer
     {
-        public int connectionId;
+        public uint speakerId;
         public FmodVoiceStream stream;
         public PlayerController controller;
         public Vector3 position;
@@ -53,90 +54,219 @@ public class VoiceChatManager : MonoBehaviour
 
         public bool isLocal;
         public int packetsReceived;
+
+        private readonly object sync = new object();
+        private bool disposed;
+
+        /// <summary>Worker thread. Feeds decoded PCM to the stream.</summary>
+        public void Enqueue(byte[] pcm, int count)
+        {
+            lock (sync)
+            {
+                if (!disposed) stream.Enqueue(pcm, count);
+            }
+        }
+
+        /// <summary>Game thread.</summary>
+        public void Dispose()
+        {
+            lock (sync)
+            {
+                if (disposed) return;
+
+                disposed = true;
+                stream.Dispose();
+            }
+        }
     }
 
     void Awake()
     {
         Instance = this;
 
-        // Placeholder until the first successful probe; no stream is built before then.
-        sampleRate = 24000;
+        pipeline = new VoicePipeline();
+        pipeline.Start();
 
         VoiceTransport.PacketReceived += OnVoicePacket;
         VoiceTransport.Refresh();
 
-        running = true;
-        StartCoroutine(CaptureLoop());
-
-        Plugin.LogSource.LogInfo("[VoiceChat] runtime started, waiting for steam voice");
+        Plugin.LogSource.LogInfo("[VoiceChat] runtime started");
     }
 
-    /// <summary>
-    /// Pin the decode rate so the FMOD streams' frequency matches what DecompressVoice produces.
-    /// Retried on a slow timer: Steam's voice interface is routinely not up yet when mods
-    /// initialise, and everything here (capture, decompress) is unusable until it answers.
-    /// </summary>
-    private bool EnsureSteamVoice()
+    void Update()
     {
-        if (steamVoiceAvailable) return true;
+        UpdateMicrophone();
 
-        var now = Time.realtimeSinceStartup;
-        if (now < nextSteamProbe) return false;
-        nextSteamProbe = now + 1f;
+        // Sending happens here rather than on the worker because that is where the transports
+        // insist on being called from.
+        pipeline.DrainOutbound(SendFrame);
 
-        try
-        {
-            if (!SteamClient.IsValid) return false;
+        UpdateStreams();
 
-            var optimal = SteamUser.OptimalSampleRate;
-
-            // Facepunch throws out of the SampleRate setter outside this range, and a zero here just
-            // means the interface answered before it was ready.
-            if (optimal < 11025 || optimal > 48000) return false;
-
-            SteamUser.SampleRate = optimal;
-            sampleRate = (int)optimal;
-            steamVoiceAvailable = true;
-
-            Plugin.LogSource.LogInfo($"[VoiceChat] steam voice ready at {sampleRate} Hz");
-            return true;
-        }
-        catch (Exception e)
-        {
-            lastError = $"steam voice probe: {e.Message}";
-            return false;
-        }
+        // Pushed every frame rather than on the toggle: the indicator also has to follow the
+        // mode setting changing and ToggleMute being called from outside (macros, commands).
+        VoiceChatMod.SetMuteIndicator(isMuted);
     }
 
-    private void SetSteamVoiceRecord()
-    {
-        if (!steamVoiceAvailable) return;
+    #region Capture + Send
 
+    private void UpdateMicrophone()
+    {
         if (Pressed(MuteBinding()))
-        {
             isMuted = !isMuted;
+
+        var enabled = VoiceChatSettings.Enabled;
+        var mode = VoiceChatSettings.Mode;
+
+        var pushToTalk = mode == VoiceChatMode.PushToTalk && Held(PushToTalkBinding());
+
+        // Recording stops entirely while muted or switched off, rather than being captured and
+        // thrown away. It costs the noise floor tracker a second to settle again afterwards, which
+        // is a fair price for the microphone light going out when someone mutes themselves.
+        pipeline.EnsureCapture(enabled && !isMuted && mode != VoiceChatMode.Off,
+            VoiceChatSettings.MicrophoneDevice);
+
+        pipeline.ForceOpenGate = pushToTalk;
+
+        pipeline.TransmitArmed = enabled && !isMuted
+                                 && (mode == VoiceChatMode.AlwaysOn
+                                     || (mode == VoiceChatMode.PushToTalk && pushToTalk));
+
+        var preprocessor = pipeline.Preprocessor;
+
+        preprocessor.InputGainDb = VoiceChatSettings.InputGain;
+        preprocessor.NoiseGateEnabled = VoiceChatSettings.NoiseGate;
+        preprocessor.GateThresholdDb = VoiceChatSettings.GateThreshold;
+        preprocessor.AutoGainEnabled = VoiceChatSettings.AutoGain;
+
+        pipeline.Bitrate = VoiceChatSettings.Bitrate * 1000;
+
+        // Monitoring off: retire the loopback stream rather than leaving a silent one behind.
+        if (!VoiceChatSettings.HearYourself && speakers.ContainsKey(LoopbackSpeakerId))
+            RemoveSpeaker(LoopbackSpeakerId);
+    }
+
+    private void SendFrame(byte[] data, int length)
+    {
+        // No transport delivers a frame back to its sender, so hearing yourself is a local loopback
+        // rather than a round trip. Feeding it back through the decoder rather than straight to the
+        // stream means the monitor is genuinely what everyone else hears, codec and all, and it
+        // works with nobody else connected, which is exactly when you want to test your microphone.
+        if (VoiceChatSettings.HearYourself)
+        {
+            if (!speakers.TryGetValue(LoopbackSpeakerId, out var loopback))
+            {
+                loopback = CreateSpeaker(LoopbackSpeakerId, LocalController());
+                loopback.isLocal = true;
+            }
+
+            loopback.packetsReceived++;
+            pipeline.SubmitInbound(LoopbackSpeakerId, data, 0, length);
         }
 
-        if (VoiceChatSettings.Enabled && !isMuted)
+        VoiceTransport.Broadcast(data, length);
+    }
+
+    #endregion
+
+    #region Receive
+
+    private void OnVoicePacket(VoicePacket packet)
+    {
+        if (!VoiceChatSettings.Enabled) return;
+
+        if (!speakers.TryGetValue(packet.SpeakerId, out var vp))
+            vp = CreateSpeaker(packet.SpeakerId, VoiceIdentity.Resolve(packet.SpeakerId));
+
+        vp.packetsReceived++;
+
+        // The transport's buffer is only valid for this call, so the pipeline copies it.
+        pipeline.SubmitInbound(packet.SpeakerId, packet.Data, packet.Offset, packet.Length);
+    }
+
+    #endregion
+
+    #region Speakers
+
+    private VoicePlayer CreateSpeaker(uint speakerId, PlayerController controller)
+    {
+        var vp = new VoicePlayer
         {
-            if (VoiceChatSettings.Mode == VoiceChatMode.Off)
-            {
-                SteamUser.VoiceRecord = false;
-            }
-            else if (VoiceChatSettings.Mode == VoiceChatMode.PushToTalk)
-            {
-                SteamUser.VoiceRecord = Held(PushToTalkBinding());
-            }
-            else if (VoiceChatSettings.Mode == VoiceChatMode.AlwaysOn)
-            {
-                SteamUser.VoiceRecord = true;
-            }
-        }
-        else
+            speakerId = speakerId,
+            stream = new FmodVoiceStream("Voice_" + speakerId, VoiceFormat.SampleRate),
+            controller = controller
+        };
+
+        speakers[speakerId] = vp;
+        pipeline.RegisterSpeaker(speakerId, vp.Enqueue);
+
+        return vp;
+    }
+
+    private static PlayerController LocalController()
+        => GameInstance.InstanceExists ? GameInstance.Instance.GetFirstLocalPlayerController() : null;
+
+    public void RemoveSpeaker(uint speakerId)
+    {
+        if (!speakers.TryGetValue(speakerId, out var vp))
+            return;
+
+        // Decoding stops before the stream goes away, so nothing is left mid frame with a disposed
+        // sink to write into.
+        pipeline.RemoveSpeaker(speakerId);
+
+        vp.Dispose();
+        speakers.Remove(speakerId);
+    }
+
+    private void UpdateStreams()
+    {
+        var settings = VoiceChatSettings.ForStream();
+
+        foreach (var vp in speakers.Values)
         {
-            SteamUser.VoiceRecord = false;
+            // Keep retrying: the player object often shows up after the first frame does.
+            if (vp.controller == null)
+                vp.controller = vp.isLocal ? LocalController() : VoiceIdentity.Resolve(vp.speakerId);
+
+            var body = vp.controller == null
+                ? null
+                : vp.controller.GetPlayerCharacter()?.GetPlayerBody();
+
+            if (body != null)
+            {
+                vp.position = body.transform.position;
+                vp.hasPosition = true;
+            }
+
+            // A speaker we cannot place would otherwise sit at the world origin, where 3D falloff
+            // makes them silent for no visible reason. Park them on the listener until we can.
+            vp.stream.UpdateSpatial(vp.hasPosition ? vp.position : FmodVoiceStream.ListenerPosition(), settings);
         }
     }
+
+    public void ToggleMute() => isMuted = !isMuted;
+
+    void OnDestroy()
+    {
+        VoiceTransport.PacketReceived -= OnVoicePacket;
+
+        // Nothing ticks Update() any more, so the badge would otherwise hang around.
+        VoiceChatMod.SetMuteIndicator(false);
+
+        // Stops the worker before anything it writes into is torn down.
+        pipeline?.Dispose();
+        pipeline = null;
+
+        foreach (var vp in speakers.Values)
+            vp.Dispose();
+
+        speakers.Clear();
+
+        if (Instance == this) Instance = null;
+    }
+
+    #endregion
 
     #region Hotkeys
 
@@ -198,223 +328,49 @@ public class VoiceChatManager : MonoBehaviour
 
     #endregion
 
-    void Update()
+    #region Levels
+
+    /// <summary>Microphone level as a 0..1 meter reading, mapped across a 60 dB window.</summary>
+    public float InputMeter => ToMeter(pipeline?.Preprocessor?.Level ?? 0f);
+
+    /// <summary>Where the gate's open threshold currently sits, on the same scale as the meter.</summary>
+    public float GateMeter
     {
-        EnsureSteamVoice();
-        SetSteamVoiceRecord();
-        UpdateStreams();
-    }
-
-    #region Capture + Send
-
-    private IEnumerator CaptureLoop()
-    {
-        var wait = new WaitForSeconds(0.02f);
-
-        while (running)
+        get
         {
-            yield return wait;
+            var preprocessor = pipeline?.Preprocessor;
+            if (preprocessor == null) return 0f;
 
-            if (!steamVoiceAvailable || !SteamUser.HasVoiceData || !VoiceChatSettings.Enabled || isMuted)
-                continue;
-
-            var data = SteamUser.ReadVoiceDataBytes();
-            if (data == null || data.Length == 0)
-                continue;
-
-            packetsCaptured++;
-            lastCapturedSize = data.Length;
-
-            // No transport delivers a frame back to its sender, so hearing yourself is a local
-            // loopback rather than a round trip. It also means this works with nobody else
-            // connected, which is exactly when you want to test your mic.
-            if (VoiceChatSettings.HearYourself)
-                Loopback(data);
-
-            VoiceTransport.Broadcast(data, data.Length);
+            return ToMeter(preprocessor.NoiseFloor * Mathf.Pow(10f, VoiceChatSettings.GateThreshold / 20f));
         }
     }
 
-    /// <summary>Feed our own captured voice straight back into a local stream.</summary>
-    private void Loopback(byte[] compressed)
+    /// <summary>True while audio is actually being encoded and sent.</summary>
+    public bool IsTransmitting => pipeline != null && pipeline.IsSending;
+
+    public bool IsMuted => isMuted;
+
+    public bool CaptureRunning => pipeline != null && pipeline.Capture.IsRunning;
+
+    public string CaptureDevice => pipeline?.Capture.DeviceName ?? "";
+
+    /// <summary>Linear RMS onto a 0..1 bar, using dB because that is how loudness is heard.</summary>
+    private static float ToMeter(float rms)
     {
-        if (!speakers.TryGetValue(LoopbackConnectionId, out var vp))
-        {
-            vp = CreateSpeaker(LoopbackConnectionId, LocalController());
-            vp.isLocal = true;
-        }
+        if (rms <= 0.0001f) return 0f;
 
-        HandleVoicePacket(vp, compressed, 0, compressed.Length);
-    }
-
-    #endregion
-
-    #region Receive
-
-    private void OnVoicePacket(VoicePacket packet)
-    {
-        // DecompressVoice goes through the same interface capture does, so an inbound frame is just
-        // as unusable until it is up.
-        if (!VoiceChatSettings.Enabled || !steamVoiceAvailable) return;
-
-        if (!speakers.TryGetValue(packet.ConnectionId, out var vp))
-            vp = CreateSpeaker(packet.ConnectionId, ResolveController(packet.ConnectionId));
-
-        HandleVoicePacket(vp, packet.Data, packet.Offset, packet.Length);
-    }
-
-    private MemoryStream decompressStream = new MemoryStream(1024 * 32);
-
-    private void HandleVoicePacket(VoicePlayer vp, byte[] compressed, int offset, int length)
-    {
-        if (length <= 0) return;
-
-        // DecompressVoice consumes the whole array it is handed, so a framed payload (or a shared
-        // receive buffer) has to be lifted into an exactly sized one first.
-        if (offset != 0 || length != compressed.Length)
-        {
-            var exact = new byte[length];
-            Buffer.BlockCopy(compressed, offset, exact, 0, length);
-            compressed = exact;
-        }
-
-        // Reset stream without reallocating
-        decompressStream.Position = 0;
-        decompressStream.SetLength(0);
-
-        int written;
-
-        try
-        {
-            written = SteamUser.DecompressVoice(compressed, decompressStream);
-        }
-        catch (Exception e)
-        {
-            lastError = e.Message;
-            return;
-        }
-
-        lastDecompressedSize = written;
-
-        if (written <= 0)
-            return;
-
-        vp.packetsReceived++;
-
-        // IMPORTANT: do NOT call ToArray()
-        vp.stream.Enqueue(decompressStream.GetBuffer(), written);
-    }
-
-    #endregion
-
-    #region Speakers
-
-    private VoicePlayer CreateSpeaker(int connectionId, PlayerController controller)
-    {
-        var vp = new VoicePlayer
-        {
-            connectionId = connectionId,
-            stream = new FmodVoiceStream("Voice_" + connectionId, sampleRate),
-            controller = controller
-        };
-
-        speakers[connectionId] = vp;
-        return vp;
-    }
-
-    private static PlayerController LocalController()
-        => GameInstance.InstanceExists ? GameInstance.Instance.GetFirstLocalPlayerController() : null;
-
-    /// <summary>
-    /// Hawk connection id to the player it owns. Goes through the replicated controllers rather than
-    /// the manager's connection list, which only holds the full roster on the host. Returns null
-    /// rather than throwing: a frame can easily arrive before the player object exists.
-    /// </summary>
-    private static PlayerController ResolveController(int connectionId)
-    {
-        try
-        {
-            if (!GameInstance.InstanceExists || connectionId < 0)
-                return null;
-
-            return GameInstance.Instance.GetPlayerControllers()
-                .FirstOrDefault(c => c != null && c.networkObject?.GetOwner()?.Id == connectionId);
-        }
-        catch (Exception e)
-        {
-            Plugin.LogSource.LogWarning($"[VoiceChat] could not resolve controller for connection {connectionId}: {e.Message}");
-            return null;
-        }
-    }
-
-    #endregion
-
-    #region Utility
-
-    private void UpdateStreams()
-    {
-        var settings = VoiceChatSettings.ForStream();
-
-        foreach (var vp in speakers.Values)
-        {
-            // Keep retrying: the player object often shows up after the first frame does.
-            if (vp.controller == null)
-                vp.controller = vp.isLocal ? LocalController() : ResolveController(vp.connectionId);
-
-            var body = vp.controller == null
-                ? null
-                : vp.controller.GetPlayerCharacter()?.GetPlayerBody();
-
-            if (body != null)
-            {
-                vp.position = body.transform.position;
-                vp.hasPosition = true;
-            }
-
-            // A speaker we cannot place would otherwise sit at the world origin, where 3D falloff
-            // makes them silent for no visible reason. Park them on the listener until we can.
-            vp.stream.UpdateSpatial(vp.hasPosition ? vp.position : FmodVoiceStream.ListenerPosition(), settings);
-        }
-    }
-
-    public void RemoveSpeaker(int connectionId)
-    {
-        if (!speakers.TryGetValue(connectionId, out var vp))
-            return;
-
-        vp.stream.Dispose();
-        speakers.Remove(connectionId);
-    }
-
-    public void ToggleMute() => isMuted = !isMuted;
-
-    void OnDestroy()
-    {
-        running = false;
-        SteamUser.VoiceRecord = false;
-
-        VoiceTransport.PacketReceived -= OnVoicePacket;
-
-        foreach (var vp in speakers.Values)
-            vp.stream.Dispose();
-
-        speakers.Clear();
-
-        if (Instance == this) Instance = null;
+        var db = 20f * Mathf.Log10(rms);
+        return Mathf.Clamp01((db + 60f) / 60f);
     }
 
     #endregion
 
     #region Debug
 
-    private int packetsCaptured;
-    private int lastCapturedSize;
-    private int lastDecompressedSize;
-    private string lastError = "";
-
     private void OnGUI()
     {
-        if (isMuted)
+        // The overlay variant is a UI element built in VoiceChatMod, not drawn from here.
+        if (isMuted && VoiceChatSettings.MutedIndicator == MutedIndicatorMode.InGame)
         {
             GUI.contentColor = Color.red;
             GUI.Label(new Rect(10, 10, 100, 20), "Muted");
@@ -427,13 +383,11 @@ public class VoiceChatManager : MonoBehaviour
 
     private void DrawDebugWindow()
     {
-        GUILayout.BeginArea(new Rect(10, 40, 480, 640), "Voice Chat Debug", GUI.skin.window);
+        GUILayout.BeginArea(new Rect(10, 40, 520, 700), "Voice Chat Debug", GUI.skin.window);
         GUILayout.Space(16);
 
         GUILayout.Label($"Enabled: {VoiceChatSettings.Enabled}    Mode: {VoiceChatSettings.Mode}    Muted: {isMuted}");
-        GUILayout.Label($"Hear Yourself: {VoiceChatSettings.HearYourself}");
-        GUILayout.Label($"Sample Rate: {sampleRate} Hz    Latency: {VoiceChatSettings.Latency}");
-        GUILayout.Label($"Steam voice ready: {steamVoiceAvailable}    SteamClient valid: {SteamClient.IsValid}");
+        GUILayout.Label($"Hear Yourself: {VoiceChatSettings.HearYourself}    Latency: {VoiceChatSettings.Latency}");
 
         GUILayout.Space(8);
         GUILayout.Label("--- Transport ---");
@@ -445,8 +399,33 @@ public class VoiceChatManager : MonoBehaviour
 
         GUILayout.Space(8);
         GUILayout.Label("--- Microphone ---");
-        GUILayout.Label($"VoiceRecord: {SteamUser.VoiceRecord}    HasVoiceData: {SteamUser.HasVoiceData}");
-        GUILayout.Label($"Captured: {packetsCaptured}    Last: {lastCapturedSize} B compressed / {lastDecompressedSize} B pcm");
+
+        var capture = pipeline?.Capture;
+        var preprocessor = pipeline?.Preprocessor;
+
+        if (capture == null || preprocessor == null)
+        {
+            GUILayout.Label("pipeline is not running");
+        }
+        else
+        {
+            GUILayout.Label(capture.IsRunning
+                ? $"\"{capture.DeviceName}\" at {capture.DeviceSampleRate} Hz, {capture.DeviceChannels} ch"
+                  + $" -> {VoiceFormat.SampleRate} Hz mono"
+                : "not recording");
+
+            GUILayout.Label($"Gate: {(preprocessor.IsOpen ? "open" : "shut")}    Sending: {pipeline.IsSending}"
+                          + $"    Overruns: {capture.Overruns}");
+
+            GUILayout.Label($"Level: {Db(preprocessor.Level)}    Noise floor: {Db(preprocessor.NoiseFloor)}"
+                          + $"    Auto gain: x{preprocessor.AutoGain:0.00}");
+
+            GUILayout.Label($"Codec: {pipeline.CodecName} at {VoiceChatSettings.Bitrate} kbps");
+            GUILayout.Label($"Encoded: {pipeline.FramesEncoded}    Sent: {pipeline.FramesSent}"
+                          + $"    Dropped: {pipeline.FramesDropped}    Last: {pipeline.LastFrameBytes} B");
+            GUILayout.Label($"Outgoing: {pipeline.BytesSent / 1024f:0.0} KiB total"
+                          + $"    Unrouted: {pipeline.FramesUnrouted}");
+        }
 
         GUILayout.Space(8);
         GUILayout.Label($"--- Streams ({speakers.Count}) ---");
@@ -462,10 +441,22 @@ public class VoiceChatManager : MonoBehaviour
             foreach (var vp in speakers.Values)
             {
                 var stream = vp.stream;
-                var label = vp.isLocal ? "you (loopback)" : $"conn {vp.connectionId}";
+                var receiver = pipeline?.GetReceiver(vp.speakerId);
+
+                var label = vp.isLocal
+                    ? "you (loopback)"
+                    : vp.speakerId == VoiceIdentity.Unknown
+                        ? "unplaced speaker"
+                        : $"speaker {vp.speakerId}";
 
                 GUILayout.Space(4);
                 GUILayout.Label($"[{label}] packets: {vp.packetsReceived}");
+
+                if (receiver != null)
+                    GUILayout.Label($"  decoded: {receiver.FramesDecoded}   concealed: {receiver.FramesConcealed}"
+                                  + $"   recovered: {receiver.FramesRecovered}   late: {receiver.FramesLate}"
+                                  + $"   rejected: {receiver.FramesRejected}");
+
                 GUILayout.Label($"  valid: {stream.IsValid}   playing: {stream.IsPlaying}   priming: {stream.IsPriming}");
                 GUILayout.Label($"  buffered: {stream.BufferedSeconds * 1000f:0} ms   underruns: {stream.Underruns}");
                 GUILayout.Label($"  queued: {stream.BytesQueued} B   dropped: {stream.BytesDropped} B");
@@ -473,16 +464,21 @@ public class VoiceChatManager : MonoBehaviour
             }
         }
 
-        if (!string.IsNullOrEmpty(lastError))
+        var error = pipeline?.LastError;
+
+        if (!string.IsNullOrEmpty(error))
         {
             GUILayout.Space(8);
             GUI.contentColor = Color.red;
-            GUILayout.Label($"Last error: {lastError}");
+            GUILayout.Label($"Last error: {error}");
             GUI.contentColor = Color.white;
         }
 
         GUILayout.EndArea();
     }
+
+    private static string Db(float rms)
+        => rms <= 0.00001f ? "silent" : $"{20f * Mathf.Log10(rms):0.0} dB";
 
     #endregion
 }

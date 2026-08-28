@@ -23,6 +23,14 @@ public class CustomChatCommand
     public List<CustomCommandParam> Params { get; set; } = new();
 
     /// <summary>
+    /// Whether the command is registered at all. A disabled one keeps its definition but does not
+    /// resolve, tab-complete or fire its macros — which is what switching off the thing that owns
+    /// it needs, without deleting the user's work. Defaults to true, so every command written
+    /// before this existed loads enabled.
+    /// </summary>
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>
     /// When true (server commands only), the <see cref="Whitelist"/> is enforced: host + whitelisted
     /// players only. When false, the whitelist is ignored and every player may run the command.
     /// </summary>
@@ -33,5 +41,5 @@ public class CustomChatCommand
     /// and <see cref="WhitelistEnabled"/> is true. Empty means host-only (matching the built-in default).
     /// The host is always allowed regardless. Ignored entirely for client-scoped commands.
     /// </summary>
-    public List<SteamProfile> Whitelist { get; set; } = new();
+    public List<PlayerProfile> Whitelist { get; set; } = new();
 }

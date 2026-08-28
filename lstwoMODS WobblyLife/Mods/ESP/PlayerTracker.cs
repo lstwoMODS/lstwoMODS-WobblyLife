@@ -115,7 +115,7 @@ public class PlayerTracker : GameObjectTracker
 
             if (drawLines)
             {
-                if (FirstPerson.firstPersonEnabled.Value || FirstPerson.firstPersonEnabledPlayer1.Value)
+                if (FirstPerson.FirstPersonEnabled.Value || FirstPerson.FirstPersonEnabledPlayer1.Value)
                 {
                     DrawLine(new Vector2(0.5f, 0.5f), worldPos, Color.HSVToRGB(Mathf.Clamp01(Vector3.Distance(worldPos, mainCamera.transform.position) / 300f), 1f, 1f));
                 }

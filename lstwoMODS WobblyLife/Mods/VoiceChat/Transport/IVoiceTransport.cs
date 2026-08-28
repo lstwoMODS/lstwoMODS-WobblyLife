@@ -4,8 +4,8 @@ namespace WLProxChat.Transport
 {
     /// <summary>
     /// Moves compressed voice frames between players. Everything above this interface deals only in
-    /// Hawk connection ids, so the voice chat itself never knows whether it is running over Steam
-    /// P2P, a direct UDP link, or nothing at all.
+    /// <see cref="VoiceIdentity"/> speaker ids, so the voice chat itself never knows whether it is
+    /// running over Steam P2P, a direct UDP link, or nothing at all.
     /// </summary>
     public interface IVoiceTransport : IDisposable
     {
@@ -31,11 +31,11 @@ namespace WLProxChat.Transport
         void Tick();
     }
 
-    /// <summary>One received frame, tagged with the Hawk connection it came from.</summary>
+    /// <summary>One received frame, tagged with the player it came from.</summary>
     public readonly struct VoicePacket
     {
-        /// <summary>Hawk connection id of the sender, or -1 when it could not be resolved.</summary>
-        public readonly int ConnectionId;
+        /// <summary><see cref="VoiceIdentity"/> id of the speaker, or <see cref="VoiceIdentity.Unknown"/>.</summary>
+        public readonly uint SpeakerId;
 
         /// <summary>Compressed frame. Owned by the transport and reused, so copy it if you keep it.</summary>
         public readonly byte[] Data;
@@ -43,9 +43,9 @@ namespace WLProxChat.Transport
         public readonly int Offset;
         public readonly int Length;
 
-        public VoicePacket(int connectionId, byte[] data, int offset, int length)
+        public VoicePacket(uint speakerId, byte[] data, int offset, int length)
         {
-            ConnectionId = connectionId;
+            SpeakerId = speakerId;
             Data = data;
             Offset = offset;
             Length = length;

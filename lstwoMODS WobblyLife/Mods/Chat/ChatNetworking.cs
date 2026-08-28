@@ -79,7 +79,21 @@ public static class ChatNetworking
         => ChatNetworkManager.Instance?.SendBroadcast(msg);
 
     public static void Whisper(HawkConnection target, ChatMessage msg)
-        => ChatNetworkManager.Instance?.SendWhisper(target, msg);
+        => ChatNetworkManager.Instance?.SendTo(target, msg);
+
+    /// <summary>Build a message from a connection we hold ourselves, applying the same clamping and
+    /// control-character stripping the wire path applies, so a locally delivered message renders
+    /// exactly like the same message would after a round trip.</summary>
+    public static ChatMessage BuildInbound(ChatMessageKind kind, HawkConnection sender, string recipientName, string text)
+        => ChatNetworkManager.BuildInbound(kind, KeyOf(sender), sender?.Name, recipientName, text,
+                                           packedNameColor: 0u,
+                                           // We hold the connection, so its controller is authoritative here.
+                                           senderNetworkId: NetworkIdOf(FindControllerByConnection(sender)),
+                                           senderAddress: AddressOf(sender));
+
+    /// <summary>Clamp and strip a message body the same way the receiving side will, so a local echo
+    /// cannot render differently from the copy everyone else gets.</summary>
+    public static string SanitizeText(string text) => ChatNetworkManager.SanitizeText(text);
 
     public static void SendServerCommand(string commandLine)
         => ChatNetworkManager.Instance?.SendCommandToHost(commandLine);
@@ -117,20 +131,66 @@ public static class ChatNetworking
             ? GameInstance.Instance.GetPlayerControllers().Where(c => c != null)
             : Enumerable.Empty<PlayerController>();
 
-    public static HawkConnection FindBySteamId(ulong steamId)
+    /// <summary>The connection behind an account, or null when nobody in the game matches.</summary>
+    public static HawkConnection FindByKey(PlayerKey key)
     {
+        if (!key.IsValid) return null;
+
         foreach (var pc in Controllers())
-            if (pc.networkObject?.GetOwner() is SteamConnection sc && sc.steamId.Value == steamId)
-                return sc;
+        {
+            var owner = pc.networkObject?.GetOwner();
+            if (owner != null && PlayerIdentity.Of(owner) == key) return owner;
+        }
         return null;
     }
 
     public static HawkConnection FindByName(string name)
+        => FindControllerByName(name)?.networkObject?.GetOwner();
+
+    /// <summary>
+    /// The player controller for a display name, or null when nobody in the game matches. Names are
+    /// what <see cref="GetPlayerName"/> replicates, so this resolves on every client, unlike anything
+    /// that goes through a connection.
+    /// </summary>
+    public static PlayerController FindControllerByName(string name)
     {
         if (string.IsNullOrEmpty(name)) return null;
-        var pc = Controllers().FirstOrDefault(c => string.Equals(c.GetPlayerName(), name, StringComparison.OrdinalIgnoreCase));
-        return pc?.networkObject?.GetOwner();
+        return Controllers().FirstOrDefault(c => string.Equals(c.GetPlayerName(), name, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>The player controller behind a Hawk network id, or null when no such object exists here.
+    /// Ids are server-assigned and packets route by them, so one id means one controller everywhere.</summary>
+    public static PlayerController FindControllerById(uint networkId)
+        => networkId == 0u ? null : HawkNetworkManager.DefaultInstance?.FindNetworkBehaviour<PlayerController>(networkId);
+
+    /// <summary>The controller owned by a connection, or null. Host only, since ownership is only
+    /// populated server-side; for split screen this is the first of that connection's players.</summary>
+    public static PlayerController FindControllerByConnection(HawkConnection conn)
+        => conn == null ? null : Controllers().FirstOrDefault(c => c.networkObject?.GetOwner() == conn);
+
+    /// <summary>
+    /// The player controller that sent a chat message, or null when they are not in the game (they may
+    /// have left, or the line may be locally produced rather than sent by a player).
+    ///
+    /// Prefers <see cref="ChatMessage.SenderNetworkId"/>, which is exact and unaffected by two players
+    /// picking the same name, and falls back to the name for messages that carry no id (an older build
+    /// on the other end, or a locally produced line). The other identity fields cannot do this job:
+    /// <see cref="ChatMessage.SenderKey"/> is empty outside an account-backed transport, and
+    /// <see cref="ChatMessage.SenderAddress"/> never travels the wire, so it is empty for every message
+    /// the host relayed.
+    /// </summary>
+    public static PlayerController FindSender(ChatMessage msg)
+    {
+        if (msg == null) return null;
+        return FindControllerById(msg.SenderNetworkId) ?? FindControllerByName(msg.SenderName);
+    }
+
+    /// <summary>Network id of a controller, or 0 when it has no network object yet.</summary>
+    public static uint NetworkIdOf(PlayerController pc) => pc?.networkObject?.GetNetworkID() ?? 0u;
+
+    /// <summary>Our own controller's network id, stamped onto everything we send.</summary>
+    public static uint LocalNetworkId()
+        => GameInstance.InstanceExists ? NetworkIdOf(GameInstance.Instance.GetFirstLocalPlayerController()) : 0u;
 
     /// <summary>Every player's owning connection, deduplicated (split-screen players share one).</summary>
     public static IEnumerable<HawkConnection> AllConnections()
@@ -151,10 +211,9 @@ public static class ChatNetworking
     public static HawkConnection LocalConnection()
         => HawkNetworkManager.DefaultInstance?.GetMe();
 
-    /// <summary>The Steam ID behind a connection, or 0 when it is not a Steam connection
-    /// (direct/LAN transport, or no connection at all).</summary>
-    public static ulong SteamIdOf(HawkConnection conn)
-        => conn is SteamConnection sc ? sc.steamId.Value : 0UL;
+    /// <summary>The account behind a connection, or <see cref="PlayerKey.None"/> when it carries
+    /// none (direct/LAN transport, or no connection at all).</summary>
+    public static PlayerKey KeyOf(HawkConnection conn) => PlayerIdentity.Of(conn);
 
     /// <summary>The remote endpoint ("ip:port") behind a connection on the direct/LAN transport,
     /// or null under Steam (where peers are addressed by Steam ID, not by address).</summary>

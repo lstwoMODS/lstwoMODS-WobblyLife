@@ -10,6 +10,9 @@ internal class NameEasterEgg : MonoBehaviour
     public static ulong[] rainbowSteamIDs = [76561199083118091, 76561198824442161];
     public static ulong[] goldSteamIDs = [76561199109862806, 76561199628305098];
 
+    private static readonly PlayerKey[] RainbowKeys = rainbowSteamIDs.Select(PlayerKey.Steam).ToArray();
+    private static readonly PlayerKey[] GoldKeys = goldSteamIDs.Select(PlayerKey.Steam).ToArray();
+
     private static readonly FieldInfo textMeshProField = typeof(CharacterNameTag).GetField("textMeshPro", Plugin.Flags);
 
     public PlayerController playerParent;
@@ -26,13 +29,15 @@ internal class NameEasterEgg : MonoBehaviour
     {
         try
         {
-            // Owner is only a SteamConnection under the Steam transport; under a LAN transport it
-            // is a LiteConnection, so short-circuit instead of throwing (per-frame, per-nametag).
-            if (playerParent.networkObject.GetOwner() is not SteamConnection steamConnection)
+            // These are Steam accounts, so nothing matches on a LAN transport or on the crossplay
+            // build (where peers are EOS accounts). Short-circuit instead of throwing: this runs
+            // per frame, per nametag.
+            var key = PlayerIdentity.Of(playerParent.networkObject.GetOwner());
+            if (!key.IsValid)
                 return;
             var textMeshPro = (TextMeshPro)textMeshProField.GetValue(GetComponent<CharacterNameTag>());
 
-            if (rainbowSteamIDs.Contains(steamConnection.steamId))
+            if (RainbowKeys.Contains(key))
             {
                 var textColor = textMeshPro.color;
 
@@ -44,7 +49,7 @@ internal class NameEasterEgg : MonoBehaviour
 
                 textMeshPro.color = Color.HSVToRGB(hue, saturation, brightness);
             }
-            else if (goldSteamIDs.Contains(steamConnection.steamId))
+            else if (GoldKeys.Contains(key))
             {
                 var shimmer = 1f - (goldShimmerAmount + goldShimmerOffset) + Mathf.Sin(Time.time * 2f) * goldShimmerAmount;
 

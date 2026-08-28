@@ -24,17 +24,32 @@ public enum ChatMessageKind : byte
 public class ChatMessage
 {
     public ChatMessageKind Kind;
-    public ulong SenderSteamId;
+
+    /// <summary>
+    /// The sender's account, or <see cref="PlayerKey.None"/> when they have none (a LAN peer, an
+    /// offline game, or a locally produced line). A Steam id on the Steam build and an EOS product
+    /// user id on the crossplay build, which is why this is a key rather than a bare number.
+    /// </summary>
+    public PlayerKey SenderKey;
     public string SenderName = "";
     public string RecipientName = "";
     public string Text = "";
     public DateTime ReceivedAt = DateTime.UtcNow;
 
     /// <summary>
+    /// Network id of the sender's <c>PlayerController</c>, or 0 when unknown. Hawk assigns these
+    /// server-side and routes packets by them, so the same id means the same controller on every
+    /// machine: it identifies a speaker exactly, where <see cref="SenderName"/> only identifies them by
+    /// a string they chose and two players may share. The host verifies a client's claimed id against
+    /// that controller's owner before passing it on, so it cannot be used to impersonate someone.
+    /// </summary>
+    public uint SenderNetworkId;
+
+    /// <summary>
     /// The sender's remote endpoint ("ip:port") when we hold their direct/LAN connection ourselves.
     /// Never travels over the wire (a peer's address is not ours to hand to the rest of the lobby),
     /// so it is empty for messages the host relayed on someone else's behalf. Steam-transport
-    /// messages identify by <see cref="SenderSteamId"/> instead and leave this empty.
+    /// messages identify by <see cref="SenderKey"/> instead and leave this empty.
     /// </summary>
     public string SenderAddress = "";
 
@@ -60,11 +75,17 @@ public class ChatMessage
     public string RenderBody() => $": {Esc(Text)}";
 
     /// <summary>How the sender is identified on the transport we received them over, for logging:
-    /// a Steam ID under the Steam transport, an "ip:port" endpoint on a direct/LAN connection.</summary>
-    public string SenderIdentity() =>
-        !string.IsNullOrEmpty(SenderAddress) ? $"IP: {SenderAddress}"
-        : SenderSteamId != 0UL              ? $"Steam ID: {SenderSteamId}"
-        :                                     "unknown sender";
+    /// a Steam ID under the Steam transport, an "ip:port" endpoint on a direct/LAN connection, plus the
+    /// controller id when we have one (the only part that survives a host relay on every transport).</summary>
+    public string SenderIdentity()
+    {
+        var who =
+            !string.IsNullOrEmpty(SenderAddress) ? $"IP: {SenderAddress}"
+            : SenderKey.IsValid                 ? $"Account: {SenderKey}"
+            :                                     "unknown sender";
+
+        return SenderNetworkId != 0u ? $"{who}, controller {SenderNetworkId}" : who;
+    }
 
     public Color Color => Kind switch
     {

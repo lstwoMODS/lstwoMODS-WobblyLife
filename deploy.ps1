@@ -44,7 +44,7 @@ foreach ($dir in @($GamePluginsPath, $OverlayDir, $OverlayPluginsDir)) {
 Write-Host ""
 Write-Host "Deploying plugin DLLs to $GamePluginsPath..." -ForegroundColor Cyan
 
-$libFiles = @("lstwoMODS_Core.dll", "lstwoMODS.ImGui.Shared.dll", "DynamicExpresso.Core.dll", "CustomItems.dll")
+$libFiles = @("lstwoMODS_Core.dll", "lstwoMODS.ImGui.Shared.dll", "DynamicExpresso.Core.dll", "CustomItems.dll", "Concentus.dll")
 foreach ($file in $libFiles) {
     $src = "$LibDir\$file"
     if (-not (Test-Path $src)) { Write-Host "ERROR: $src not found." -ForegroundColor Red; exit 1 }

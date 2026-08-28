@@ -33,7 +33,7 @@ namespace WLProxChat.Transport
         /// <summary>magic + type + token.</summary>
         private const int ClientHeader = 1 + 1 + 8;
 
-        /// <summary>magic + type + sender connection id.</summary>
+        /// <summary>magic + type + speaker id.</summary>
         private const int RelayHeader = 1 + 1 + 4;
 
         private const int ReceiveBufferSize = 2048;
@@ -50,6 +50,15 @@ namespace WLProxChat.Transport
         // Host side. Both are written from the receive thread and read from the game thread.
         private readonly ConcurrentDictionary<ulong, int> tokenToConnection = new();
         private readonly ConcurrentDictionary<int, EndPoint> clientEndpoints = new();
+
+        /// <summary>
+        /// Host: connection id to the speaker id we stamp on that player's relayed frames. Kept as a
+        /// snapshot because resolving one means touching the game's object graph, and the relay runs
+        /// on the receive thread. <see cref="Tick"/> refreshes it from the game thread instead.
+        /// </summary>
+        private readonly ConcurrentDictionary<int, uint> connectionToSpeaker = new();
+
+        private float nextSpeakerRefresh;
 
         // Client side.
         private EndPoint hostEndpoint;
@@ -68,9 +77,6 @@ namespace WLProxChat.Transport
 
         /// <summary>Port the host bound, to be advertised to clients. 0 until <see cref="StartHost"/> succeeds.</summary>
         public int BoundPort { get; private set; }
-
-        /// <summary>Our own Hawk connection id, stamped into relayed frames so clients know who spoke.</summary>
-        public int LocalConnectionId { get; set; } = -1;
 
         public string Name => IsHost ? "Direct UDP (host)" : "Direct UDP (client)";
 
@@ -144,6 +150,7 @@ namespace WLProxChat.Transport
             }
 
             clientEndpoints.TryRemove(connectionId, out _);
+            connectionToSpeaker.TryRemove(connectionId, out _);
         }
 
         private bool Bind(int port)
@@ -188,8 +195,9 @@ namespace WLProxChat.Transport
         {
             if (socket == null || length <= 0) return;
 
+            // Game thread, so our own id can be read straight off the player object here.
             if (IsHost)
-                RelayToClients(LocalConnectionId, data, 0, length, null);
+                RelayToClients(VoiceIdentity.Local(), data, 0, length, null);
             else
                 SendToHost(TypeVoice, data, length);
         }
@@ -215,7 +223,7 @@ namespace WLProxChat.Transport
         /// Host: fan a frame out to every known client except <paramref name="skip"/> (the sender,
         /// who already heard themselves say it).
         /// </summary>
-        private void RelayToClients(int senderConnectionId, byte[] data, int offset, int length, EndPoint skip)
+        private void RelayToClients(uint speakerId, byte[] data, int offset, int length, EndPoint skip)
         {
             var total = RelayHeader + length;
 
@@ -224,7 +232,7 @@ namespace WLProxChat.Transport
 
             buffer[0] = Magic;
             buffer[1] = TypeRelay;
-            WriteInt32(buffer, 2, senderConnectionId);
+            WriteUInt32(buffer, 2, speakerId);
 
             if (length > 0)
                 Buffer.BlockCopy(data, offset, buffer, RelayHeader, length);
@@ -325,9 +333,16 @@ namespace WLProxChat.Transport
             var payload = new byte[payloadLength];
             Buffer.BlockCopy(buffer, ClientHeader, payload, 0, payloadLength);
 
-            inbox.Enqueue(new Received(connectionId, payload));
+            // The speaker id is the host's own answer, never the client's claim, so nobody can put
+            // their voice at another player's position. Unresolved means they have not spawned here
+            // yet, which is transient and better carried unplaced than dropped.
+            var speakerId = connectionToSpeaker.TryGetValue(connectionId, out var resolved)
+                ? resolved
+                : VoiceIdentity.Unknown;
 
-            RelayToClients(connectionId, payload, 0, payloadLength, from);
+            inbox.Enqueue(new Received(speakerId, payload));
+
+            RelayToClients(speakerId, payload, 0, payloadLength, from);
             packetsRelayed++;
         }
 
@@ -343,14 +358,14 @@ namespace WLProxChat.Transport
             var payload = new byte[payloadLength];
             Buffer.BlockCopy(buffer, RelayHeader, payload, 0, payloadLength);
 
-            inbox.Enqueue(new Received(ReadInt32(buffer, 2), payload));
+            inbox.Enqueue(new Received(ReadUInt32(buffer, 2), payload));
         }
 
         public bool TryReceive(out VoicePacket packet)
         {
             if (inbox.TryDequeue(out var received))
             {
-                packet = new VoicePacket(received.ConnectionId, received.Data, 0, received.Data.Length);
+                packet = new VoicePacket(received.SpeakerId, received.Data, 0, received.Data.Length);
                 return true;
             }
 
@@ -362,16 +377,46 @@ namespace WLProxChat.Transport
 
         public void Tick()
         {
-            if (IsHost || socket == null || hostEndpoint == null || token == 0)
+            if (socket == null) return;
+
+            var now = UnityEngine.Time.realtimeSinceStartup;
+
+            if (IsHost)
+            {
+                RefreshSpeakerIds(now);
                 return;
+            }
+
+            if (hostEndpoint == null || token == 0) return;
 
             // Register with the relay before ever speaking, so other players' voices can reach us
             // while we are silent, and so the NAT mapping we punched stays open.
-            var now = UnityEngine.Time.realtimeSinceStartup;
             if (now < nextHello) return;
 
             nextHello = now + HelloIntervalSeconds;
             SendToHost(TypeHello, null, 0);
+        }
+
+        /// <summary>
+        /// Host, game thread: re-answer "which player is each connection" for the relay to stamp.
+        /// On a timer because it walks the player list, and players appear and leave far more slowly
+        /// than voice frames arrive.
+        /// </summary>
+        private void RefreshSpeakerIds(float now)
+        {
+            if (now < nextSpeakerRefresh) return;
+            nextSpeakerRefresh = now + 1f;
+
+            // Driven off the issued tokens rather than the known endpoints: a token is minted the
+            // moment a player is accepted, so the answer is ready before their first frame instead
+            // of a second after it.
+            foreach (var connectionId in tokenToConnection.Values)
+            {
+                var speakerId = VoiceIdentity.ForConnection(connectionId);
+
+                if (speakerId != VoiceIdentity.Unknown)
+                    connectionToSpeaker[connectionId] = speakerId;
+            }
         }
 
         public void Dispose()
@@ -386,13 +431,14 @@ namespace WLProxChat.Transport
 
             tokenToConnection.Clear();
             clientEndpoints.Clear();
+            connectionToSpeaker.Clear();
 
             while (inbox.TryDequeue(out _)) { }
         }
 
         #region Wire helpers
 
-        private static void WriteInt32(byte[] b, int o, int v)
+        private static void WriteUInt32(byte[] b, int o, uint v)
         {
             b[o] = (byte)v;
             b[o + 1] = (byte)(v >> 8);
@@ -400,8 +446,8 @@ namespace WLProxChat.Transport
             b[o + 3] = (byte)(v >> 24);
         }
 
-        private static int ReadInt32(byte[] b, int o)
-            => b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24);
+        private static uint ReadUInt32(byte[] b, int o)
+            => (uint)(b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24));
 
         private static void WriteUInt64(byte[] b, int o, ulong v)
         {
@@ -421,12 +467,12 @@ namespace WLProxChat.Transport
 
         private readonly struct Received
         {
-            public readonly int ConnectionId;
+            public readonly uint SpeakerId;
             public readonly byte[] Data;
 
-            public Received(int connectionId, byte[] data)
+            public Received(uint speakerId, byte[] data)
             {
-                ConnectionId = connectionId;
+                SpeakerId = speakerId;
                 Data = data;
             }
         }

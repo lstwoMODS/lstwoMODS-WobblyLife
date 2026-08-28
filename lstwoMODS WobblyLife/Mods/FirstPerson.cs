@@ -8,37 +8,34 @@ using UnityEngine;
 
 namespace lstwoMODS_WobblyLife.Mods;
 
-/// <summary>
-/// Drives the gameplay camera from the character's head bone.
-///
-/// Patch shape (matters for coexisting with other Harmony patches):
-/// the whole first person camera is computed in a low priority <b>prefix</b> that returns
-/// <c>false</c>, so vanilla <c>UpdateCamera</c> never runs on the same frame, so the camera is
-/// solved exactly once. Low priority means every other mod's prefix gets to run (and to veto
-/// the update) before ours does, and because we own no postfix, other mods' postfixes still
-/// see and can adjust the final transform. If we cannot produce a first person pose (no head
-/// bone yet, no camera, not seated in anything) the prefix returns <c>true</c> and vanilla
-/// takes over for that frame instead of leaving the camera frozen.
-///
-/// Everything we mutate on game objects (near clip plane, character cutoff flag,
-/// <c>focusTransform</c>, the camera's parent) is captured on entry and handed back on exit,
-/// so toggling first person off (or switching to a camera focus we don't patch at all)
-/// leaves the game exactly as we found it.
-/// </summary>
 public class FirstPerson : BaseMod
 {
+    public const string HarmonyId = "lstwo.NotAzza.FirstPerson";
+
     public const float DefaultNearClip = 0.05f;
     public const float DefaultMinNearClip = 0.02f;
+    public const float DefaultHeightOffsetHeadUp = 0.15f;
+    public const float DefaultHeightOffsetWorldUp = 0.15f;
+    public const float DefaultVehicleHeightOffset = 0.7f;
 
-    /// <summary>Near plane gained per degree of pitch when the character cutoff is off.</summary>
     private const float NearClipPitchRamp = 0.00175f;
 
     private const float LookSpeed = 10f;
     private const float PitchClamp = 89f;
 
-    [ModSetting(Label = "Enable First Person")] public static Ref<bool> firstPersonEnabled = new();
-    [ModSetting(Label = "Enable First Person for Player 1 only")] public static Ref<bool> firstPersonEnabledPlayer1 = new();
-    [ModSetting(Label = "Enable Character Cutoff when in First Person")] public static Ref<bool> enableCutoff = new(true);
+    [ModSetting(Label = "Enable First Person", Order = 10)] public static Ref<bool> FirstPersonEnabled = new();
+    [ModSetting(Label = "Enable First Person for Player 1 only", Order = 20)] public static Ref<bool> FirstPersonEnabledPlayer1 = new();
+    [ModSetting(Label = "Enable Character Cutoff when in First Person", Order = 30)] public static Ref<bool> EnableCutoff = new();
+
+    [ModSetting(
+        Label = "Hide Hat when in First Person",
+        Description = "Hides whatever is worn in the hat slot while the camera is inside the head, "
+                    + "since a lot of hats sit low enough to fill the screen. Purely local (nobody "
+                    + "else sees it change) and it does nothing while an outfit is worn, because "
+                    + "outfits draw their own hat and the hat slot is already hidden by the game.",
+        Order = 40
+    )]
+    public static Ref<bool> HideHat = new();
 
     [ModSetting(
         Label = "Near Clip Plane",
@@ -46,17 +43,42 @@ public class FirstPerson : BaseMod
         SeparatorText = "Near Clip",
         Description = "Camera near plane while in first person. Raise it if the inside of the head "
                     + "pokes into view, lower it to see more of what is right in front of you "
-                    + "(too low costs depth buffer precision and causes z-fighting in the distance).")]
-    public static Ref<float> nearClip = new(DefaultNearClip);
+                    + "(too low costs depth buffer precision and causes z-fighting in the distance).",
+        Order = 50
+    )]
+    public static Ref<float> NearClip = new(DefaultNearClip);
 
     [ModSetting(
         Label = "Min Near Clip Plane",
         Min = 0.001f, Max = 0.3f, Format = "%.3f",
         Description = "Only used while the character cutoff is off: the near plane ramps from this "
                     + "value up to Near Clip Plane as you look further up or down, so the body clips "
-                    + "away instead of filling the screen. Clamped to at most Near Clip Plane.")]
-    public static Ref<float> minNearClip = new(DefaultMinNearClip);
+                    + "away instead of filling the screen. Clamped to at most Near Clip Plane.",
+        Order = 60
+    )]
+    public static Ref<float> MinNearClip = new(DefaultMinNearClip);
 
+    [ModSetting(
+        Label = "Height Offset (Head Up)",
+        Min = 0f, Max = 1.5f,
+        Order = 70
+    )]
+    public static Ref<float> HeightOffsetHeadUp = new(DefaultHeightOffsetHeadUp);
+
+    [ModSetting(
+        Label = "Height Offset (World Up)",
+        Min = 0f, Max = 1.5f,
+        Order = 80
+    )]
+    public static Ref<float> HeightOffsetWorldUp = new(DefaultHeightOffsetWorldUp);
+
+    [ModSetting(
+        Label = "Vehicle Height Offset",
+        Min = 0f, Max = 2f,
+        Order = 90
+    )]
+    public static Ref<float> VehicleHeightOffset = new(DefaultVehicleHeightOffset);
+    
     /// <summary>Fast (compiled) access to the private CameraFocusPlayerCharacter.focusTransform field.</summary>
     private static readonly AccessTools.FieldRef<CameraFocusPlayerCharacter, Transform> FocusTransformRef =
         AccessTools.FieldRefAccess<CameraFocusPlayerCharacter, Transform>("focusTransform");
@@ -76,23 +98,16 @@ public class FirstPerson : BaseMod
     /// <summary>True when this camera should be driven in first person.</summary>
     public static bool IsFirstPersonCamera(GameplayCamera camera)
     {
-        if (firstPersonEnabled.Value)
+        if (FirstPersonEnabled.Value)
             return true;
 
-        return firstPersonEnabledPlayer1.Value && firstGameplayCamera == camera;
+        return FirstPersonEnabledPlayer1.Value && firstGameplayCamera == camera;
     }
 
     /// <summary>Null-safe lookup of the "Player/Wobbly/Hip/Chest/Head" bone.</summary>
     public static Transform FindHead(Transform root)
         => root == null ? null : root.Find("Player")?.Find("Wobbly")?.Find("Hip")?.Find("Chest")?.Find("Head");
 
-    /// <summary>
-    /// Nothing here runs while first person has never been used (<see cref="states"/> stays empty).
-    /// Once it has, this is the safety net that restores a camera we stopped receiving
-    /// <c>UpdateCamera</c> calls for: the focus was swapped for one we don't patch, the player
-    /// left the vehicle, the character despawned. In those cases the patches themselves never
-    /// get a chance to clean up.
-    /// </summary>
     public override void Update()
     {
         if (states.Count == 0)
@@ -112,8 +127,6 @@ public class FirstPerson : BaseMod
                 continue;
             }
 
-            // UpdateCamera runs in LateUpdate, so the freshest possible stamp is the previous
-            // frame when this runs in Update. Anything older means we are no longer driving it.
             if (state.Active && frame - state.LastFrame > 1)
                 state.Restore(camera);
         }
@@ -129,20 +142,32 @@ public class FirstPerson : BaseMod
 
     protected override void OnStaticInit()
     {
-        Harmony harmony = new("lstwo.NotAzza.FirstPerson");
+        Harmony harmony = new(HarmonyId);
         harmony.PatchAll(typeof(FirstPersonCameraPatch));
         harmony.PatchAll(typeof(FirstPersonVehicleCameraPatch));
+        
+        BindData(EnableCutoff, nameof(EnableCutoff));
+        BindData(HideHat, nameof(HideHat));
+        
+        BindData(NearClip, nameof(NearClip), DefaultNearClip);
+        BindData(MinNearClip, nameof(MinNearClip), DefaultMinNearClip);
+        
+        BindData(HeightOffsetHeadUp, nameof(HeightOffsetHeadUp), DefaultHeightOffsetHeadUp);
+        BindData(HeightOffsetWorldUp, nameof(HeightOffsetWorldUp), DefaultHeightOffsetWorldUp);
+        BindData(VehicleHeightOffset, nameof(VehicleHeightOffset), DefaultVehicleHeightOffset);
     }
+
+    private static float Wrap360(float angle) => Mathf.Repeat(angle, 360f);
 
     /// <summary>Near plane for the current settings at the given absolute pitch, in degrees.</summary>
     private static float NearClipFor(float pitchAbs)
     {
-        var max = Mathf.Max(nearClip.Value, 0.001f);
+        var max = Mathf.Max(NearClip.Value, 0.001f);
 
-        if (enableCutoff.Value)
+        if (EnableCutoff.Value)
             return max;
 
-        var min = Mathf.Clamp(minNearClip.Value, 0.001f, max);
+        var min = Mathf.Clamp(MinNearClip.Value, 0.001f, max);
         return Mathf.Clamp(NearClipPitchRamp * pitchAbs, min, max);
     }
 
@@ -179,18 +204,18 @@ public class FirstPerson : BaseMod
         state.Activate(camera, focus);
 
         var character = camera.GetPlayerController()?.GetPlayerCharacter();
+
+        state.ApplyHatVisibility(character);
+
         var ragdollController = character == null ? null : character.GetRagdollController();
 
         if (ragdollController == null || !ragdollController.IsActiveRagdoll())
         {
-            // Animated: the head bone already carries the look direction.
             cam.transform.SetPositionAndRotation(head.position + Vector3.up * .3f, head.rotation);
             ApplyNearClip(cam, 90f);
             return true;
         }
 
-        // Ragdolling: the head tumbles, so look angles are accumulated by hand and the vanilla
-        // focus is repointed at the head so third person picks up where we left off.
         if (!state.FocusTransformOverridden)
         {
             state.SavedFocusTransform = FocusTransformRef(focus);
@@ -201,15 +226,14 @@ public class FirstPerson : BaseMod
             FocusTransformRef(focus) = head;
 
         var look = state.CharacterLook;
-        look.y += camera.GetAxisDeltaX() * LookSpeed;
-        look.x -= camera.GetAxisDeltaY() * LookSpeed;
-        look.x = Mathf.Clamp(look.x, -PitchClamp, PitchClamp);
+        look.y = Wrap360(look.y + camera.GetAxisDeltaX() * LookSpeed);
+        look.x = Mathf.Clamp(look.x - camera.GetAxisDeltaY() * LookSpeed, -PitchClamp, PitchClamp);
         state.CharacterLook = look;
 
         focus.SetRotationAxis(look);
 
         cam.transform.SetPositionAndRotation(
-            head.position + head.up * .15f + Vector3.up * .15f,
+            head.position + head.up * HeightOffsetHeadUp.Value + Vector3.up * HeightOffsetWorldUp.Value,
             Quaternion.Euler(look));
 
         ApplyNearClip(cam, Mathf.Abs(look.x));
@@ -239,28 +263,29 @@ public class FirstPerson : BaseMod
             return false;
 
         state.Activate(camera, focus);
+        state.ApplyHatVisibility(character);
 
         var pivot = state.AttachPivot(camera);
 
-        // Hoverboard / ball / space hopper steer with the body, so their yaw comes from the ride
-        // itself; everything else adds the accumulated look yaw on top. Resolved once per ride
-        // rather than four GetComponent calls every frame.
         state.ResolveEntered(entered);
 
         var delta = new Vector3(-camera.GetAxisDeltaY() * LookSpeed, camera.GetAxisDeltaX() * LookSpeed, 0f);
 
         var look = state.VehicleLook + delta;
         look.x = Mathf.Clamp(look.x, -PitchClamp, PitchClamp);
+        look.y = Wrap360(look.y);
         state.VehicleLook = look;
 
-        focus.SetRotationEulers(focus.GetRotationEulers() + delta);
+        var eulers = focus.GetRotationEulers() + delta;
+        eulers.y = Wrap360(eulers.y);
+        focus.SetRotationEulers(eulers);
 
         var baseRotation = state.EnteredIsVehicle
             ? entered.transform.rotation.eulerAngles
             : head.rotation.eulerAngles;
 
         pivot.SetPositionAndRotation(
-            head.position + Vector3.up * .7f,
+            head.position + Vector3.up * VehicleHeightOffset.Value,
             state.EnteredHasFreeYaw
                 ? Quaternion.Euler(baseRotation)
                 : Quaternion.Euler(baseRotation.x, baseRotation.y + look.y, baseRotation.z));
@@ -359,6 +384,8 @@ public class FirstPerson : BaseMod
         private Transform headRoot;
         private Transform head;
         private GameObject entered;
+        private CharacterCustomize hatCustomize;
+        private readonly List<ClothingPiece> hiddenHats = new();
 
         /// <summary>Cached head bone lookup; a reference compare on the hot path, and no cache to leak.</summary>
         public Transform ResolveHead(Transform root)
@@ -387,6 +414,73 @@ public class FirstPerson : BaseMod
                              || value.GetComponent<PlayerSpaceHopperMovement>() != null;
         }
 
+        public void ApplyHatVisibility(PlayerCharacter character)
+        {
+            var customize = character == null ? null : character.GetPlayerCharacterCustomize();
+
+            if (hatCustomize != customize || !HideHat.Value)
+                RestoreHats();
+
+            if (customize == null || !HideHat.Value)
+                return;
+
+            hatCustomize = customize;
+
+            var attached = customize.GetAttachedClothing();
+            if (attached == null)
+                return;
+
+            for (var i = 0; i < attached.Count; i++)
+            {
+                var piece = attached[i];
+
+                if (piece == null || piece.IsDestroyed())
+                    continue;
+
+                if (piece.GetClothingSelectionType() != ClothingSelectionType.Hat || !IsVisible(piece))
+                    continue;
+
+                piece.Hide();
+
+                if (!hiddenHats.Contains(piece))
+                    hiddenHats.Add(piece);
+            }
+        }
+
+        /// <summary>Show every hat we hid again, minus the ones an outfit has taken over in the meantime.</summary>
+        private void RestoreHats()
+        {
+            if (hiddenHats.Count > 0)
+            {
+                var slotHat = hatCustomize != null && hatCustomize.IsWearingOutfit()
+                    ? hatCustomize.GetClothingHat()
+                    : null;
+
+                for (var i = 0; i < hiddenHats.Count; i++)
+                {
+                    var piece = hiddenHats[i];
+
+                    if (piece != null && !piece.IsDestroyed() && piece != slotHat)
+                        piece.Show();
+                }
+
+                hiddenHats.Clear();
+            }
+
+            hatCustomize = null;
+        }
+
+        private static bool IsVisible(ClothingPiece piece)
+        {
+            var skinned = piece.GetSkinnedMeshRenderer();
+
+            if (skinned != null)
+                return skinned.enabled;
+
+            var external = piece.GetExternalRenderers();
+            return external != null && external.Length > 0 && external[0] != null && external[0].enabled;
+        }
+
         /// <summary>Take ownership of the camera and focus, snapshotting whatever we are about to overwrite.</summary>
         public void Activate(GameplayCamera camera, CameraFocus newFocus)
         {
@@ -402,10 +496,8 @@ public class FirstPerson : BaseMod
             }
             else if (focus == newFocus)
             {
-                // Steady state: only touch the cutoff flag when something else changed it or the
-                // setting flipped, so we don't stomp on it every single frame.
-                if (focus != null && focus.IsUsingCharacterCutoff() != enableCutoff.Value)
-                    focus.SetUsingCharacterCutoff(enableCutoff.Value);
+                if (focus != null && focus.IsUsingCharacterCutoff() != EnableCutoff.Value)
+                    focus.SetUsingCharacterCutoff(EnableCutoff.Value);
 
                 return;
             }
@@ -416,7 +508,7 @@ public class FirstPerson : BaseMod
 
             focus = newFocus;
             savedCutoff = newFocus.IsUsingCharacterCutoff();
-            newFocus.SetUsingCharacterCutoff(enableCutoff.Value);
+            newFocus.SetUsingCharacterCutoff(EnableCutoff.Value);
         }
 
         /// <summary>Lazily create our own pivot for the vehicle camera and parent the camera under it.</summary>
@@ -425,7 +517,6 @@ public class FirstPerson : BaseMod
             if (pivot == null)
                 pivot = new GameObject("lstwoMODS_FirstPersonPivot").transform;
 
-            // Only ever reparent onto a pivot we own, so a camera someone else parented is left alone.
             if (camera.transform.parent != pivot)
                 camera.transform.SetParent(pivot, true);
 
@@ -441,6 +532,7 @@ public class FirstPerson : BaseMod
             Active = false;
 
             RestoreFocus();
+            RestoreHats();
 
             if (camera != null)
             {

@@ -124,22 +124,6 @@ public class FloodMod : BaseMod
 
         private long serverStartTimestamp = 0;
 
-        public override void Start()
-        {
-            base.Start();
-
-            if (gameObject.hideFlags == HideFlags.HideAndDontSave) return;
-            Instance = this;
-
-            // The flood plane is a purely local visual: every peer drives its own plane height from the
-            // RPC start-timestamp + speed (see ClientFloodCoroutine), so it must NOT be network-spawned.
-            // Network spawning is server-only  on clients SpawnNetworkPrefab returned null and left
-            // floodWaterPlane null, which is what crashed ClientStartFlood. Instantiate locally per peer.
-            floodWaterPlane = UnityEngine.Object.Instantiate(floodPlanePrefab.gameObject, Vector3.zero, Quaternion.identity);
-            floodWaterPlane.hideFlags = HideFlags.None;
-            floodWaterPlane.SetActive(false);
-        }
-
         public override void RegisterRPCs(HawkNetworkObject networkObject)
         {
             base.RegisterRPCs(networkObject);
@@ -147,6 +131,28 @@ public class FloodMod : BaseMod
             RPC_START_FLOOD = networkObject.RegisterRPC(ClientStartFlood);
             RPC_END_FLOOD = networkObject.RegisterRPC(ClientEndFlood);
             RPC_CHANGE_FLOOD_SPEED = networkObject.RegisterRPC(ClientChangeFloodSpeed);
+        }
+
+        /// <summary>
+        /// Claim the singleton here rather than in Start: the registered prefab is a live GameObject
+        /// whose own Unity Start runs too, and Instantiate copies its hideFlags onto the clone, so a
+        /// flag check can't tell the two apart. NetworkPost only ever runs from
+        /// HawkNetworkBehaviour.Initialize, which the template never goes through.
+        /// </summary>
+        public override void NetworkPost(HawkNetworkObject networkObject)
+        {
+            base.NetworkPost(networkObject);
+
+            Instance = this;
+
+            // The flood plane is a purely local visual: every peer drives its own plane height from the
+            // RPC start-timestamp + speed (see ClientFloodCoroutine), so it is instantiated locally per
+            // peer rather than network-spawned (spawning is server-only and left clients without one).
+            if (floodPlanePrefab == null) return;
+
+            floodWaterPlane = UnityEngine.Object.Instantiate(floodPlanePrefab.gameObject, Vector3.zero, Quaternion.identity);
+            floodWaterPlane.hideFlags = HideFlags.None;
+            floodWaterPlane.SetActive(false);
         }
 
         public IEnumerator ServerFloodCoroutine()

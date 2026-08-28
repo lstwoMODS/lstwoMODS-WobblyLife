@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
-using HawkNetworking;
 using lstwoMODS_Core;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI;
@@ -37,8 +36,8 @@ public class ClothingStackMod : BaseMod
 
     private Wardrobe _activeWardrobe;
 
-    private static readonly Dictionary<ulong, List<StackLayer>> RemoteDesired = new();
-    private static readonly Dictionary<ulong, ClothingStackApplier> RemoteAppliers = new();
+    private static readonly Dictionary<PlayerKey, List<StackLayer>> RemoteDesired = new();
+    private static readonly Dictionary<PlayerKey, ClothingStackApplier> RemoteAppliers = new();
     private static readonly List<StackLayer> EmptyLayers = new();
 
     private static readonly ClothingSelectionType[] Slots =
@@ -47,8 +46,8 @@ public class ClothingStackMod : BaseMod
         ClothingSelectionType.Bottom, ClothingSelectionType.Outfit
     };
 
-    private readonly HashSet<ulong> _seenPlayers = new();
-    private readonly List<ulong> _stalePlayers = new();
+    private readonly HashSet<PlayerKey> _seenPlayers = new();
+    private readonly List<PlayerKey> _stalePlayers = new();
 
     private float _nextReconcile;
     private float _nextHeartbeat;
@@ -286,13 +285,13 @@ public class ClothingStackMod : BaseMod
             var pc = controllers[i];
             if (!pc || pc.IsLocal()) continue;
 
-            var sid = SteamIdOf(pc.networkObject?.GetOwner());
-            if (sid == 0) continue;
+            var wearer = PlayerIdentity.Of(pc.networkObject?.GetOwner());
+            if (!wearer.IsValid) continue;
 
-            _seenPlayers.Add(sid);
+            _seenPlayers.Add(wearer);
             var customize = pc.GetPlayerCharacter()?.GetPlayerCharacterCustomize();
-            RemoteDesired.TryGetValue(sid, out var desired);
-            GetRemoteApplier(sid).Reconcile(customize, desired ?? EmptyLayers);
+            RemoteDesired.TryGetValue(wearer, out var desired);
+            GetRemoteApplier(wearer).Reconcile(customize, desired ?? EmptyLayers);
         }
 
         if (RemoteAppliers.Count == 0) return;
@@ -301,10 +300,10 @@ public class ClothingStackMod : BaseMod
             if (!_seenPlayers.Contains(kv.Key)) _stalePlayers.Add(kv.Key);
         for (var i = 0; i < _stalePlayers.Count; i++)
         {
-            var sid = _stalePlayers[i];
-            RemoteAppliers[sid].Clear();
-            RemoteAppliers.Remove(sid);
-            RemoteDesired.Remove(sid);
+            var wearer = _stalePlayers[i];
+            RemoteAppliers[wearer].Clear();
+            RemoteAppliers.Remove(wearer);
+            RemoteDesired.Remove(wearer);
         }
     }
 
@@ -323,24 +322,21 @@ public class ClothingStackMod : BaseMod
 
 
 
-    private static void OnStackReceived(ulong sid, string payload)
+    private static void OnStackReceived(PlayerKey wearer, string payload)
     {
-        if (sid == 0) return;
-        RemoteDesired[sid] = ClothingStackCodec.Decode(payload);
+        if (!wearer.IsValid) return;
+        RemoteDesired[wearer] = ClothingStackCodec.Decode(payload);
     }
 
-    private static ClothingStackApplier GetRemoteApplier(ulong sid)
+    private static ClothingStackApplier GetRemoteApplier(PlayerKey wearer)
     {
-        if (!RemoteAppliers.TryGetValue(sid, out var applier))
+        if (!RemoteAppliers.TryGetValue(wearer, out var applier))
         {
             applier = new ClothingStackApplier();
-            RemoteAppliers[sid] = applier;
+            RemoteAppliers[wearer] = applier;
         }
         return applier;
     }
-
-    private static ulong SteamIdOf(HawkConnection connection)
-        => connection is SteamConnection sc ? sc.steamId.Value : 0UL;
 
 
 

@@ -15,10 +15,10 @@ public class BanPlayer : PlayerBasedMod
     public override string Description => "";
     public override ModsWindow ModsWindow => Plugin.PlayerModsWindow;
 
-    public static List<SteamProfile> SessionBannedPlayerIDs = [];
-    public static List<SteamProfile> PermanentlyBannedPlayers = [];
+    public static List<PlayerProfile> SessionBannedPlayerIDs = [];
+    public static List<PlayerProfile> PermanentlyBannedPlayers = [];
 
-    private SteamP2PNetworkManager _subscribedInstance;
+    private HawkNetworkManager _subscribedInstance;
 
     private static Ref<string[]> sessionBannedPlayerDropdownItems = new();
     private static Ref<string[]> permanentlyBannedPlayerDropdownItems = new();
@@ -27,12 +27,14 @@ public class BanPlayer : PlayerBasedMod
 
     protected override void OnStaticInit()
     {
-        PermanentlyBannedPlayers = LoadData<List<SteamProfile>>("PermanentlyBannedPlayers") ?? [];
+        PermanentlyBannedPlayers = LoadData<List<PlayerProfile>>("PermanentlyBannedPlayers") ?? [];
     }
 
     public override void Update()
     {
-        var current = SteamP2PNetworkManager.SteamInstance;
+        // The live manager, not the Steam subclass: bans key off PlayerKey, which resolves on the
+        // Steam build, the crossplay build, and (as PlayerKey.None, so nothing matches) on LAN.
+        var current = HawkNetworkManager.InstanceExists ? HawkNetworkManager.DefaultInstance : null;
         if (current == _subscribedInstance) return;
 
         if (_subscribedInstance != null)
@@ -46,19 +48,23 @@ public class BanPlayer : PlayerBasedMod
 
     private void OnPlayerConnected(HawkConnection connection)
     {
-        if (connection is not SteamConnection steamConnection || SteamP2PNetworkManager.SteamInstance?.IsServer() != true) return;
+        var manager = _subscribedInstance;
+        if (manager?.IsServer() != true) return;
 
-        if (PermanentlyBannedPlayers.Any(x => x.SteamId == steamConnection.steamId) ||
-            SessionBannedPlayerIDs.Any(x => x.SteamId == steamConnection.steamId))
+        var key = PlayerIdentity.Of(connection);
+        if (!key.IsValid) return;
+
+        if (PermanentlyBannedPlayers.Any(x => x.Key == key) ||
+            SessionBannedPlayerIDs.Any(x => x.Key == key))
         {
-            SteamP2PNetworkManager.SteamInstance.DisconnectPlayer(steamConnection);
+            manager.DisconnectPlayer(connection);
         }
     }
 
     [ModAction(ShowInUI = false)]
     public void Ban()
     {
-        var profile = SteamProfileHelper.FromPlayer(Player.Controller);
+        var profile = PlayerProfileHelper.FromPlayer(Player.Controller);
         if (profile == null) return;
         
         PermanentlyBannedPlayers.Add(profile);
@@ -71,7 +77,7 @@ public class BanPlayer : PlayerBasedMod
     [ModAction(ShowInUI = false)]
     public void BanForSession()
     {
-        var profile = SteamProfileHelper.FromPlayer(Player.Controller);
+        var profile = PlayerProfileHelper.FromPlayer(Player.Controller);
         if (profile == null) return;
         
         SessionBannedPlayerIDs.Add(profile);
@@ -81,24 +87,30 @@ public class BanPlayer : PlayerBasedMod
     }
     
     [ModAction(ShowInUI = false)]
-    public void Unban(ulong id)
+    public void Unban(string key)
     {
-        PermanentlyBannedPlayers.RemoveAll(x => x.SteamId == id);
+        var target = PlayerKey.Parse(key);
+        if (!target.IsValid) return;
+
+        PermanentlyBannedPlayers.RemoveAll(x => x.Key == target);
         SaveData("PermanentlyBannedPlayers", PermanentlyBannedPlayers);
         Refresh();
     }
 
     [ModAction(ShowInUI = false)]
-    public void UnbanForSession(ulong id)
+    public void UnbanForSession(string key)
     {
-        SessionBannedPlayerIDs.RemoveAll(x => x.SteamId == id);
+        var target = PlayerKey.Parse(key);
+        if (!target.IsValid) return;
+
+        SessionBannedPlayerIDs.RemoveAll(x => x.Key == target);
         Refresh();
     }
 
     private void Refresh()
     {
-        permanentlyBannedPlayerDropdownItems.Value = PermanentlyBannedPlayers.Select(x => x.SteamName).ToArray();
-        sessionBannedPlayerDropdownItems.Value = SessionBannedPlayerIDs.Select(x => x.SteamName).ToArray();
+        permanentlyBannedPlayerDropdownItems.Value = PermanentlyBannedPlayers.Select(x => x.Name).ToArray();
+        sessionBannedPlayerDropdownItems.Value = SessionBannedPlayerIDs.Select(x => x.Name).ToArray();
     }
 
     public override void RefreshUI()
@@ -125,12 +137,17 @@ public class BanPlayer : PlayerBasedMod
             new SeparatorText("Manage Bans", "Manage Bans"),
 
             new Combo("Permanently Banned Players", []).WithItems(permanentlyBannedPlayerDropdownItems).WithSelectedIndex(permanentlyBannedPlayerDropdownIndex),
-            ActionMenu(new Button("Unban Player", () => Unban(PermanentlyBannedPlayers.Select(x => x.SteamId).ToArray()[permanentlyBannedPlayerDropdownIndex.Value])).WithContentWidth(), nameof(Unban)),
+            ActionMenu(new Button("Unban Player", () => Unban(KeyAt(PermanentlyBannedPlayers, permanentlyBannedPlayerDropdownIndex.Value))).WithContentWidth(), nameof(Unban)),
 
             new Spacing("spacer"),
 
             new Combo("Session Banned Players", []).WithItems(sessionBannedPlayerDropdownItems).WithSelectedIndex(sessionBannedPlayerDropdownIndex),
-            ActionMenu(new Button("Unban Session Banned Player", () => UnbanForSession(SessionBannedPlayerIDs.Select(x => x.SteamId).ToArray()[sessionBannedPlayerDropdownIndex.Value])).WithContentWidth(), nameof(UnbanForSession))
+            ActionMenu(new Button("Unban Session Banned Player", () => UnbanForSession(KeyAt(SessionBannedPlayerIDs, sessionBannedPlayerDropdownIndex.Value))).WithContentWidth(), nameof(UnbanForSession))
         );
     }
+
+    /// <summary>The stored key of the nth entry, or empty when the dropdown index has gone stale
+    /// (the list can shrink between a rebuild and a click).</summary>
+    private static string KeyAt(List<PlayerProfile> profiles, int index)
+        => index >= 0 && index < profiles.Count ? profiles[index].Key.ToString() : "";
 }

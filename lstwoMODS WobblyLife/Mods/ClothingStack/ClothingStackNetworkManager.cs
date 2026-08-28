@@ -1,6 +1,5 @@
 using System;
 using HawkNetworking;
-using Steamworks;
 using UnityEngine;
 
 namespace lstwoMODS_WobblyLife.Mods.ClothingStack;
@@ -14,38 +13,46 @@ namespace lstwoMODS_WobblyLife.Mods.ClothingStack;
 ///
 /// Identity is <b>host-authoritative</b>. Hawk relays an <c>Others</c> RPC through the server, and
 /// the relayed copy arrives at third clients with <c>info.sender</c> set to the host, not the
-/// original wearer, so the wearer's Steam id cannot be recovered from the connection there. Instead
+/// original wearer, so the wearer's account can't be recovered from the connection there. Instead
 /// a client sends its layers to the host only (<see cref="SendStack"/>), the host stamps the
-/// <i>verified</i> sender Steam id and rebroadcasts (<see cref="PublishStack"/>). The broadcast RPC
+/// <i>verified</i> sender account and rebroadcasts (<see cref="PublishStack"/>). The broadcast RPC
 /// is registered with <see cref="RPCValidateMask.Server"/> so the server drops any client that tries
 /// to originate it, which prevents a client from spoofing another player's identity.
+///
+/// The wearer travels as a <see cref="PlayerKey"/> string rather than a bare Steam id: the
+/// crossplay build has no Steam ids to send.
 /// </summary>
 public class ClothingStackNetworkManager : HawkNetworkBehaviour
 {
     public static ClothingStackNetworkManager Instance;
 
-    /// <summary>Fires when a peer's full layer list arrives (verified wearer Steam id, encoded payload).</summary>
-    public static event Action<ulong, string> StackReceived;
+    /// <summary>Fires when a peer's full layer list arrives (verified wearer account, encoded payload).</summary>
+    public static event Action<PlayerKey, string> StackReceived;
 
     private const int MaxPayload = 4096;
 
     // Client -> host: "these are my layers". The host stamps identity and rebroadcasts.
     private byte RPC_REQUEST;
-    // Host -> others: authoritative (wearer steam id, layers). Server-only origin (validate mask).
+    // Host -> others: authoritative (wearer account, layers). Server-only origin (validate mask).
     private byte RPC_BROADCAST;
-
-    public override void Start()
-    {
-        base.Start();
-        if (gameObject.hideFlags == HideFlags.HideAndDontSave) return;
-        Instance = this;
-    }
 
     public override void RegisterRPCs(HawkNetworkObject networkObject)
     {
         base.RegisterRPCs(networkObject);
         RPC_REQUEST = networkObject.RegisterRPC(ServerReceiveStack);
         RPC_BROADCAST = networkObject.RegisterRPC(ClientReceiveStack, RPCValidateMask.Server);
+    }
+
+    /// <summary>
+    /// Claim the singleton here rather than in Start: the registered prefab is a live GameObject whose
+    /// own Unity Start runs too, and Instantiate copies its hideFlags onto the clone, so a flag check
+    /// can't tell the two apart. NetworkPost only ever runs from HawkNetworkBehaviour.Initialize, which
+    /// the template never goes through, and it lands during the spawn rather than a frame later.
+    /// </summary>
+    public override void NetworkPost(HawkNetworkObject networkObject)
+    {
+        base.NetworkPost(networkObject);
+        Instance = this;
     }
 
     public override void OnDestroy()
@@ -61,9 +68,9 @@ public class ClothingStackNetworkManager : HawkNetworkBehaviour
         try
         {
             var payload = Clamp(reader.ReadString());
-            var sid = SteamIdOf(info.sender);
-            if (sid == 0) return;
-            PublishStack(sid, payload);
+            var wearer = PlayerIdentity.Of(info.sender);
+            if (!wearer.IsValid) return;
+            PublishStack(wearer, payload);
         }
         catch (Exception ex)
         {
@@ -77,10 +84,10 @@ public class ClothingStackNetworkManager : HawkNetworkBehaviour
     {
         try
         {
-            var sid = reader.ReadUInt64();
+            var wearer = PlayerKey.Parse(reader.ReadString());
             var payload = Clamp(reader.ReadString());
-            if (sid == 0) return;
-            StackReceived?.Invoke(sid, payload);
+            if (!wearer.IsValid) return;
+            StackReceived?.Invoke(wearer, payload);
         }
         catch (Exception ex)
         {
@@ -99,8 +106,8 @@ public class ClothingStackNetworkManager : HawkNetworkBehaviour
 
         if (networkObject.IsServer())
         {
-            var sid = SteamClient.IsValid ? SteamClient.SteamId.Value : 0UL;
-            if (sid != 0) PublishStack(sid, payload);
+            var me = PlayerIdentity.Local();
+            if (me.IsValid) PublishStack(me, payload);
             return;
         }
 
@@ -109,10 +116,10 @@ public class ClothingStackNetworkManager : HawkNetworkBehaviour
 
     // Host only: rebroadcast a wearer's layers with verified identity, and apply on the host itself
     // (Others excludes the sending host, so the local reconcile needs the direct invoke).
-    private void PublishStack(ulong wearerSteamId, string payload)
+    private void PublishStack(PlayerKey wearer, string payload)
     {
-        networkObject.SendRPC(RPC_BROADCAST, RPCRecievers.Others, wearerSteamId, payload ?? "");
-        StackReceived?.Invoke(wearerSteamId, payload);
+        networkObject.SendRPC(RPC_BROADCAST, RPCRecievers.Others, wearer.ToString(), payload ?? "");
+        StackReceived?.Invoke(wearer, payload);
     }
 
     private static string Clamp(string payload)
@@ -120,7 +127,4 @@ public class ClothingStackNetworkManager : HawkNetworkBehaviour
         payload ??= "";
         return payload.Length > MaxPayload ? payload.Substring(0, MaxPayload) : payload;
     }
-
-    private static ulong SteamIdOf(HawkConnection connection)
-        => connection is SteamConnection sc ? sc.steamId.Value : 0UL;
 }

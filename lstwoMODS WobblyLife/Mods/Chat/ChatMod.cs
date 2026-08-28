@@ -9,7 +9,6 @@ using lstwoMODS_Core.UI;
 using lstwoMODS_Core.UI.Elements;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace lstwoMODS_WobblyLife.Mods.Chat;
 
@@ -19,9 +18,16 @@ public class ChatMod : BaseMod
     public override string Description => "";
     public override ModsWindow ModsWindow => Plugin.ExtraModsWindow;
 
+    /// <summary>
+    /// Master switch for the mod. Off means the chat takes no part in the session at all: nothing is
+    /// appended or rendered locally (<see cref="AppendLocal"/> is the single gate for that), nothing is
+    /// sent, and a host neither relays whispers nor runs server commands on a client's behalf. Chat
+    /// already requires a modded host, so a host opting out simply switches the feature off for the lobby.
+    /// </summary>
     [ModSetting(Order = 10)] public static Ref<bool> Enabled = new();
     [ModSetting(Order = 20)] public static Ref<int> MaxHistory = new(200);
     [ModSetting(Order = 30)] public static Ref<int> HistorySize = new(50);
+    [ModSetting(Order = 40)] public static Ref<bool> ShowMessagesAsSpeechBubbles = new();
 
     public static readonly Ref<bool>  UseCustomNameColor = new(false);
     public static readonly Ref<Col> CustomNameColor    = new(Color.white);
@@ -60,11 +66,12 @@ public class ChatMod : BaseMod
 
     protected override void OnStaticInit()
     {
-        BindData(Enabled,     nameof(Enabled),     false);
-        BindData(MaxHistory,  nameof(MaxHistory),  200);
+        BindData(Enabled, nameof(Enabled), false);
+        BindData(MaxHistory, nameof(MaxHistory), 200);
         BindData(HistorySize, nameof(HistorySize), 50);
+        BindData(ShowMessagesAsSpeechBubbles, nameof(ShowMessagesAsSpeechBubbles), false);
         BindData(UseCustomNameColor, nameof(UseCustomNameColor), false);
-        BindData(CustomNameColor,    nameof(CustomNameColor),    Color.white);
+        BindData(CustomNameColor, nameof(CustomNameColor), Color.white);
 
         ChatNetworking.Initialize();
 
@@ -92,6 +99,7 @@ public class ChatMod : BaseMod
 
     private static void OnWhisperRequested(HawkConnection sender, string recipientName, string text)
     {
+        if (!Enabled.Value) return;
         if (!ChatNetworking.IsHost()) return;
         DeliverWhisperFromHost(sender, recipientName, text);
     }
@@ -101,22 +109,9 @@ public class ChatMod : BaseMod
         var target = ChatNetworking.FindByName(recipientName);
         if (target == null) return false;
 
-        var senderName = sender?.Name;
-        if (string.IsNullOrEmpty(senderName)) senderName = "?";
-        var senderId = ChatNetworking.SteamIdOf(sender);
+        var msg = ChatNetworking.BuildInbound(ChatMessageKind.PrivateFrom, sender, recipientName: "", text: text);
 
-        var msg = new ChatMessage
-        {
-            Kind = ChatMessageKind.PrivateFrom,
-            SenderName = senderName,
-            SenderSteamId = senderId,
-            // Only meaningful for the local echo below (we hold this connection); SenderAddress is
-            // never serialized, so a relayed copy reaches the recipient without it.
-            SenderAddress = ChatNetworking.AddressOf(sender) ?? "",
-            Text = text,
-        };
-
-        if (target.Me) AppendLocal(msg);            // the host is the recipient
+        if (target.Me) AppendLocal (msg);            // the host is the recipient
         else ChatNetworking.Whisper(target, msg);   // relay to the recipient's client
         return true;
     }
@@ -208,12 +203,19 @@ public class ChatMod : BaseMod
     }
 
 
+    /// <summary>Put a message in the log. Every line the user ever sees passes through here, whether it
+    /// came off the wire, from a command, from a macro, or is our own echo, so this is where
+    /// <see cref="Enabled"/> gates display.</summary>
     public static void AppendLocal(ChatMessage msg)
     {
         if (msg == null) return;
+
         Plugin.LogSource.LogDebug($"[Chat] Message Received: {msg.Kind.ToString()} from '{msg.SenderName}' ({msg.SenderIdentity()})");
-        Plugin.LogSource.LogInfo($"[Chat] {msg.ReceivedAt.Hour}:{msg.ReceivedAt.Minute}:{msg.ReceivedAt.Second}: {msg.Render()}");
-        
+
+        if (!Enabled.Value) return;
+
+        Plugin.LogSource.LogInfo($"[Chat] {msg.ReceivedAt.ToLocalTime():HH:mm:ss}: {msg.Render()}");
+
         _log.Add(msg);
 
         if (_log.Count > MaxHistory.Value)
@@ -350,7 +352,11 @@ public class ChatMod : BaseMod
     {
         if (_chatWindow == null) return;
 
-        var shouldRender = _chatOpen || anyRowVisible;
+        // Switching the mod off mid-session closes anything still on screen; without this the window
+        // lingers showing whatever was in the log, since only appends are gated.
+        if (!Enabled.Value && _chatOpen) CloseChat();
+
+        var shouldRender = Enabled.Value && (_chatOpen || anyRowVisible);
 
         if (_chatRender.Value != shouldRender)
             _chatRender.Value = shouldRender;
@@ -479,39 +485,115 @@ public class ChatMod : BaseMod
     /// </summary>
     public static void SendChat(string text)
     {
+        if (!Enabled.Value) return;
+
         var me = ChatNetworking.LocalConnection();
         var name = me?.Name ?? "me";
-        var steamId = ChatNetworking.SteamIdOf(me);
+        var senderKey = ChatNetworking.KeyOf(me);
         var address = ChatNetworking.AddressOf(me) ?? "";
-        var nameColor = EffectiveLocalNameColor(steamId, name);
+        var networkId = ChatNetworking.LocalNetworkId();
+        var nameColor = EffectiveLocalNameColor(senderKey, name);
 
-        AppendLocal(new ChatMessage
+        text = ChatNetworking.SanitizeText(text);
+
+        var msg = new ChatMessage
         {
             Kind = ChatMessageKind.PlayerSay,
             SenderName = name,
-            SenderSteamId = steamId,
+            SenderKey = senderKey,
+            SenderNetworkId = networkId,
             SenderAddress = address,
             Text = text,
             NameColor = nameColor,
-        });
+        };
 
-        if (ChatNetworking.IsOnline())
+        AppendLocal(msg);
+        ShowMessageAsSpeechBubble(msg);
+        
+        if (!ChatNetworking.IsOnline()) return;
+        if (!WarnIfNotConnected()) return;
+
+        ChatNetworking.Broadcast(new ChatMessage
         {
-            ChatNetworking.Broadcast(new ChatMessage
-            {
-                Kind = ChatMessageKind.PlayerSay,
-                SenderName = name,
-                SenderSteamId = steamId,
-                Text = text,
-                NameColor = nameColor,
-            });
-        }
+            Kind = ChatMessageKind.PlayerSay,
+            SenderName = name,
+            SenderKey = senderKey,
+            SenderNetworkId = networkId,
+            Text = text,
+            NameColor = nameColor,
+        });
+    }
+
+    /// <summary>
+    /// True when the chat's network object exists and messages can actually leave this machine. The
+    /// send helpers are all null-conditional on <c>ChatNetworkManager.Instance</c>, so without this a
+    /// message sent while the object is missing (host not running the mod, or it has not spawned yet)
+    /// silently goes nowhere while still echoing locally, which reads as "my chat is broken".
+    /// </summary>
+    private static bool WarnIfNotConnected()
+    {
+        if (ChatNetworking.IsReady()) return true;
+
+        AppendError("Not sent: chat is not connected. The host needs the mod loaded and the session joined.");
+        Plugin.LogSource.LogWarning("[Chat] Send skipped: ChatNetworkManager.Instance is null on this machine.");
+        return false;
     }
 
     /// <summary>Our own name color for an outgoing message: the saved custom color when enabled,
     /// otherwise the stable auto color derived from our identity (same one everyone else derives).</summary>
-    private static Color EffectiveLocalNameColor(ulong steamId, string name)
-        => UseCustomNameColor.Value ? CustomNameColor.Value : NameColorUtil.AutoColor(steamId, name);
+    private static Color EffectiveLocalNameColor(PlayerKey key, string name)
+        => UseCustomNameColor.Value ? CustomNameColor.Value : NameColorUtil.AutoColor(key, name);
+
+    /// <summary>
+    /// Host: send an unattributed line, the way command output reads, to one player or (when
+    /// <paramref name="target"/> is null) to everyone including ourselves. Unlike <see cref="SendChat"/>
+    /// this carries no sender name and renders with the kind's own styling.
+    ///
+    /// Host only by design: a receiving client only trusts these kinds from the host connection and
+    /// coerces a peer's copy to normal chat, so system output cannot be forged (see
+    /// <c>ChatNetworkManager.SanitizeKind</c>). Returns false when we are not the host, when the text
+    /// is empty, or when nothing could be sent.
+    /// </summary>
+    public static bool SendHostNotice(HawkConnection target, string text,
+                                      ChatMessageKind kind = ChatMessageKind.CommandReply)
+    {
+        if (!Enabled.Value) return false;
+        if (!ChatNetworking.IsHost()) return false;
+
+        text = ChatNetworking.SanitizeText(text);
+        if (string.IsNullOrEmpty(text)) return false;
+
+        var msg = new ChatMessage { Kind = HostNoticeKind(kind), Text = text };
+
+        // To everyone: we are part of "everyone", and SendBroadcast only reaches the others.
+        if (target == null)
+        {
+            AppendLocal(msg);
+            if (!ChatNetworking.IsOnline()) return true;
+            if (!WarnIfNotConnected()) return false;
+            ChatNetworking.Broadcast(msg);
+            return true;
+        }
+
+        if (target.Me)
+        {
+            AppendLocal(msg);
+            return true;
+        }
+
+        if (!WarnIfNotConnected()) return false;
+        ChatNetworking.Whisper(target, msg);
+        return true;
+    }
+
+    /// <summary>The kinds a host notice may claim: those a client accepts from the host and that render
+    /// without a sender name. Anything else falls back to plain command output rather than arriving as
+    /// normal chat, which is what the receiving side would otherwise coerce it to.</summary>
+    private static ChatMessageKind HostNoticeKind(ChatMessageKind kind) => kind switch
+    {
+        ChatMessageKind.System or ChatMessageKind.Error or ChatMessageKind.CommandReply => kind,
+        _ => ChatMessageKind.CommandReply,
+    };
 
     /// <summary>
     /// Send a private message to the player named <paramref name="recipientName"/>: echo it locally and
@@ -521,6 +603,8 @@ public class ChatMod : BaseMod
     /// </summary>
     public static bool SendWhisper(string recipientName, string text)
     {
+        if (!Enabled.Value) return false;
+
         // Resolve against the replicated roster (present on every client), so it works for non-hosts too.
         var targetName = ChatNetworking.AllPlayerNames()
             .FirstOrDefault(n => string.Equals(n, recipientName, StringComparison.OrdinalIgnoreCase));
@@ -528,25 +612,37 @@ public class ChatMod : BaseMod
 
         var me = ChatNetworking.LocalConnection();
         var senderName = me?.Name ?? "me";
-        var senderId   = ChatNetworking.SteamIdOf(me);
+        var senderKey  = ChatNetworking.KeyOf(me);
+
+        // Same reason as SendChat: the echo has to match what the recipient will see.
+        text = ChatNetworking.SanitizeText(text);
 
         // Local echo of our outgoing message (correct kind/name; no network round-trip).
         AppendLocal(new ChatMessage
         {
             Kind = ChatMessageKind.PrivateTo,
             SenderName = senderName,
-            SenderSteamId = senderId,
+            SenderKey = senderKey,
+            SenderNetworkId = ChatNetworking.LocalNetworkId(),
             SenderAddress = ChatNetworking.AddressOf(me) ?? "",
             RecipientName = targetName,
             Text = text,
         });
 
         // Only the host can reach the recipient's connection, so deliver there: directly when we are the
-        // host, otherwise relay the request through the host.
+        // host, otherwise relay the request through the host. Whispering yourself offline is fine and
+        // needs no network object, so only the paths that actually leave the machine are checked.
         if (ChatNetworking.IsHost())
+        {
+            var target = ChatNetworking.FindByName(targetName);
+            if (target != null && !target.Me && !WarnIfNotConnected()) return false;
             DeliverWhisperFromHost(me, targetName, text);
+        }
         else
+        {
+            if (!WarnIfNotConnected()) return false;
             ChatNetworking.SendWhisperRelay(targetName, text);
+        }
         return true;
     }
 
@@ -557,6 +653,7 @@ public class ChatMod : BaseMod
     /// </summary>
     public static void RunCommand(string line)
     {
+        if (!Enabled.Value) return;
         if (string.IsNullOrWhiteSpace(line)) return;
         line = line.Trim();
         if (!line.StartsWith("/")) line = "/" + line;
@@ -616,13 +713,14 @@ public class ChatMod : BaseMod
         catch (Exception ex)
         {
             AppendError($"/{cmd.Name}: {ex.Message}");
-            Debug.LogError($"[ChatMod] Command /{cmd.Name} failed: {ex}");
+            Plugin.LogSource.LogError($"[ChatMod] Command /{cmd.Name} failed: {ex}");
         }
     }
 
 
     private static void OnServerCommandRequested(HawkConnection sender, string line)
     {
+        if (!Enabled.Value) return;
         if (!ChatNetworking.IsHost()) return;
         if (string.IsNullOrEmpty(line) || !line.StartsWith("/")) return;
 
@@ -667,6 +765,20 @@ public class ChatMod : BaseMod
     {
         if (!Enabled.Value) return;
         AppendLocal(msg);
+        ShowMessageAsSpeechBubble(msg);
+    }
+
+    private static void ShowMessageAsSpeechBubble(ChatMessage msg)
+    {
+        if (!ShowMessagesAsSpeechBubbles.Value || msg.Kind != ChatMessageKind.PlayerSay) return;
+        
+        var speaker = ChatNetworking.FindSender(msg);
+
+        if (speaker == null) return;
+        
+        var dialogMod = new NPCDialog();
+        dialogMod.Player = speaker;
+        dialogMod.ShowSpeechBubble(msg.Text);
     }
 
 
@@ -780,7 +892,7 @@ public class ChatMod : BaseMod
     private static readonly Ref<bool>     _whitelistDisabled = new(true);
 
     // Index-parallel to _lobbyItems: the profile each lobby entry maps to.
-    private static readonly List<SteamProfile> _lobbyProfiles = new();
+    private static readonly List<PlayerProfile> _lobbyProfiles = new();
 
     private static readonly string[] ScopeNames = { "Client", "Server" };
     private static readonly string[] ParamTypeNames = { "String", "Int", "Float", "Player", "Enum", "Greedy" };
@@ -798,6 +910,8 @@ public class ChatMod : BaseMod
         return new Container(id,
 
             _netStatus,
+
+            new UIText("info", "When enabled, press Ctrl + T in game to open / close."),
 
             base.BuildPanel(id),
 
@@ -990,7 +1104,7 @@ public class ChatMod : BaseMod
         var sel = SelectedCommand();
         var i = _whitelistIndex.Value;
         if (sel == null || i < 0 || i >= sel.Whitelist.Count) return;
-        CustomCommandStore.RemoveFromWhitelist(sel, sel.Whitelist[i].SteamId);
+        CustomCommandStore.RemoveFromWhitelist(sel, sel.Whitelist[i].Key);
         RefreshCommandLists();
     }
 
@@ -1019,25 +1133,27 @@ public class ChatMod : BaseMod
         if (sel != null && _paramIndex.Value >= sel.Params.Count)
             _paramIndex.Value = Math.Max(0, sel.Params.Count - 1);
 
-        // Lobby players eligible to add (SteamConnections not already on the whitelist).
+        // Lobby players eligible to add: anyone with an account identity who is not on the list yet.
+        // On a LAN transport nobody has one, so the list stays empty rather than offering entries a
+        // whitelist check could never match.
         _lobbyProfiles.Clear();
         if (sel != null)
         {
-            foreach (var conn in ChatNetworking.AllConnections().OfType<SteamConnection>())
+            foreach (var conn in ChatNetworking.AllConnections())
             {
-                var profile = SteamProfileHelper.FromConnection(conn);
-                if (profile == null || profile.SteamId == 0) continue;
-                if (sel.Whitelist.Any(p => p.SteamId == profile.SteamId)) continue;
-                if (_lobbyProfiles.Any(p => p.SteamId == profile.SteamId)) continue;
+                var profile = PlayerProfileHelper.FromConnection(conn);
+                if (profile == null || !profile.Key.IsValid) continue;
+                if (sel.Whitelist.Any(p => p.Key == profile.Key)) continue;
+                if (_lobbyProfiles.Any(p => p.Key == profile.Key)) continue;
                 _lobbyProfiles.Add(profile);
             }
         }
 
-        _lobbyItems.Value = _lobbyProfiles.Select(p => p.SteamName).ToArray();
+        _lobbyItems.Value = _lobbyProfiles.Select(p => p.Name).ToArray();
         if (_lobbyIndex.Value >= _lobbyProfiles.Count)
             _lobbyIndex.Value = Math.Max(0, _lobbyProfiles.Count - 1);
 
-        _whitelistItems.Value = sel != null ? sel.Whitelist.Select(p => p.SteamName).ToArray() : Array.Empty<string>();
+        _whitelistItems.Value = sel != null ? sel.Whitelist.Select(p => p.Name).ToArray() : Array.Empty<string>();
         if (sel != null && _whitelistIndex.Value >= sel.Whitelist.Count)
             _whitelistIndex.Value = Math.Max(0, sel.Whitelist.Count - 1);
 

@@ -65,6 +65,9 @@ public class Plugin : BaseUnityPlugin
 
         Mods.LanMultiplayer.LanMultiplayerMod.ApplyBootTransport();
 
+        // Cold path: if the library scanned before the catalog was ready it has no NPC controllers.
+        AssetDatabase.OnReady += WobblyAnimationLibrary.Rescan;
+
         UIManager.OnInitialized += PropSpawnerIpc.Initialize;
         UIManager.OnReconnected += OnOverlayReconnected;
         LstwoModsOverlay.OnConstructUI += OnConstructUI;
@@ -73,6 +76,7 @@ public class Plugin : BaseUnityPlugin
         SceneManager.sceneLoaded += OnSceneLoaded;
         lstwoMODS_Core.Plugin.OnUIToggle += OnUIToggle;
         LstwoModsOverlay.OnConstructUI += ChatMod.BuildChatUI;
+        LstwoModsOverlay.OnConstructUI += WLProxChat.VoiceChatMod.BuildMutedIndicatorUI;
 
         PlayerModsWindow = new("Player Mods", Lucide.User);
         VehicleModsWindow = new("Vehicle Mods", Lucide.CarFront);
@@ -85,7 +89,7 @@ public class Plugin : BaseUnityPlugin
         QualityOfLifeMod.ApplyPatches(new Harmony("net.lstwo.lstwoMODS.WobblyLife.QoL"));
         QualityOfLifeMod.EarlyLoadData();
 
-        Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded!");
+        Logger.LogInfo($"Plugin {PluginInfo.PLUGIN_GUID} is loaded! Game build: {GameBuild.DisplayName}.");
     }
 
     private void OnOverlayReconnected() => MainThread.Enqueue(() =>
@@ -97,6 +101,9 @@ public class Plugin : BaseUnityPlugin
 
     private void OnAssignedPlayerCharacter(PlayerCharacter character)
     {
+        // Emote data and the default character controllers only exist once a character does.
+        WobblyAnimationLibrary.EnsureInitialized();
+
         if (!HawkNetworkManager.DefaultInstance.IsOffline())
         {
             StartCoroutine(NameEasterEggThingy(character));

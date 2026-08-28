@@ -88,6 +88,47 @@ public static class ChatMacroSteps
             },
         });
 
+        // The two host-notice steps below send a line that carries no sender name and renders with the
+        // kind's own styling (Command Reply is bare text, System and Error get their prefix), which is
+        // how command output reads. They only do anything on the host: a client's copy of these kinds
+        // is coerced to normal chat on arrival so system output cannot be forged. Any other kind picked
+        // in the combo falls back to Command Reply.
+        MacroRegistry.Register(new MacroMethodDescriptor
+        {
+            Id          = "chat.notice",
+            Label       = "Send System Message",
+            Category    = Category,
+            PickerLabel = "Send System Message",
+            ReturnType  = typeof(bool), // false when we are not the host, or nothing could be sent
+            Parameters  = new[]
+            {
+                new MacroParam { Name = "Message",      Type = typeof(string) },
+                new MacroParam { Name = "Message Type", Type = typeof(ChatMessageKind) },
+            },
+            Execute = args => ChatMod.SendHostNotice(null, AsString(args[0]), AsKind(args[1])),
+        });
+
+        MacroRegistry.Register(new MacroMethodDescriptor
+        {
+            Id          = "chat.noticeTo",
+            Label       = "Send System Message to Player",
+            Category    = Category,
+            PickerLabel = "Send System Message to Player",
+            ReturnType  = typeof(bool), // true when the recipient was resolved and the line was sent
+            Parameters  = new[]
+            {
+                new MacroParam { Name = "Player",       Type = typeof(PlayerRef) },
+                new MacroParam { Name = "Message",      Type = typeof(string) },
+                new MacroParam { Name = "Message Type", Type = typeof(ChatMessageKind) },
+            },
+            Execute = args =>
+            {
+                // GetOwner() is populated on the host, which is the only place this step runs anyway.
+                var conn = (args[0] as PlayerRef)?.Controller?.networkObject?.GetOwner();
+                return conn != null && ChatMod.SendHostNotice(conn, AsString(args[1]), AsKind(args[2]));
+            },
+        });
+
         MacroRegistry.Register(new MacroMethodDescriptor
         {
             Id          = "chat.runCommand",
