@@ -3,6 +3,7 @@ using System.Collections;
 using HawkNetworking;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI.TabMenus;
+using Unity.Microsoft.GDK;
 using UnityEngine;
 
 namespace lstwoMODS_WobblyLife.Mods;
@@ -19,12 +20,17 @@ public class LoadSceneMod : BaseMod
     [ModAction]
     public static void Load(LoadSceneModArg sceneToLoad)
     {
-        if (isSwitching) return;
+        if (isSwitching) return; 
+        
+        if (!GameInstance.InstanceExists || !GameInstance.Instance.GetGamemode())
+        {
+            Plugin.LogSource.LogWarning("Not in game, won't load scene");
+            return;
+        }
 
         Plugin._StartCoroutine(LoadRoutine(
             sceneToLoad switch
             {
-                LoadSceneModArg.MainMenu => LoadScene.MainMenu,
                 LoadSceneModArg.WobblyIsland => LoadScene.WobblyIsland,
                 LoadSceneModArg.Space => LoadScene.Space,
                 LoadSceneModArg.ArcadeLobby => LoadScene.Arcade_Lobby,
@@ -104,7 +110,6 @@ public class LoadSceneMod : BaseMod
 
     public enum LoadSceneModArg
     {
-        MainMenu,
         WobblyIsland,
         Space,
         ArcadeLobby
