@@ -1,4 +1,4 @@
-# lstwoMODS-WobblyLife
+﻿# lstwoMODS-WobblyLife
 
 A Wobbly Life modpack for [lstwoMODS Core](https://github.com/lstwoMODS/lstwoMODS-Core), aiming to recreate Azzamods / ProjectMods while adding a lot of original mods on top.
 
@@ -100,3 +100,10 @@ Follow the instructions [here](https://github.com/lstwoMODS/lstwoMODS-Core/blob/
   - Save and Load
   - Custom Items
   - Favorites
+
+## Third-Party Licenses
+
+This mod redistributes third-party libraries. Their license notices live in `licenses/`, one
+folder per shipped package: [lstwomods_wobblylife](licenses/lstwomods_wobblylife/THIRD-PARTY-NOTICES.md)
+for this mod, and `licenses/lstwomods_core/` for what lstwoMODS Core and the overlay bring in.
+The folder is deployed to `BepInEx/plugins/lstwoMODS/licenses/` with every release.

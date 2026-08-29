@@ -1,4 +1,4 @@
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 . "$ScriptDir\paths.ps1"
 
 $LibDir = "$ScriptDir\lstwoMODS WobblyLife\lib"
@@ -34,6 +34,20 @@ foreach ($file in $coreFiles) {
     Write-Host "  $src"
     Write-Host "    -> $dst"
 }
+
+Write-Host ""
+Write-Host "Syncing Core license notices to licenses\lstwomods_core..." -ForegroundColor Cyan
+
+$CoreLicensesSrc = "$CoreRepoPath\licenses\lstwomods_core"
+$CoreLicensesDst = "$ScriptDir\licenses\lstwomods_core"
+if (-not (Test-Path $CoreLicensesSrc)) {
+    Write-Host "ERROR: $CoreLicensesSrc not found." -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-Path $CoreLicensesDst)) { New-Item -ItemType Directory -Path $CoreLicensesDst -Force | Out-Null }
+Copy-Item "$CoreLicensesSrc\*" -Destination $CoreLicensesDst -Recurse -Force
+Write-Host "  $CoreLicensesSrc"
+Write-Host "    -> $CoreLicensesDst"
 
 Write-Host ""
 Write-Host "Building lstwoMODS_Overlay (Debug)..." -ForegroundColor Cyan

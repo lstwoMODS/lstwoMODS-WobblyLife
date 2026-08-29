@@ -42,7 +42,7 @@
             <HintPath>lib\CinematicUnityExplorer.BIE5.Mono.dll</HintPath>
         </Reference>
         
-        <!-- Managed Opus for the voice chat mod. See lib/Concentus.build.md for where this came from. -->
+        <!-- Managed Opus for the voice chat mod. BSD-3-Clause, see THIRD-PARTY-NOTICES.md. -->
         <Reference Include="Concentus">
             <HintPath>lib\Concentus.dll</HintPath>
         </Reference>
@@ -63,6 +63,13 @@
 
     <ItemGroup>
         <EmbeddedResource Include="Resources\piracy2.png" />
+    </ItemGroup>
+
+    <!-- License notices for the redistributed third-party DLLs. Ships next to the plugin. -->
+    <ItemGroup>
+        <None Include="..\licenses\**\*.md" LinkBase="licenses">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
     <ItemGroup>

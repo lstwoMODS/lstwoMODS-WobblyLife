@@ -1,4 +1,4 @@
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 . "$ScriptDir\paths.ps1"
 
 $SlnPath        = "$ScriptDir\lstwoMODS WobblyLife.sln"
@@ -59,6 +59,18 @@ foreach ($file in $buildFiles) {
     if (-not (Test-Path $src)) { Write-Host "ERROR: $src not found." -ForegroundColor Red; exit 1 }
     Copy-Item $src "$GamePluginsPath\$file" -Force
     Write-Host "  $src -> $GamePluginsPath\$file"
+}
+
+Write-Host ""
+Write-Host "Deploying license notices to $GamePluginsPath\licenses..." -ForegroundColor Cyan
+
+$LicensesDir = "$ScriptDir\licenses"
+if (-not (Test-Path $LicensesDir)) { Write-Host "ERROR: $LicensesDir not found." -ForegroundColor Red; exit 1 }
+$LicensesDst = "$GamePluginsPath\licenses"
+if (-not (Test-Path $LicensesDst)) { New-Item -ItemType Directory -Path $LicensesDst -Force | Out-Null }
+Copy-Item "$LicensesDir\*" -Destination $LicensesDst -Recurse -Force
+foreach ($pkg in Get-ChildItem $LicensesDir -Directory) {
+    Write-Host "  $($pkg.Name) -> $LicensesDst\$($pkg.Name)"
 }
 
 Write-Host ""
