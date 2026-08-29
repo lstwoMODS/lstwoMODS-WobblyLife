@@ -1,10 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
 using lstwoMODS_Core.Hacks;
 using lstwoMODS_Core.UI;
 using lstwoMODS_Core.UI.TabMenus;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace lstwoMODS_WobblyLife.Mods;
 
@@ -269,26 +271,21 @@ public class FirstPerson : BaseMod
 
         state.ResolveEntered(entered);
 
-        var delta = new Vector3(-camera.GetAxisDeltaY() * LookSpeed, camera.GetAxisDeltaX() * LookSpeed, 0f);
-
-        var look = state.VehicleLook + delta;
-        look.x = Mathf.Clamp(look.x, -PitchClamp, PitchClamp);
-        look.y = Wrap360(look.y);
-        state.VehicleLook = look;
-
-        var eulers = focus.GetRotationEulers() + delta;
-        eulers.y = Wrap360(eulers.y);
-        focus.SetRotationEulers(eulers);
-
         var baseRotation = state.EnteredIsVehicle
             ? entered.transform.rotation.eulerAngles
             : head.rotation.eulerAngles;
 
+        var delta = new Vector3(-camera.GetAxisDeltaY() * LookSpeed, camera.GetAxisDeltaX() * LookSpeed, 0f);
+
+        var look = state.AdvanceLook(delta, baseRotation.y);
+
+        // The vehicles that steer themselves to the camera read this as their target heading, so it
+        // has to be the yaw we are actually looking along, not an offset from the vehicle.
+        focus.SetRotationEulers(look);
+
         pivot.SetPositionAndRotation(
             head.position + Vector3.up * VehicleHeightOffset.Value,
-            state.EnteredHasFreeYaw
-                ? Quaternion.Euler(baseRotation)
-                : Quaternion.Euler(baseRotation.x, baseRotation.y + look.y, baseRotation.z));
+            Quaternion.Euler(baseRotation.x, look.y, baseRotation.z));
 
         camera.transform.localRotation = Quaternion.Euler(look.x, 0f, 0f);
         camera.transform.localPosition = Vector3.zero;
@@ -364,17 +361,41 @@ public class FirstPerson : BaseMod
     /// </summary>
     private sealed class State
     {
+        private static readonly Type[] CameraYawSteered =
+        [
+            typeof(PlayerHelicopterMovement),
+            typeof(PlayerHoverCraftMovement),
+            typeof(PlayerPlaneMovement),
+            typeof(PlayerUFOMovement),
+            typeof(PlayerHotAirBalloonMovement),
+            typeof(PlayerBumperBoatMovement),
+            typeof(PlayerControlledCannon),
+            typeof(SpaceCenterTrainingShipMovement),
+            typeof(PlayerHoverboardMovement),
+            typeof(PlayerBallMovement),
+            typeof(PlayerSpaceHopperMovement)
+        ];
+        
         public bool Active;
         public int LastFrame = -1;
 
         public Vector3 CharacterLook;
+
+        /// <summary>World space look angles while in a vehicle, not an offset from it. See <see cref="AdvanceLook"/>.</summary>
         public Vector3 VehicleLook;
 
         public bool FocusTransformOverridden;
         public Transform SavedFocusTransform;
 
         public bool EnteredIsVehicle;
-        public bool EnteredHasFreeYaw;
+        
+        public bool SteersToCameraYaw => steersToCameraYaw || (flyingCar != null && flyingCar.bIsWingsOut);
+        private bool steersToCameraYaw;
+
+        private PlayerVehicleFlyingCarMovement flyingCar;
+
+        private float previousBaseYaw;
+        private bool yawSeeded;
 
         private CameraFocus focus;
         private bool savedCutoff;
@@ -402,16 +423,62 @@ public class FirstPerson : BaseMod
             return head;
         }
 
+        /// <summary>
+        /// Advance the look angles by this frame's input and hand back the world space result.
+        /// </summary>
+        /// <param name="baseYaw">
+        /// Yaw of whatever we are sitting in, the vehicle for a real vehicle and the head otherwise.
+        /// </param>
+        /// <remarks>
+        /// One accumulator serves both kinds of vehicle; only what feeds it changes. A vehicle that
+        /// steers itself to the camera must not also carry the camera around with it, or every degree
+        /// of mouse input lands twice, once through the camera and again through the vehicle turning
+        /// underneath it. A vehicle that does not steer has to carry it, or the head stops following
+        /// the vehicle and you sit there gyro stabilised while the car turns around you.
+        ///
+        /// Because both cases write the same world space value, a vehicle that switches between them
+        /// (the flying car popping its wings) stays continuous and needs no rebase.
+        /// </remarks>
+        public Vector3 AdvanceLook(Vector3 delta, float baseYaw)
+        {
+            if (!yawSeeded)
+            {
+                VehicleLook.y = baseYaw;
+                yawSeeded = true;
+            }
+            else if (!SteersToCameraYaw)
+            {
+                VehicleLook.y += Mathf.DeltaAngle(previousBaseYaw, baseYaw);
+            }
+
+            // Seeded in both modes on purpose: skipping it while the vehicle steers itself would dump
+            // everything it rotated through in the meantime into the first frame after it stops.
+            previousBaseYaw = baseYaw;
+
+            VehicleLook.x = Mathf.Clamp(VehicleLook.x + delta.x, -PitchClamp, PitchClamp);
+            VehicleLook.y = Wrap360(VehicleLook.y + delta.y);
+            VehicleLook.z = 0f;
+
+            return VehicleLook;
+        }
+
         public void ResolveEntered(GameObject value)
         {
             if (entered == value)
                 return;
 
+            var root = value.GetComponentInParent<PlayerVehicle>()?.gameObject ?? value;
+            
             entered = value;
-            EnteredIsVehicle = value.GetComponent<PlayerVehicle>() != null;
-            EnteredHasFreeYaw = value.GetComponent<PlayerHoverboardMovement>() != null
-                             || value.GetComponent<PlayerBallMovement>() != null
-                             || value.GetComponent<PlayerSpaceHopperMovement>() != null;
+            EnteredIsVehicle = root.GetComponent<PlayerVehicle>() != null;
+            steersToCameraYaw = false;
+            
+            for (var i = 0; i < CameraYawSteered.Length && !steersToCameraYaw; i++)
+            {
+                steersToCameraYaw = root.GetComponentInChildren(CameraYawSteered[i], true) != null;
+            }
+
+            flyingCar = root.GetComponentInChildren<PlayerVehicleFlyingCarMovement>(true);
         }
 
         public void ApplyHatVisibility(PlayerCharacter character)
@@ -505,6 +572,10 @@ public class FirstPerson : BaseMod
             {
                 RestoreFocus();
             }
+
+            // Reached on first activation and on every focus change, so the look angles are seeded
+            // from the new vehicle instead of resuming wherever the previous one left off.
+            yawSeeded = false;
 
             focus = newFocus;
             savedCutoff = newFocus.IsUsingCharacterCutoff();
