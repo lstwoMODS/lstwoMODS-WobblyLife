@@ -55,6 +55,7 @@ namespace WLProxChat.Transport
         public override void NetworkPost(HawkNetworkObject networkObject)
         {
             base.NetworkPost(networkObject);
+            lstwoMODS_WobblyLife.NetworkPrefabHelper.AdoptSpawnedInstance(this);
 
             // The singleton is claimed here, not in Start: the registered prefab is a live GameObject
             // whose own Unity Start runs too, and Instantiate copies its hideFlags onto the clone, so a

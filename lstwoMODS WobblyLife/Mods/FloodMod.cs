@@ -142,6 +142,7 @@ public class FloodMod : BaseMod
         public override void NetworkPost(HawkNetworkObject networkObject)
         {
             base.NetworkPost(networkObject);
+            NetworkPrefabHelper.AdoptSpawnedInstance(this);
 
             Instance = this;
 

@@ -52,6 +52,7 @@ public class ClothingStackNetworkManager : HawkNetworkBehaviour
     public override void NetworkPost(HawkNetworkObject networkObject)
     {
         base.NetworkPost(networkObject);
+        NetworkPrefabHelper.AdoptSpawnedInstance(this);
         Instance = this;
     }
 
